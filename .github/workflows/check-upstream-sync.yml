@@ -1,0 +1,104 @@
+# Prueft woechentlich, ob trufi-association/trufi-core einen neueren Tag
+# als den hat, auf dem fahrplaner-patches gerade basiert (siehe
+# .upstream-base), und versucht einen automatischen Rebase + Testlauf.
+# Siehe FAHRPLANER_PATCHES.md fuer die volle Sync-Strategie: dieser
+# Workflow MERGED NIE selbst - er oeffnet bei Erfolg nur einen PR, bei
+# Konflikt/Testfehler nur ein Issue. Freigabe bleibt bewusst manuell
+# (durch Claude/den Entwickler), siehe FAHRPLANER_PATCHES.md.
+name: Check upstream sync
+
+on:
+  schedule:
+    - cron: '0 6 * * 1' # montags 06:00 UTC
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+jobs:
+  check-sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fahrplaner-patches
+          fetch-depth: 0
+
+      - name: Upstream-Remote hinzufuegen und Tags holen
+        run: |
+          git remote add upstream https://github.com/trufi-association/trufi-core.git
+          git fetch upstream --tags
+
+      - name: Neuesten Upstream-Tag ermitteln
+        id: latest_tag
+        run: |
+          latest=$(git tag -l 'v*' --merged upstream/main --sort=-v:refname | head -n1)
+          current=$(cat .upstream-base 2>/dev/null || echo "none")
+          echo "latest=$latest" >> "$GITHUB_OUTPUT"
+          echo "current=$current" >> "$GITHUB_OUTPUT"
+          echo "Aktuelle Basis: $current, neuester Upstream-Tag: $latest"
+
+      - name: Beenden, falls schon aktuell
+        if: steps.latest_tag.outputs.latest == steps.latest_tag.outputs.current
+        run: echo "Kein neuerer Tag - nichts zu tun." && exit 0
+
+      - uses: subosito/flutter-action@v2
+        if: steps.latest_tag.outputs.latest != steps.latest_tag.outputs.current
+        with:
+          channel: stable
+          cache: true
+
+      - name: Rebase versuchen
+        if: steps.latest_tag.outputs.latest != steps.latest_tag.outputs.current
+        id: rebase
+        run: |
+          git config user.name "fahrplaner-sync-bot"
+          git config user.email "noreply@fahrplaner.de"
+          sync_branch="sync/${{ steps.latest_tag.outputs.latest }}"
+          git checkout -b "$sync_branch"
+          if git rebase "${{ steps.latest_tag.outputs.latest }}"; then
+            echo "clean=true" >> "$GITHUB_OUTPUT"
+            echo "${{ steps.latest_tag.outputs.latest }}" > .upstream-base
+            git add .upstream-base
+            git -c core.editor=true rebase --continue || true
+          else
+            echo "clean=false" >> "$GITHUB_OUTPUT"
+            git rebase --abort
+          fi
+          echo "sync_branch=$sync_branch" >> "$GITHUB_OUTPUT"
+
+      - name: Tests der betroffenen Pakete
+        if: steps.rebase.outputs.clean == 'true'
+        id: tests
+        run: |
+          set -e
+          for pkg in packages/trufi_core_maps packages/trufi_core_routing packages/screens/trufi_core_home_screen; do
+            (cd "$pkg" && flutter pub get && dart analyze)
+          done
+          (cd packages/trufi_core_maps && flutter test test/)
+          (cd packages/trufi_core_routing && flutter test test/unit/)
+          (cd packages/screens/trufi_core_home_screen && flutter test)
+        continue-on-error: true
+
+      - name: Erfolg - Branch pushen und PR oeffnen
+        if: steps.rebase.outputs.clean == 'true' && steps.tests.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git push origin "${{ steps.rebase.outputs.sync_branch }}" --force
+          gh pr create \
+            --base fahrplaner-patches \
+            --head "${{ steps.rebase.outputs.sync_branch }}" \
+            --title "Sync auf ${{ steps.latest_tag.outputs.latest }}" \
+            --body "Automatischer Rebase von fahrplaner-patches auf ${{ steps.latest_tag.outputs.latest }} - sauber durchgelaufen, dart analyze + Testsuiten der drei betroffenen Pakete gruen. Siehe FAHRPLANER_PATCHES.md fuer den Freigabe-Ablauf."
+
+      - name: Fehlschlag - Issue oeffnen
+        if: steps.rebase.outputs.clean == 'false' || steps.tests.outcome == 'failure'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh issue create \
+            --title "Sync auf ${{ steps.latest_tag.outputs.latest }} braucht manuelle Hilfe" \
+            --body "Automatischer Rebase von fahrplaner-patches auf ${{ steps.latest_tag.outputs.latest }} ist fehlgeschlagen (Konflikt oder Testfehler, siehe Workflow-Log: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}). Siehe FAHRPLANER_PATCHES.md fuer den manuellen Sync-Ablauf."

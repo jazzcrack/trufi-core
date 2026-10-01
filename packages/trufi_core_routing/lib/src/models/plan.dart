@@ -10,6 +10,8 @@ class Plan {
     this.itineraries,
     this.groupedItineraries,
     this.type,
+    this.nextPageCursor,
+    this.previousPageCursor,
   });
 
   final PlanLocation? from;
@@ -21,6 +23,15 @@ class Plan {
   final List<ItineraryGroup>? groupedItineraries;
 
   final String? type;
+
+  /// OTP pagination cursor for fetching the next page of later itineraries.
+  /// fahrplaner.de fork patch (see FAHRPLANER_PATCHES.md): OTP's `plan`
+  /// query already returns these, the upstream parser just discarded them.
+  final String? nextPageCursor;
+
+  /// OTP pagination cursor for fetching the previous page of earlier
+  /// itineraries. See [nextPageCursor].
+  final String? previousPageCursor;
 
   /// Creates a [Plan] from JSON.
   factory Plan.fromJson(Map<String, dynamic> json) {
@@ -37,6 +48,8 @@ class Plan {
                 .toList()
           : null,
       type: json['type'] as String?,
+      nextPageCursor: json['nextPageCursor'] as String?,
+      previousPageCursor: json['previousPageCursor'] as String?,
     );
   }
 
@@ -47,6 +60,8 @@ class Plan {
       'to': to?.toJson(),
       'itineraries': itineraries?.map((e) => e.toJson()).toList(),
       'type': type,
+      'nextPageCursor': nextPageCursor,
+      'previousPageCursor': previousPageCursor,
     };
   }
 
@@ -57,6 +72,8 @@ class Plan {
     List<Itinerary>? itineraries,
     List<ItineraryGroup>? groupedItineraries,
     String? type,
+    String? nextPageCursor,
+    String? previousPageCursor,
   }) {
     return Plan(
       from: from ?? this.from,
@@ -64,6 +81,8 @@ class Plan {
       itineraries: itineraries ?? this.itineraries,
       groupedItineraries: groupedItineraries ?? this.groupedItineraries,
       type: type ?? this.type,
+      nextPageCursor: nextPageCursor ?? this.nextPageCursor,
+      previousPageCursor: previousPageCursor ?? this.previousPageCursor,
     );
   }
 

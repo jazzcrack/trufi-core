@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 
 import '../../../l10n/maps_localizations.dart';
@@ -94,6 +95,7 @@ class _ChooseOnMapScreenState extends State<ChooseOnMapScreen> {
   final TrufiMapController _mapController = TrufiMapController();
   late double _currentZoom;
   bool _initialized = false;
+  bool _locating = false;
 
   void _initializeIfNeeded(MapEngineManager mapEngineManager) {
     if (!_initialized) {
@@ -136,6 +138,46 @@ class _ChooseOnMapScreenState extends State<ChooseOnMapScreen> {
       _currentLatitude = position.latitude;
       _currentLongitude = position.longitude;
     });
+  }
+
+  /// Jump the camera to the device's current GPS position (fahrplaner.de
+  /// fork patch, see FAHRPLANER_PATCHES.md). Without this, the only way to
+  /// recenter after scrolling away is to drag the map back by hand (#…).
+  /// Best-effort: any failure (service disabled, permission denied, no
+  /// fix within the timeout) just leaves the map where it was.
+  Future<void> _jumpToMyLocation() async {
+    setState(() => _locating = true);
+    try {
+      if (!await Geolocator.isLocationServiceEnabled()) return;
+      final permission = await Geolocator.checkPermission();
+      if (permission != LocationPermission.always &&
+          permission != LocationPermission.whileInUse) {
+        return;
+      }
+      final position = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.medium,
+          timeLimit: Duration(seconds: 5),
+        ),
+      );
+      if (_mapController.cameraPosition == null) return;
+      _mapController.moveCamera(
+        TrufiCameraPosition(
+          target: LatLng(position.latitude, position.longitude),
+          zoom: _currentZoom,
+        ),
+      );
+      if (mounted) {
+        setState(() {
+          _currentLatitude = position.latitude;
+          _currentLongitude = position.longitude;
+        });
+      }
+    } catch (_) {
+      // Not a blocker - the user can still drag the map by hand.
+    } finally {
+      if (mounted) setState(() => _locating = false);
+    }
   }
 
   @override
@@ -215,6 +257,39 @@ class _ChooseOnMapScreenState extends State<ChooseOnMapScreen> {
                               color: colorScheme.onSurface,
                             ),
                           ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Material(
+                      color: colorScheme.surface,
+                      borderRadius: BorderRadius.circular(14),
+                      elevation: 2,
+                      shadowColor: colorScheme.shadow.withValues(alpha: 0.2),
+                      child: InkWell(
+                        onTap: _locating
+                            ? null
+                            : () {
+                                HapticFeedback.lightImpact();
+                                _jumpToMyLocation();
+                              },
+                        borderRadius: BorderRadius.circular(14),
+                        child: SizedBox(
+                          width: 48,
+                          height: 48,
+                          child: _locating
+                              ? Padding(
+                                  padding: const EdgeInsets.all(14),
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: colorScheme.primary,
+                                  ),
+                                )
+                              : Icon(
+                                  Icons.my_location_rounded,
+                                  color: colorScheme.primary,
+                                  size: 24,
+                                ),
                         ),
                       ),
                     ),

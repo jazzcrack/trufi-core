@@ -191,6 +191,7 @@ query plan(
   $date: String,
   $time: String,
   $numItineraries: Int,
+  $pageCursor: String,
   $locale: String
 ) {
   plan(
@@ -199,6 +200,7 @@ query plan(
     date: $date,
     time: $time,
     numItineraries: $numItineraries,
+    pageCursor: $pageCursor,
     locale: $locale
   ) {
     from {
@@ -211,6 +213,8 @@ query plan(
       lat
       lon
     }
+    nextPageCursor
+    previousPageCursor
     itineraries {
       startTime
       endTime

@@ -136,5 +136,7 @@
   "placeDestination": "Ziel",
   "providerNoOptions": "Der Anbieter \"{provider}\" hat keine konfigurierbaren Optionen.",
   "resolvingLocation": "Ortsname wird gesucht…",
-  "copiedToClipboard": "Kopiert"
+  "copiedToClipboard": "Kopiert",
+  "loadEarlierConnections": "Frühere Verbindungen anzeigen",
+  "loadLaterConnections": "Spätere Verbindungen anzeigen"
 }

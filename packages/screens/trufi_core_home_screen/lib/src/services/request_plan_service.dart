@@ -10,5 +10,8 @@ abstract class RequestPlanService {
     String? locale,
     required DateTime dateTime,
     bool arriveBy = false,
+    // fahrplaner.de fork patch (see FAHRPLANER_PATCHES.md): "earlier/later
+    // connections" pagination, forwarded to the routing provider.
+    String? pageCursor,
   });
 }

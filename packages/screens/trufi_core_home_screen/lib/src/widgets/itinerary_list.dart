@@ -204,14 +204,35 @@ class _ItineraryListState extends State<ItineraryList> {
   ) {
     final l10n = HomeScreenLocalizations.of(context);
 
+    // fahrplaner.de fork patch (see FAHRPLANER_PATCHES.md): fixed slots for
+    // "load earlier"/"load later connections" right after the banner and
+    // after the last group - rendered as SizedBox.shrink() when the
+    // corresponding cursor isn't available, so the index math stays simple
+    // regardless of whether either button is actually visible.
     return ListView.builder(
       padding: const EdgeInsets.symmetric(vertical: 4),
       shrinkWrap: widget.shrinkWrap,
       physics: widget.shrinkWrap ? const NeverScrollableScrollPhysics() : null,
-      itemCount: groups.length + 1,
+      itemCount: groups.length + 3,
       itemBuilder: (context, index) {
         if (index == 0) return _EstimatedTimesBanner(l10n: l10n);
-        final groupIndex = index - 1;
+        if (index == 1) {
+          return _LoadMoreButton(
+            cursor: state.plan?.previousPageCursor,
+            earlier: true,
+            isLoading: state.isLoading,
+            onTap: () => cubit.loadMoreItineraries(earlier: true),
+          );
+        }
+        if (index == groups.length + 2) {
+          return _LoadMoreButton(
+            cursor: state.plan?.nextPageCursor,
+            earlier: false,
+            isLoading: state.isLoading,
+            onTap: () => cubit.loadMoreItineraries(earlier: false),
+          );
+        }
+        final groupIndex = index - 2;
         final group = groups[groupIndex];
         final containsSelection = group.alternatives.contains(
           state.selectedItinerary,
@@ -273,14 +294,32 @@ class _ItineraryListState extends State<ItineraryList> {
     RoutePlannerCubit cubit,
   ) {
     final l10n = HomeScreenLocalizations.of(context);
+    // fahrplaner.de fork patch (see FAHRPLANER_PATCHES.md): same fixed
+    // earlier/later slots as _buildGroupedListView above.
     return ListView.builder(
       padding: const EdgeInsets.symmetric(vertical: 4),
       shrinkWrap: widget.shrinkWrap,
       physics: widget.shrinkWrap ? const NeverScrollableScrollPhysics() : null,
-      itemCount: itineraries.length + 1,
+      itemCount: itineraries.length + 3,
       itemBuilder: (context, index) {
         if (index == 0) return _EstimatedTimesBanner(l10n: l10n);
-        final itemIndex = index - 1;
+        if (index == 1) {
+          return _LoadMoreButton(
+            cursor: state.plan?.previousPageCursor,
+            earlier: true,
+            isLoading: state.isLoading,
+            onTap: () => cubit.loadMoreItineraries(earlier: true),
+          );
+        }
+        if (index == itineraries.length + 2) {
+          return _LoadMoreButton(
+            cursor: state.plan?.nextPageCursor,
+            earlier: false,
+            isLoading: state.isLoading,
+            onTap: () => cubit.loadMoreItineraries(earlier: false),
+          );
+        }
+        final itemIndex = index - 2;
         final itinerary = itineraries[itemIndex];
         final isSelected = itinerary == state.selectedItinerary;
 
@@ -587,6 +626,42 @@ class _EstimatedTimesBanner extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// "Load earlier/later connections" button (fahrplaner.de fork patch, see
+/// FAHRPLANER_PATCHES.md). Collapses to nothing when [cursor] is null - no
+/// cursor means either the current provider doesn't support paging (e.g.
+/// the offline GTFS planner) or OTP's search window is already exhausted
+/// in that direction, and there is no useful action to offer either way.
+class _LoadMoreButton extends StatelessWidget {
+  final String? cursor;
+  final bool earlier;
+  final bool isLoading;
+  final VoidCallback onTap;
+
+  const _LoadMoreButton({
+    required this.cursor,
+    required this.earlier,
+    required this.isLoading,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (cursor == null) return const SizedBox.shrink();
+    final l10n = HomeScreenLocalizations.of(context);
+    final label = earlier ? l10n.loadEarlierConnections : l10n.loadLaterConnections;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      child: Center(
+        child: TextButton.icon(
+          onPressed: isLoading ? null : onTap,
+          icon: Icon(earlier ? Icons.expand_less_rounded : Icons.expand_more_rounded),
+          label: Text(label),
+        ),
       ),
     );
   }

@@ -117,6 +117,10 @@ class Otp15RoutingProvider extends IRoutingProvider {
     String? locale,
     required DateTime dateTime,
     bool arriveBy = false,
+    // fahrplaner.de fork patch (see FAHRPLANER_PATCHES.md): OTP 1.5 predates
+    // the pageCursor pagination API, so this is accepted for interface
+    // compatibility but intentionally ignored.
+    String? pageCursor,
   }) async {
     final date =
         '${dateTime.month.toString().padLeft(2, '0')}-${dateTime.day.toString().padLeft(2, '0')}-${dateTime.year}';

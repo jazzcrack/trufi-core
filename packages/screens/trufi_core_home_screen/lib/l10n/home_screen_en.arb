@@ -650,5 +650,13 @@
   "copiedToClipboard": "Copied",
   "@copiedToClipboard": {
     "description": "Short confirmation shown after a place or stop name was copied to the clipboard (long-press on the name, or the copy button)"
+  },
+  "loadEarlierConnections": "Show earlier connections",
+  "@loadEarlierConnections": {
+    "description": "Button above the itinerary list to load earlier connections (fahrplaner.de fork patch, see FAHRPLANER_PATCHES.md)"
+  },
+  "loadLaterConnections": "Show later connections",
+  "@loadLaterConnections": {
+    "description": "Button below the itinerary list to load later connections (fahrplaner.de fork patch, see FAHRPLANER_PATCHES.md)"
   }
 }

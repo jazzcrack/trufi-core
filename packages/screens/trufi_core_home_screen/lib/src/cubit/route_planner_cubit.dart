@@ -316,6 +316,61 @@ class RoutePlannerCubit extends Cubit<RoutePlannerState> {
     }
   }
 
+  /// Loads one more page of itineraries ("earlier"/"later connections",
+  /// fahrplaner.de fork patch, see FAHRPLANER_PATCHES.md) using the cursor
+  /// OTP already returns with every plan (previously parsed but discarded,
+  /// see [routing.Plan.nextPageCursor]/[routing.Plan.previousPageCursor]).
+  /// No-op if there is no current plan, no cursor in the requested
+  /// direction (provider doesn't support paging, or already at the edge of
+  /// the search window), or a fetch is already running.
+  ///
+  /// New itineraries are merged into the existing list (prepended for
+  /// [earlier], appended otherwise) and run through the same
+  /// enrichment/grouping/filtering pipeline as [fetchPlan] so the merged
+  /// list stays consistent.
+  Future<void> loadMoreItineraries({required bool earlier}) async {
+    final currentPlan = state.plan;
+    if (currentPlan == null || state.isLoading) return;
+    final cursor = earlier
+        ? currentPlan.previousPageCursor
+        : currentPlan.nextPageCursor;
+    if (cursor == null) return;
+    if (state.fromPlace == null || state.toPlace == null) return;
+
+    emit(state.copyWith(isLoading: true));
+    try {
+      final rawPlan = await _requestService.fetchPlan(
+        from: state.fromPlace!,
+        to: state.toPlace!,
+        locale: _locale,
+        dateTime: DateTime.now(),
+        pageCursor: cursor,
+      );
+
+      final enriched = _enrichServiceHours(rawPlan);
+      final existing = currentPlan.itineraries ?? [];
+      final fetched = enriched.itineraries ?? [];
+      final merged = earlier ? [...fetched, ...existing] : [...existing, ...fetched];
+
+      final mergedPlan = _groupPlanItineraries(
+        currentPlan.copyWith(
+          itineraries: merged,
+          nextPageCursor: earlier
+              ? currentPlan.nextPageCursor
+              : enriched.nextPageCursor,
+          previousPageCursor: earlier
+              ? enriched.previousPageCursor
+              : currentPlan.previousPageCursor,
+        ),
+      );
+
+      await _repository.savePlan(mergedPlan);
+      emit(state.copyWith(plan: mergedPlan, isLoading: false));
+    } catch (e) {
+      emit(state.copyWith(isLoading: false, error: e.toString()));
+    }
+  }
+
   /// Select an itinerary from the plan.
   Future<void> selectItinerary(routing.Itinerary itinerary) async {
     await _repository.saveSelectedItinerary(itinerary);

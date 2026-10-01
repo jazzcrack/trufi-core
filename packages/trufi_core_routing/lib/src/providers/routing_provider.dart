@@ -100,6 +100,12 @@ abstract class IRoutingProvider {
     String? locale,
     required DateTime dateTime,
     bool arriveBy = false,
+    // fahrplaner.de fork patch (see FAHRPLANER_PATCHES.md): "earlier/later
+    // connections" pagination. Optional + additive, so existing callers and
+    // other IRoutingProvider implementations keep compiling unchanged;
+    // providers that don't support paging (e.g. the offline GTFS planner)
+    // can just ignore it.
+    String? pageCursor,
   });
 
   /// Fetches all transit routes.

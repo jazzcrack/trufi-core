@@ -111,6 +111,10 @@ class Otp24RoutingProvider extends IRoutingProvider {
     String? locale,
     required DateTime dateTime,
     bool arriveBy = false,
+    // fahrplaner.de fork patch (see FAHRPLANER_PATCHES.md): OTP 2.4 doesn't
+    // support the pageCursor pagination API (OTP 2.8+ only), so this is
+    // accepted for interface compatibility but intentionally ignored.
+    String? pageCursor,
   }) async {
     final queryString = useSimpleQuery ? otp24SimplePlanQuery : otp24PlanQuery;
 

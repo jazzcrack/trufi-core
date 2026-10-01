@@ -476,4 +476,10 @@ class HomeScreenLocalizationsEn extends HomeScreenLocalizations {
 
   @override
   String get copiedToClipboard => 'Copied';
+
+  @override
+  String get loadEarlierConnections => 'Show earlier connections';
+
+  @override
+  String get loadLaterConnections => 'Show later connections';
 }

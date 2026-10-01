@@ -29,6 +29,11 @@ class Otp28ResponseParser {
       from: _parsePlanLocation(planData['from']),
       to: _parsePlanLocation(planData['to']),
       itineraries: _parseItineraries(planData['itineraries']),
+      // fahrplaner.de fork patch (see FAHRPLANER_PATCHES.md): OTP already
+      // returns these (see otp_2_8_queries.dart), the upstream parser just
+      // never read them.
+      nextPageCursor: planData['nextPageCursor'] as String?,
+      previousPageCursor: planData['previousPageCursor'] as String?,
     );
   }
 

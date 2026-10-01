@@ -30,6 +30,7 @@ class _RecordingProvider extends IRoutingProvider {
     String? locale,
     required DateTime dateTime,
     bool arriveBy = false,
+    String? pageCursor,
   }) async {
     capturedNumItineraries = numItineraries;
     return Plan(itineraries: []);

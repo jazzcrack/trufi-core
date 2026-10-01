@@ -888,6 +888,18 @@ abstract class HomeScreenLocalizations {
   /// In en, this message translates to:
   /// **'Copied'**
   String get copiedToClipboard;
+
+  /// Button above the itinerary list to load earlier connections (fahrplaner.de fork patch, see FAHRPLANER_PATCHES.md)
+  ///
+  /// In en, this message translates to:
+  /// **'Show earlier connections'**
+  String get loadEarlierConnections;
+
+  /// Button below the itinerary list to load later connections (fahrplaner.de fork patch, see FAHRPLANER_PATCHES.md)
+  ///
+  /// In en, this message translates to:
+  /// **'Show later connections'**
+  String get loadLaterConnections;
 }
 
 class _HomeScreenLocalizationsDelegate

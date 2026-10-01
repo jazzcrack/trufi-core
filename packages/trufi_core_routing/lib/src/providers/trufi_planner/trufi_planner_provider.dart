@@ -126,6 +126,10 @@ class TrufiPlannerProvider extends IRoutingProvider {
     String? locale,
     required DateTime dateTime,
     bool arriveBy = false,
+    // fahrplaner.de fork patch (see FAHRPLANER_PATCHES.md): the offline
+    // GTFS planner has no pagination concept, so this is accepted for
+    // interface compatibility but intentionally ignored.
+    String? pageCursor,
   }) async {
     if (!_dataSource.isLoaded) {
       await _dataSource.preload();

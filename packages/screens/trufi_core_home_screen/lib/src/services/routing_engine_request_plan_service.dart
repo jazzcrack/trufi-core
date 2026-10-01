@@ -23,6 +23,7 @@ class RoutingEngineRequestPlanService implements RequestPlanService {
     String? locale,
     required DateTime dateTime,
     bool arriveBy = false,
+    String? pageCursor,
   }) async {
     final totalStopwatch = Stopwatch()..start();
     final engine = _manager.currentEngine;
@@ -59,6 +60,7 @@ class RoutingEngineRequestPlanService implements RequestPlanService {
         locale: locale,
         dateTime: dateTime,
         arriveBy: arriveBy,
+        pageCursor: pageCursor,
       );
 
       totalStopwatch.stop();

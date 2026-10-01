@@ -188,6 +188,10 @@ class RoutingEngineManager extends ChangeNotifier {
     String? locale,
     required DateTime dateTime,
     bool arriveBy = false,
+    // fahrplaner.de fork patch (see FAHRPLANER_PATCHES.md): threads the
+    // "earlier/later connections" pagination cursor through to whichever
+    // provider is current.
+    String? pageCursor,
   }) {
     return currentEngine.fetchPlan(
       from: from,
@@ -196,6 +200,7 @@ class RoutingEngineManager extends ChangeNotifier {
       locale: locale,
       dateTime: dateTime,
       arriveBy: arriveBy,
+      pageCursor: pageCursor,
     );
   }
 

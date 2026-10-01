@@ -146,6 +146,7 @@ class Otp28RoutingProvider extends IRoutingProvider {
     String? locale,
     required DateTime dateTime,
     bool arriveBy = false,
+    String? pageCursor,
   }) async {
     final queryString = useSimpleQuery ? otp28SimplePlanQuery : otp28PlanQuery;
 
@@ -162,6 +163,11 @@ class Otp28RoutingProvider extends IRoutingProvider {
       'time': time,
       if (arriveBy) 'arriveBy': true,
       if (locale != null) 'locale': locale,
+      // fahrplaner.de fork patch (see FAHRPLANER_PATCHES.md): when a
+      // pageCursor is supplied, OTP ignores date/time/arriveBy and
+      // continues from where that cursor left off (its own documented
+      // behavior), so passing both together is intentional, not redundant.
+      if (pageCursor != null) 'pageCursor': pageCursor,
     };
 
     if (!useSimpleQuery) {

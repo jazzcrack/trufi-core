@@ -28,6 +28,9 @@ dependencies:
   # (maplibre/flutter-maplibre-gl#819, PR #841); crashed a real-device
   # App Review submission on 0.25.0 (Trujillo, 2026-08-09).
   maplibre_gl: ^0.26.2
+  # fahrplaner.de fork patch (see FAHRPLANER_PATCHES.md): "jump to my
+  # location" button on ChooseOnMapScreen.
+  geolocator: ^14.0.0
   shared_preferences: ^2.5.4
   path_provider: ^2.1.5
   url_launcher: ^6.3.2
