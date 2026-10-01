@@ -138,5 +138,7 @@
   "resolvingLocation": "Ortsname wird gesucht…",
   "copiedToClipboard": "Kopiert",
   "loadEarlierConnections": "Frühere Verbindungen anzeigen",
-  "loadLaterConnections": "Spätere Verbindungen anzeigen"
+  "loadLaterConnections": "Spätere Verbindungen anzeigen",
+  "delayOnTime": "Pünktlich",
+  "delayLateMinutes": "+{minutes} Min"
 }

@@ -900,6 +900,18 @@ abstract class HomeScreenLocalizations {
   /// In en, this message translates to:
   /// **'Show later connections'**
   String get loadLaterConnections;
+
+  /// Shown on an itinerary card when real-time data is available and the trip is on schedule (within a small tolerance) - fahrplaner.de fork patch, see FAHRPLANER_PATCHES.md
+  ///
+  /// In en, this message translates to:
+  /// **'On time'**
+  String get delayOnTime;
+
+  /// Shown on an itinerary card when real-time data shows the trip arriving later than scheduled - fahrplaner.de fork patch, see FAHRPLANER_PATCHES.md
+  ///
+  /// In en, this message translates to:
+  /// **'+{minutes} min'**
+  String delayLateMinutes(int minutes);
 }
 
 class _HomeScreenLocalizationsDelegate

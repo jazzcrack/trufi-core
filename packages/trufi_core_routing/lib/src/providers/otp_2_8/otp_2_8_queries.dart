@@ -75,6 +75,24 @@ query plan(
         transitLeg
         realTime
         realtimeState
+        # fahrplaner.de fork patch (siehe FAHRPLANER_PATCHES.md): Verspaetung
+        # in Sekunden. arrivalDelay/departureDelay sind laut OTP-Doku
+        # deprecated zugunsten von start.estimated.delay/end.estimated.delay,
+        # aber in OTP 2.8/2.11 noch vorhanden - start/end zusaetzlich
+        # angefragt, damit der Patch auch nach einem Upstream-Wechsel auf die
+        # neuen Felder funktioniert, ohne die Query nochmal anzufassen.
+        start {
+          scheduledTime
+          estimated {
+            delay
+          }
+        }
+        end {
+          scheduledTime
+          estimated {
+            delay
+          }
+        }
         legGeometry {
           points
         }

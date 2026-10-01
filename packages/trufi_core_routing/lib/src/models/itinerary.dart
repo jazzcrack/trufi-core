@@ -163,6 +163,18 @@ class Itinerary extends Equatable {
     return legs.where((leg) => leg.transitLeg).toList();
   }
 
+  /// Real-time delay at the final destination - i.e. how late (or early)
+  /// the rider will actually arrive, not just the delay of a single leg.
+  /// fahrplaner.de fork patch (see FAHRPLANER_PATCHES.md). Null when no
+  /// leg in this itinerary carries real-time data (e.g. a fully offline
+  /// plan, or a feed without GTFS-RT coverage for any of these trips).
+  Duration? get overallArrivalDelay {
+    for (final leg in legs.reversed) {
+      if (leg.arrivalDelay != null) return leg.arrivalDelay;
+    }
+    return null;
+  }
+
   /// Returns the number of transfers (from JSON or calculated).
   int get numberOfTransfers {
     if (transfers != null) return transfers!;

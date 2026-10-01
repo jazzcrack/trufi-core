@@ -658,5 +658,19 @@
   "loadLaterConnections": "Show later connections",
   "@loadLaterConnections": {
     "description": "Button below the itinerary list to load later connections (fahrplaner.de fork patch, see FAHRPLANER_PATCHES.md)"
+  },
+  "delayOnTime": "On time",
+  "@delayOnTime": {
+    "description": "Shown on an itinerary card when real-time data is available and the trip is on schedule (within a small tolerance) - fahrplaner.de fork patch, see FAHRPLANER_PATCHES.md"
+  },
+  "delayLateMinutes": "+{minutes} min",
+  "@delayLateMinutes": {
+    "description": "Shown on an itinerary card when real-time data shows the trip arriving later than scheduled - fahrplaner.de fork patch, see FAHRPLANER_PATCHES.md",
+    "placeholders": {
+      "minutes": {
+        "type": "int",
+        "example": "5"
+      }
+    }
   }
 }

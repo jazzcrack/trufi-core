@@ -483,4 +483,12 @@ class HomeScreenLocalizationsDe extends HomeScreenLocalizations {
 
   @override
   String get loadLaterConnections => 'Spätere Verbindungen anzeigen';
+
+  @override
+  String get delayOnTime => 'Pünktlich';
+
+  @override
+  String delayLateMinutes(int minutes) {
+    return '+$minutes Min';
+  }
 }

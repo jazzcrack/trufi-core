@@ -113,7 +113,25 @@ class Otp28ResponseParser {
         json['realtimeState'] as String?,
       ),
       tripPatternId: tripPatternId,
+      // fahrplaner.de fork patch (see FAHRPLANER_PATCHES.md).
+      departureDelay: _parseDelay(json['start']),
+      arrivalDelay: _parseDelay(json['end']),
     );
+  }
+
+  /// Extracts the real-time delay (seconds) from a GraphQL `LegTime`
+  /// object (`{scheduledTime, estimated: {delay}}`), fahrplaner.de fork
+  /// patch (see FAHRPLANER_PATCHES.md). Null whenever `estimated` is null -
+  /// OTP's own documented signal for "no real-time data here". Mirrors
+  /// Leg._parseDelayFromLegTime, duplicated because that one is file-
+  /// private to leg.dart.
+  static Duration? _parseDelay(dynamic legTimeJson) {
+    if (legTimeJson is! Map<String, dynamic>) return null;
+    final estimated = legTimeJson['estimated'];
+    if (estimated is! Map<String, dynamic>) return null;
+    final delaySeconds = estimated['delay'];
+    if (delaySeconds is! num) return null;
+    return Duration(seconds: delaySeconds.toInt());
   }
 
   static Route _parseRoute(Map<String, dynamic> json) {

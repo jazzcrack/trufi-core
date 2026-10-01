@@ -36,6 +36,8 @@ class Leg extends Equatable {
     this.headsign,
     this.tripPatternId,
     this.serviceHours,
+    this.departureDelay,
+    this.arrivalDelay,
   });
 
   final String mode;
@@ -66,6 +68,18 @@ class Leg extends Equatable {
   /// null. UI consumers (e.g. the itinerary plan leg) render a small
   /// status badge when this is non-null.
   final ServiceHours? serviceHours;
+
+  /// Real-time offset from the scheduled departure at this leg's boarding
+  /// stop, in either direction (positive = late, negative = early).
+  /// fahrplaner.de fork patch (see FAHRPLANER_PATCHES.md): parsed from
+  /// OTP's `start.estimated.delay`. Null when no real-time data is
+  /// available for this leg (e.g. offline planner, or a feed without
+  /// GTFS-RT coverage for this trip).
+  final Duration? departureDelay;
+
+  /// Real-time offset from the scheduled arrival at this leg's alighting
+  /// stop. See [departureDelay].
+  final Duration? arrivalDelay;
 
   /// Returns the transport mode enum.
   TransportMode get transportMode =>
@@ -125,7 +139,29 @@ class Leg extends Equatable {
               json['serviceHours'] as Map<String, dynamic>,
             )
           : null,
+      departureDelay:
+          _parseDelayFromLegTime(json['start']) ?? json.getDuration('departureDelay'),
+      arrivalDelay:
+          _parseDelayFromLegTime(json['end']) ?? json.getDuration('arrivalDelay'),
     );
+  }
+
+  /// Extracts the real-time delay (seconds) from a GraphQL `LegTime`
+  /// object (`{scheduledTime, estimated: {delay}}`), fahrplaner.de fork
+  /// patch (see FAHRPLANER_PATCHES.md). Null whenever `estimated` itself
+  /// is null - OTP's own documented signal for "no real-time data here".
+  /// The `?? json.getDuration(...)` fallback in [fromJson] above is what
+  /// makes `toJson()`/`fromJson()` round-trip correctly for our own local
+  /// persistence (`HomeScreenRepository.savePlan`), which serializes via
+  /// [toJson] into the flat `departureDelay`/`arrivalDelay` keys, not the
+  /// nested GraphQL shape.
+  static Duration? _parseDelayFromLegTime(dynamic legTimeJson) {
+    if (legTimeJson is! Map<String, dynamic>) return null;
+    final estimated = legTimeJson['estimated'];
+    if (estimated is! Map<String, dynamic>) return null;
+    final delaySeconds = estimated['delay'];
+    if (delaySeconds is! num) return null;
+    return Duration(seconds: delaySeconds.toInt());
   }
 
   static Route? _parseRoute(dynamic routeData) {
@@ -170,6 +206,8 @@ class Leg extends Equatable {
       'headsign': headsign,
       'tripPatternId': tripPatternId,
       'serviceHours': serviceHours?.toJson(),
+      'departureDelay': departureDelay?.inSeconds,
+      'arrivalDelay': arrivalDelay?.inSeconds,
     };
   }
 
@@ -197,6 +235,8 @@ class Leg extends Equatable {
     String? headsign,
     String? tripPatternId,
     ServiceHours? serviceHours,
+    Duration? departureDelay,
+    Duration? arrivalDelay,
   }) {
     return Leg(
       mode: mode ?? this.mode,
@@ -222,6 +262,8 @@ class Leg extends Equatable {
       headsign: headsign ?? this.headsign,
       tripPatternId: tripPatternId ?? this.tripPatternId,
       serviceHours: serviceHours ?? this.serviceHours,
+      departureDelay: departureDelay ?? this.departureDelay,
+      arrivalDelay: arrivalDelay ?? this.arrivalDelay,
     );
   }
 

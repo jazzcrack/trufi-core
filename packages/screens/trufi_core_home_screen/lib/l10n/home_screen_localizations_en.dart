@@ -482,4 +482,12 @@ class HomeScreenLocalizationsEn extends HomeScreenLocalizations {
 
   @override
   String get loadLaterConnections => 'Show later connections';
+
+  @override
+  String get delayOnTime => 'On time';
+
+  @override
+  String delayLateMinutes(int minutes) {
+    return '+$minutes min';
+  }
 }
