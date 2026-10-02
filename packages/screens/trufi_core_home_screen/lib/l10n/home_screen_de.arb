@@ -140,5 +140,6 @@
   "loadEarlierConnections": "Frühere Verbindungen anzeigen",
   "loadLaterConnections": "Spätere Verbindungen anzeigen",
   "delayOnTime": "Pünktlich",
-  "delayLateMinutes": "+{minutes} Min"
+  "delayLateMinutes": "+{minutes} Min",
+  "networkErrorMessage": "Keine Verbindung zum Routing-Server. Bitte Internetverbindung prüfen und erneut versuchen."
 }

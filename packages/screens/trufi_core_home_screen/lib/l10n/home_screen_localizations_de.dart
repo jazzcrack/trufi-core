@@ -491,4 +491,8 @@ class HomeScreenLocalizationsDe extends HomeScreenLocalizations {
   String delayLateMinutes(int minutes) {
     return '+$minutes Min';
   }
+
+  @override
+  String get networkErrorMessage =>
+      'Keine Verbindung zum Routing-Server. Bitte Internetverbindung prüfen und erneut versuchen.';
 }

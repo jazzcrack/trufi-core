@@ -16,6 +16,33 @@ const String noRoutesErrorKey = 'no_routes_found';
 /// [minPlanningDistanceMeters] of each other.
 const String tooCloseErrorKey = 'origin_destination_too_close';
 
+/// Error key emitted when fetchPlan() fails for a network/connectivity
+/// reason (no internet, DNS failure, server unreachable, timeout) rather
+/// than a routing-logic reason. fahrplaner.de fork patch (see
+/// FAHRPLANER_PATCHES.md) - before this, any such failure fell through to
+/// the raw `e.toString()` (e.g. "Otp28Exception: Network error:
+/// ClientException with SocketException: Connection failed (OS Error: No
+/// route to host, errno = 65) ..."), shown verbatim to the user.
+const String networkErrorKey = 'network_error';
+
+/// Best-effort classification of a routing-provider exception as a
+/// network/connectivity failure vs. anything else (bad request, server-side
+/// routing error, etc.), which keep surfacing as `e.toString()` - this is
+/// deliberately a substring match across provider exception types (OTP
+/// 1.5/2.4/2.8, the offline planner) rather than a shared exception
+/// hierarchy, since none currently exists to catch more precisely.
+bool _isNetworkError(Object error) {
+  final text = error.toString().toLowerCase();
+  return text.contains('socketexception') ||
+      text.contains('network error') ||
+      text.contains('connection failed') ||
+      text.contains('connection refused') ||
+      text.contains('no route to host') ||
+      text.contains('failed host lookup') ||
+      text.contains('timeoutexception') ||
+      text.contains('httpexception');
+}
+
 /// Below this distance (meters), planning is short-circuited and the user is
 /// shown a "too close" message instead of a degenerate routing-engine result.
 const double minPlanningDistanceMeters = 100;
@@ -312,7 +339,12 @@ class RoutePlannerCubit extends Cubit<RoutePlannerState> {
         ),
       );
     } catch (e) {
-      emit(state.copyWith(isLoading: false, error: e.toString()));
+      emit(
+        state.copyWith(
+          isLoading: false,
+          error: _isNetworkError(e) ? networkErrorKey : e.toString(),
+        ),
+      );
     }
   }
 
@@ -367,7 +399,12 @@ class RoutePlannerCubit extends Cubit<RoutePlannerState> {
       await _repository.savePlan(mergedPlan);
       emit(state.copyWith(plan: mergedPlan, isLoading: false));
     } catch (e) {
-      emit(state.copyWith(isLoading: false, error: e.toString()));
+      emit(
+        state.copyWith(
+          isLoading: false,
+          error: _isNetworkError(e) ? networkErrorKey : e.toString(),
+        ),
+      );
     }
   }
 

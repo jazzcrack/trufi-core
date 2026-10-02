@@ -912,6 +912,12 @@ abstract class HomeScreenLocalizations {
   /// In en, this message translates to:
   /// **'+{minutes} min'**
   String delayLateMinutes(int minutes);
+
+  /// Shown instead of a raw exception message when fetchPlan() fails for a connectivity reason (no internet, server unreachable, timeout) - fahrplaner.de fork patch, see FAHRPLANER_PATCHES.md
+  ///
+  /// In en, this message translates to:
+  /// **'No connection to the routing server. Please check your internet connection and try again.'**
+  String get networkErrorMessage;
 }
 
 class _HomeScreenLocalizationsDelegate

@@ -410,6 +410,8 @@ class _ItineraryListState extends State<ItineraryList> {
           Text(
             state.error == noRoutesErrorKey
                 ? l10n.noRoutesFound
+                : state.error == networkErrorKey
+                ? l10n.networkErrorMessage
                 : (state.error ?? l10n.errorNoRoutes),
             textAlign: TextAlign.center,
             style: theme.textTheme.bodyLarge?.copyWith(
