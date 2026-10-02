@@ -97,6 +97,13 @@ class NavigationLeg extends Equatable {
   final String? modeName;
   final Duration duration;
 
+  /// Real-time offset from the scheduled arrival at this leg's alighting
+  /// point (positive = late, negative = early), fahrplaner.de fork patch
+  /// (see FAHRPLANER_PATCHES.md). Null when no real-time data is available
+  /// for this leg. Carried over from routing.Leg.arrivalDelay by
+  /// ItineraryConverter.toNavigationRoute().
+  final Duration? arrivalDelay;
+
   const NavigationLeg({
     required this.id,
     required this.points,
@@ -107,6 +114,7 @@ class NavigationLeg extends Equatable {
     this.routeName,
     this.modeName,
     this.duration = Duration.zero,
+    this.arrivalDelay,
   });
 
   @override
@@ -120,6 +128,7 @@ class NavigationLeg extends Equatable {
     routeName,
     modeName,
     duration,
+    arrivalDelay,
   ];
 }
 

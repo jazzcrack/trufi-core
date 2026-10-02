@@ -57,6 +57,8 @@ class ItineraryConverter {
           routeName: leg.shortName ?? leg.route?.shortName,
           modeName: leg.mode,
           duration: leg.duration,
+          // fahrplaner.de fork patch (see FAHRPLANER_PATCHES.md).
+          arrivalDelay: leg.arrivalDelay,
         ),
       );
     }
