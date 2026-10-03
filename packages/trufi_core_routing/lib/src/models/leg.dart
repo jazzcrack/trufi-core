@@ -270,6 +270,16 @@ class Leg extends Equatable {
   /// Returns true if this is a walking leg.
   bool get isLegOnFoot => transportMode == TransportMode.walk;
 
+  /// Whether this leg is traversed with a rented GBFS vehicle.
+  /// fahrplaner.de fork patch (Kapitel 3.23): generalizes [rentedBike] -
+  /// this fork's query has no "ride your own scooter" concept, so any
+  /// SCOOTER-mode leg is definitionally a rental, while BICYCLE legs
+  /// still rely on the existing [rentedBike] flag to distinguish an
+  /// owned bike from a shared one. Derived, not stored - no query/parser
+  /// change needed.
+  bool get isRentedVehicle =>
+      rentedBike == true || transportMode == TransportMode.scooter;
+
   /// Returns the route color (should be set by Itinerary._assignDefaultColors).
   String get routeColor => route?.color ?? '';
 

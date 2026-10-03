@@ -95,6 +95,16 @@ class Otp28RoutingProvider extends IRoutingProvider {
   /// just returns null, same as any other engine without realtime support.
   final String? feedId;
 
+  /// fahrplaner.de fork patch (Kapitel 3.23): which GBFS rental form
+  /// factors this deployment currently has a live, tested feed for (see
+  /// `router-config.json`'s `vehicle-rental` updaters). Controls which
+  /// quick-filter presets [buildQuickFilterChips] offers at all. Default
+  /// `{RentalFormFactor.bicycle}` matches nextbike Bremen, the only
+  /// feed that's live-tested as of Kapitel 3.23 - add
+  /// [RentalFormFactor.scooter] here once a real scooter feed is
+  /// confirmed working; no other code change is needed.
+  final Set<RentalFormFactor> availableRentalFormFactors;
+
   Otp28RoutingProvider({
     required this.endpoint,
     this.useSimpleQuery = false,
@@ -107,6 +117,7 @@ class Otp28RoutingProvider extends IRoutingProvider {
     this.liveVehiclesEnabled = false,
     this.liveVehiclesPollInterval = const Duration(seconds: 10),
     this.feedId,
+    this.availableRentalFormFactors = const {RentalFormFactor.bicycle},
   });
 
   OtpVehiclePositionsProvider? _realtimeVehiclesProvider;
@@ -152,6 +163,28 @@ class Otp28RoutingProvider extends IRoutingProvider {
 
   @override
   void resetPreferences() => _prefs.reset();
+
+  /// fahrplaner.de fork patch (Kapitel 3.23): minimal public surface so
+  /// callers outside this package can read/drive the GBFS sharing
+  /// filter without reaching into [_prefs] (private, and exposing the
+  /// whole preferences object would leak unrelated wheelchair/walk-
+  /// speed mutation surface).
+  Set<RentalFormFactor> get rentalFormFactors => _prefs.rentalFormFactors;
+
+  /// See [rentalFormFactors]. Persists exactly like toggling any other
+  /// preference chip (same SharedPreferences-backed state).
+  void setRentalFormFactors(Set<RentalFormFactor> formFactors) =>
+      _prefs.setRentalFormFactors(formFactors);
+
+  @override
+  Widget? buildQuickFilterChips(BuildContext context, {VoidCallback? onChanged}) =>
+      availableRentalFormFactors.isEmpty
+      ? null
+      : SharingQuickFilterChips(
+          state: _prefs,
+          availableRentalFormFactors: availableRentalFormFactors,
+          onChanged: onChanged,
+        );
 
   @override
   Future<void> initialize() async {
@@ -203,12 +236,18 @@ class Otp28RoutingProvider extends IRoutingProvider {
       }
       variables['walkSpeed'] = _prefs.walkSpeed;
       variables['walkReluctance'] = _prefs.walkReluctance;
-      if (_prefs.transportModes.contains(RoutingMode.bicycle)) {
+      // fahrplaner.de fork patch (Kapitel 3.23): a rented-bike-only trip
+      // (no own-bicycle mode selected) should still use the configured
+      // bike speed instead of silently falling back to OTP's internal
+      // default.
+      if (_prefs.transportModes.contains(RoutingMode.bicycle) ||
+          _prefs.rentalFormFactors.contains(RentalFormFactor.bicycle)) {
         variables['bikeSpeed'] = _prefs.bikeSpeed;
       }
-      variables['transportModes'] = _prefs.transportModes
-          .map((m) => {'mode': m.otpName})
-          .toList();
+      variables['transportModes'] = buildTransportModesVariable(
+        baseModes: _prefs.transportModes,
+        rentalFormFactors: _prefs.rentalFormFactors,
+      );
     }
 
     Context? requestContext;

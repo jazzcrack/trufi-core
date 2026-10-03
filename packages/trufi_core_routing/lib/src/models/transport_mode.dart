@@ -24,6 +24,9 @@ enum TransportMode {
   miniBus,
   lightRail,
 
+  /// GBFS rental scooter leg (fahrplaner.de fork patch, Kapitel 3.23).
+  scooter,
+
   /// @deprecated Use [error] instead.
   @Deprecated('Use TransportMode.error instead')
   unknown,
@@ -54,6 +57,7 @@ extension TransportModeExtension on TransportMode {
     TransportMode.micro: 'MICRO',
     TransportMode.miniBus: 'MINIBUS',
     TransportMode.lightRail: 'LIGHT RAIL',
+    TransportMode.scooter: 'SCOOTER',
     // ignore: deprecated_member_use_from_same_package
     TransportMode.unknown: 'UNKNOWN',
   };

@@ -163,6 +163,24 @@ abstract class RoutingLocalizations {
   /// **'Bicycle'**
   String get prefsModeBicycle;
 
+  /// Quick-filter chip label: only show GBFS shared-bike routes
+  ///
+  /// In en, this message translates to:
+  /// **'Shared bikes only'**
+  String get sharingFilterRentalBicycle;
+
+  /// Quick-filter chip label: only show GBFS shared-scooter routes
+  ///
+  /// In en, this message translates to:
+  /// **'Shared scooters only'**
+  String get sharingFilterRentalScooter;
+
+  /// Quick-filter chip label: exclude GBFS shared-mobility results
+  ///
+  /// In en, this message translates to:
+  /// **'No sharing'**
+  String get sharingFilterNone;
+
   /// Label for wheelchair accessibility toggle
   ///
   /// In en, this message translates to:

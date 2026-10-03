@@ -127,6 +127,22 @@ abstract class IRoutingProvider {
   /// Resets provider-specific preferences to defaults.
   void resetPreferences() {}
 
+  /// fahrplaner.de fork patch (Kapitel 3.23): optional, always-visible
+  /// quick-filter chip row for the search screen (distinct from
+  /// [buildPreferencesUI], which is nested inside a settings sheet).
+  /// Intended for a small number of discoverable, frequently-used
+  /// presets - e.g. GBFS sharing filters - not a full preferences UI.
+  /// Returns null if this provider has no quick filters to offer.
+  ///
+  /// Unlike [buildPreferencesUI] (applied via an explicit "Apply"
+  /// button in its host sheet), a quick-filter chip is meant to take
+  /// effect immediately on tap - [onChanged] is called right after the
+  /// underlying preference changes so the caller can re-fetch the plan.
+  Widget? buildQuickFilterChips(
+    BuildContext context, {
+    VoidCallback? onChanged,
+  }) => null;
+
   /// Optional companion provider of live (GTFS-Realtime) vehicle positions.
   ///
   /// Return non-null when this routing engine has a paired source of live

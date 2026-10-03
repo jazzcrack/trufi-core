@@ -40,6 +40,18 @@
   "@prefsModeBicycle": {
     "description": "Label for bicycle transport mode"
   },
+  "sharingFilterRentalBicycle": "Shared bikes only",
+  "@sharingFilterRentalBicycle": {
+    "description": "Quick-filter chip label: only show GBFS shared-bike routes"
+  },
+  "sharingFilterRentalScooter": "Shared scooters only",
+  "@sharingFilterRentalScooter": {
+    "description": "Quick-filter chip label: only show GBFS shared-scooter routes"
+  },
+  "sharingFilterNone": "No sharing",
+  "@sharingFilterNone": {
+    "description": "Quick-filter chip label: exclude GBFS shared-mobility results"
+  },
   "prefsWheelchairAccessible": "Wheelchair accessible",
   "@prefsWheelchairAccessible": {
     "description": "Label for wheelchair accessibility toggle"

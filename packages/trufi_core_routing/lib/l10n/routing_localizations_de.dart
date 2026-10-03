@@ -39,6 +39,15 @@ class RoutingLocalizationsDe extends RoutingLocalizations {
   String get prefsModeBicycle => 'Fahrrad';
 
   @override
+  String get sharingFilterRentalBicycle => 'Nur Leihrad';
+
+  @override
+  String get sharingFilterRentalScooter => 'Nur Scooter';
+
+  @override
+  String get sharingFilterNone => 'Kein Sharing';
+
+  @override
   String get prefsWheelchairAccessible => 'Rollstuhlgerecht';
 
   @override

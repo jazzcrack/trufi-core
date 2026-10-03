@@ -40,6 +40,7 @@ extension TransportModeUI on TransportMode {
     TransportMode.micro: Icons.directions_bus,
     TransportMode.miniBus: Icons.airport_shuttle,
     TransportMode.lightRail: Icons.train,
+    TransportMode.scooter: Icons.electric_scooter,
   };
 
   /// Custom SVG image widget for this transport mode.
@@ -105,6 +106,7 @@ extension TransportModeUI on TransportMode {
 
   static const _qualifiers = <TransportMode, String>{
     TransportMode.bicycle: 'RENT',
+    TransportMode.scooter: 'RENT',
   };
 
   /// Complete image widget with fallback to icon.

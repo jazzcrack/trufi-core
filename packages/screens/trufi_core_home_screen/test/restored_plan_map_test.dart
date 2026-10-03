@@ -216,6 +216,7 @@ class _FakeEngine extends ITrufiMapEngine {
     void Function(LatLng)? onMapLongClick,
     List<TrufiLayer> layers = const [],
     List<WidgetMarker> widgetMarkers = const [],
+    Offset? attributionButtonMargin,
   }) {
     calls.layers = layers;
     calls.camera = camera;

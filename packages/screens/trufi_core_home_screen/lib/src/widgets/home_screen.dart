@@ -776,6 +776,20 @@ class _HomeScreenState extends State<HomeScreen>
     }
   }
 
+  /// fahrplaner.de fork patch (Kapitel 3.23): renders the current
+  /// engine's optional quick-filter chip row (e.g. GBFS sharing
+  /// presets), re-fetching the plan immediately when a chip changes -
+  /// unlike [_onRoutingSettings], which only refetches on explicit
+  /// "Apply". Returns an empty widget if the engine has none.
+  Widget _buildQuickFilterChips() {
+    final chips = _routingEngineManager?.currentEngine.buildQuickFilterChips(
+      context,
+      onChanged: _fetchPlanIfReady,
+    );
+    if (chips == null) return const SizedBox.shrink();
+    return Padding(padding: const EdgeInsets.only(top: 8), child: chips);
+  }
+
   void _clearRouteFromMap() {
     setState(() {
       _routeMarkers = const [];
@@ -1787,6 +1801,14 @@ class _HomeScreenState extends State<HomeScreen>
                                       onTimeChanged: _fetchPlanIfReady,
                                     ),
                                   ),
+                                // GBFS sharing quick filter (Kapitel 3.23):
+                                // same visibility condition as the
+                                // departure-time chip above - only once a
+                                // search is actually active, not on the
+                                // empty home screen.
+                                if (state.fromPlace != null ||
+                                    state.toPlace != null)
+                                  _buildQuickFilterChips(),
                               ],
                             ),
                           ),
@@ -2199,6 +2221,11 @@ class _HomeScreenState extends State<HomeScreen>
                           onTimeChanged: _fetchPlanIfReady,
                         ),
                       ),
+                    // GBFS sharing quick filter (Kapitel 3.23): same
+                    // visibility condition as the departure-time chip
+                    // above.
+                    if (state.fromPlace != null || state.toPlace != null)
+                      _buildQuickFilterChips(),
                   ],
                 ),
               ),
