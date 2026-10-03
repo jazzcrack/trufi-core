@@ -9,7 +9,29 @@ import 'l10n/settings_localizations.dart';
 import 'overlay/privacy_consent/privacy_consent_manager.dart';
 
 /// Settings screen module
+///
+/// fahrplaner.de fork patch (see FAHRPLANER_PATCHES.md): [showMapSettings]
+/// and [extraSections] are additive, optional parameters - existing callers
+/// are unaffected (both default to the previous, unconditional behavior).
 class SettingsTrufiScreen extends TrufiScreen {
+  /// Whether to show the map-style picker card. Defaults to true.
+  ///
+  /// An app that couples its map style to the system/app dark mode (so the
+  /// picker's choice is silently overridden on every rebuild) can set this
+  /// to false instead of presenting a control that doesn't actually work.
+  final bool showMapSettings;
+
+  /// Additional settings sections appended after the built-in cards, each
+  /// built with the current [BuildContext]. Lets a host app add its own
+  /// settings entries (e.g. a link to an offline-maps screen) without
+  /// forking this screen's internal layout.
+  final List<Widget Function(BuildContext)> extraSections;
+
+  SettingsTrufiScreen({
+    this.showMapSettings = true,
+    this.extraSections = const [],
+  });
+
   @override
   String get id => 'settings';
 
@@ -17,8 +39,11 @@ class SettingsTrufiScreen extends TrufiScreen {
   String get path => '/settings';
 
   @override
-  Widget Function(BuildContext context) get builder =>
-      (_) => const _SettingsScreenWidget();
+  Widget Function(BuildContext context) get builder => (_) =>
+      _SettingsScreenWidget(
+        showMapSettings: showMapSettings,
+        extraSections: extraSections,
+      );
 
   @override
   List<LocalizationsDelegate> get localizationsDelegates => [
@@ -41,7 +66,13 @@ class SettingsTrufiScreen extends TrufiScreen {
 
 /// Settings screen widget with header and content
 class _SettingsScreenWidget extends StatelessWidget {
-  const _SettingsScreenWidget();
+  final bool showMapSettings;
+  final List<Widget Function(BuildContext)> extraSections;
+
+  const _SettingsScreenWidget({
+    required this.showMapSettings,
+    required this.extraSections,
+  });
 
   /// Try to open the drawer from the nearest ancestor Scaffold
   void _tryOpenDrawer(BuildContext context) {
@@ -69,7 +100,12 @@ class _SettingsScreenWidget extends StatelessWidget {
               onMenuPressed: () => _tryOpenDrawer(context),
             ),
             // Content
-            const Expanded(child: _SettingsContent()),
+            Expanded(
+              child: _SettingsContent(
+                showMapSettings: showMapSettings,
+                extraSections: extraSections,
+              ),
+            ),
           ],
         ),
       ),
@@ -131,7 +167,13 @@ class _SettingsHeader extends StatelessWidget {
 
 /// Settings content with staggered animations
 class _SettingsContent extends StatefulWidget {
-  const _SettingsContent();
+  final bool showMapSettings;
+  final List<Widget Function(BuildContext)> extraSections;
+
+  const _SettingsContent({
+    required this.showMapSettings,
+    required this.extraSections,
+  });
 
   @override
   State<_SettingsContent> createState() => _SettingsContentState();
@@ -208,13 +250,21 @@ class _SettingsContentState extends State<_SettingsContent>
 
           const SizedBox(height: 16),
 
-          // Map settings card
-          _buildAnimatedItem(index: 3, child: const _MapSettingsCard()),
-
-          const SizedBox(height: 16),
+          // Map settings card (fahrplaner.de fork patch: hideable, see
+          // SettingsTrufiScreen.showMapSettings doc comment).
+          if (widget.showMapSettings) ...[
+            _buildAnimatedItem(index: 3, child: const _MapSettingsCard()),
+            const SizedBox(height: 16),
+          ],
 
           // Privacy settings card
           _buildAnimatedItem(index: 4, child: const _PrivacySettingsCard()),
+
+          // fahrplaner.de fork patch: host-app-provided extra sections.
+          for (final section in widget.extraSections) ...[
+            const SizedBox(height: 16),
+            section(context),
+          ],
         ],
       ),
     );

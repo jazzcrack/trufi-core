@@ -1839,8 +1839,11 @@ class _HomeScreenState extends State<HomeScreen>
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Map type button (with optional POI layers if available)
-              if (mapEngineManager.engines.length > 1) ...[
+              // Map type button (with optional POI layers if available).
+              // fahrplaner.de fork patch: hideable via
+              // HomeScreenConfig.showMapTypeButton, see its doc comment.
+              if (mapEngineManager.engines.length > 1 &&
+                  widget.config.showMapTypeButton) ...[
                 MapTypeButton.fromEngines(
                   engines: mapEngineManager.engines,
                   currentEngineIndex: mapEngineManager.currentIndex,

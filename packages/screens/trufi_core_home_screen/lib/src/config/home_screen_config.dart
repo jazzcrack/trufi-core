@@ -54,6 +54,15 @@ class HomeScreenConfig {
   /// their choice is persisted and this value no longer applies.
   final bool liveVehiclesInitiallyEnabled;
 
+  /// Whether to show the floating map-style picker button on the map.
+  /// Defaults to true.
+  ///
+  /// fahrplaner.de fork patch (see FAHRPLANER_PATCHES.md): a host app that
+  /// couples map style to system/app dark mode (so the picker's choice is
+  /// silently overridden on every rebuild) can set this to false instead of
+  /// presenting a control that doesn't actually work.
+  final bool showMapTypeButton;
+
   const HomeScreenConfig({
     this.chooseLocationZoom = 16.0,
     this.searchService,
@@ -65,5 +74,6 @@ class HomeScreenConfig {
     this.poiLayersManager,
     this.extraMapLayerSettings,
     this.liveVehiclesInitiallyEnabled = false,
+    this.showMapTypeButton = true,
   });
 }
