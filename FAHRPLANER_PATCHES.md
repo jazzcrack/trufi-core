@@ -1,11 +1,12 @@
 # Fahrplaner-Fork: Patches & Sync-Strategie
 
-Dieser Fork existiert ausschließlich, um zwei Trufi-Core-Lücken zu
+Dieser Fork existiert ausschließlich, um Trufi-Core-Lücken zu
 schließen, für die es keinen Konfigurationspunkt gibt (siehe
-`architektur-konzept.md`, Kapitel 3.13/14 im Hauptprojekt
-[jazzcrack/-PNV-Fahrplan-App](https://github.com/jazzcrack/-PNV-Fahrplan-App)
-für die vollständige Herleitung). Keine anderen Änderungen gegenüber
-Upstream.
+`architektur-konzept.md` im Hauptprojekt
+[jazzcrack/-PNV-Fahrplan-App](https://github.com/jazzcrack/-PNV-Fahrplan-App),
+Kapitel 3.13/14/18–3.21 für die vollständige Herleitung jedes einzelnen
+Patches). Keine anderen Änderungen gegenüber Upstream. Stand: zehn
+Patches (zuletzt aktualisiert 03.10.2026, Kapitel 3.21).
 
 ## Branch-Struktur
 
@@ -17,7 +18,25 @@ Upstream.
   `main`, wird nie direkt verändert. Dient nur als Referenz für
   `git rebase`.
 
-## Die beiden Patches
+## Die zehn Patches
+
+| # | Thema | Pakete | Risiko |
+|---|---|---|---|
+| 1 | `ChooseOnMapScreen`-Standortbutton | `trufi_core_maps` | niedrig |
+| 2 | "Früher/später"-Pagination | `trufi_core_routing`, `trufi_core_home_screen` | mittel |
+| 3 | Verspätungsanzeige (Ergebnisliste) | `trufi_core_routing` | mittel |
+| 4 | Freundliche Netzwerkfehler-Meldung | `trufi_core_home_screen` | niedrig |
+| 5 | Verspätungsanzeige (aktive Navigation) | `trufi_core_navigation` | niedrig |
+| 6 | Kartentyp-Auswahl ausblendbar | `trufi_core_home_screen`, `trufi_core_settings` | niedrig |
+| 7 | `SharedRoute` mit nullable Ziel | `trufi_core_interfaces`, `trufi_core_home_screen` | niedrig |
+| 8 | Live-Verspätungen für die Abfahrtstafel | `trufi_core_routing` | niedrig (additiver Optional-Hook) |
+| 9 | Auswahl entkoppelt, Teilen auf Detailseite | `trufi_core_home_screen` | niedrig |
+| 10 | Attribution-Button-Position konfigurierbar | `trufi_core_maps` | niedrig |
+
+Patches 1–5 sind in den commit-Historien der ersten Fork-Runden
+(Kapitel 3.18–3.19 im Hauptprojekt) im Detail dokumentiert, hier nur
+tabellarisch zusammengefasst, um diese Datei kompakt zu halten.
+Patches 6–10 (Kapitel 3.21, 03.10.2026) im Detail:
 
 ### 1. `ChooseOnMapScreen`: "Zu meinem Standort springen"-Button
 
@@ -66,11 +85,86 @@ umbenannt):
   genutzte Schnittstelle, aber rein additiv (neuer optionaler Parameter,
   neue Modellfelder) – keine bestehenden Aufrufer brechen.
 
-Beide Patches sind per `dart analyze` (keine neuen Fehler) und den
-bestehenden Testsuiten von `trufi_core_maps`, `trufi_core_routing` und
-`trufi_core_home_screen` verifiziert (alle grün, inkl. der schon
-vorhandenen `choose_on_map_tap_test.dart`, die exakt den gepatchten
-Screen testet).
+### 3. Verspätungsanzeige (Ergebnisliste)
+
+`Leg.departureDelay`/`arrivalDelay` (aus OTPs `start.estimated.delay`/
+`end.estimated.delay`), `Itinerary.overallArrivalDelay`-Getter,
+`otp_2_8_response_parser.dart` parst beide Felder zusätzlich zum
+`fromJson()`-Pfad (die aktive OTP-2.8-Provider-Implementierung baut
+`Leg` direkt, nicht über `fromJson()`). Rein additiv.
+
+### 4. Freundliche Netzwerkfehler-Meldung
+
+`RoutePlannerCubit._isNetworkError()`-Heuristik (textbasiert, da keine
+gemeinsame Exception-Hierarchie über alle Routing-Provider existiert)
+mappt Verbindungsfehler auf einen neuen `networkErrorKey` statt
+`e.toString()` 1:1 anzuzeigen.
+
+### 5. Verspätungsanzeige (aktive Navigation)
+
+`NavigationLeg.arrivalDelay`-Feld, `ItineraryConverter.toNavigationRoute()`
+reicht `leg.arrivalDelay` durch. Schließt die Lücke, dass Patch 3 nur
+die Ergebnisliste erreichte, nicht die aktive Navigation (eigenes,
+einfacheres `NavigationLeg`-Modell).
+
+### 6. Kartentyp-Auswahl ausblendbar
+
+`HomeScreenConfig.showMapTypeButton` (neuer Parameter, Default `true`)
+blendet den schwebenden Kartentyp-Button auf der Karte aus;
+`SettingsTrufiScreen.showMapSettings` (Default `true`) blendet die
+Kartenstil-Karte in den Einstellungen aus, `.extraSections` (neuer
+Parameter, `List<Widget Function(BuildContext)>`, Default `[]`) lässt
+eine Host-App eigene Abschnitte anhängen, ohne das interne Layout von
+`_SettingsContent` zu forken. Alle drei additiv.
+
+### 7. `SharedRoute` mit nullable Ziel
+
+`SharedRoute.toLat`/`toLng`/`toName` sind jetzt `double?`/`String?`
+statt `required`. `HomeScreenTrufiScreen._onSharedRouteChanged()` setzt
+bei fehlendem Ziel nur `fromPlace` und ruft `fetchPlan()` nicht auf -
+lässt eine Host-App "nur den Start übergeben, Ziel wählt der Nutzer
+selbst" umsetzen. `fromUri()` (Deep-Link-Parsing) verlangt weiterhin
+alle sechs Parameter - nur der programmatische `SharedRouteNotifier`-Pfad
+profitiert von der Lockerung.
+
+### 8. Live-Verspätungen für die Abfahrtstafel
+
+`IRoutingProvider.fetchLiveStopDelays(String stopId)` ist eine neue,
+NICHT-abstrakte Methode mit Default-Implementierung `=> null` (exakt
+wie das bestehende `realtimeVehiclesProvider`-Muster) - kein Zwang zur
+Umsetzung in den anderen drei Providern. `Otp28RoutingProvider`
+überschreibt sie: neue `stoptimesWithoutPatterns`-GraphQL-Query (Schema
+live gegen den echten OTP-Source auf GitHub verifiziert), liefert eine
+`trip_id -> Duration`-Map (Feed-Präfix per `stripGtfsFeedPrefix`
+entfernt). Neuer, optionaler `feedId`-Konstruktorparameter auf
+`Otp28RoutingProvider` (Default `null` = Feature aus). Reine
+Parsing-Logik (`parseLiveStopDelays()`) als eigene, testbare
+Top-Level-Funktion ausgelagert.
+
+### 9. Auswahl entkoppelt, Teilen auf Detailseite
+
+`itinerary_list.dart`: die beiden `onTap`-Handler in der Ergebnisliste
+rufen `cubit.selectItinerary()` nicht mehr auf - Details ansehen ändert
+nicht mehr die dauerhaft markierte/geteilte Verbindung.
+`ItineraryList.onShare`/`ItineraryDetailContent.onShare` sind neue,
+optionale Callbacks; ein neuer Share-Button sitzt jetzt auf der
+Detailseite der jeweiligen Verbindung. Die beiden alten, mehrdeutigen
+Teilen-Buttons (Listen-Kopfzeile, Zusammenfassungs-Leiste) in
+`home_screen.dart` sind entfernt, ihre Logik in eine gemeinsame
+`_shareItinerary()`-Methode extrahiert.
+
+### 10. Attribution-Button-Position konfigurierbar
+
+`ITrufiMapEngine.buildMap()` bekommt einen neuen, additiven
+`attributionButtonMargin`-Parameter (`Offset?`), durchgereicht durch
+`MapLibreEngine`/`OfflineMapLibreEngine`/`TrufiMap` bis zu
+`MapLibreMap.attributionButtonMargins` (dort `Point<double>`). Beide
+Engine-Implementierungen sowie der Test-Fake und die Beispiel-App
+mussten den Parameter ergänzen (Dart-Override-Regel, siehe Patch 2).
+
+Alle zehn Patches sind per `dart analyze` (keine neuen Fehler) und den
+bestehenden Testsuiten der jeweils betroffenen Pakete verifiziert
+(alle grün, inkl. neuer Tests für Patches 8/10).
 
 ## Sync-Strategie: wie künftige Upstream-Änderungen reinkommen
 
