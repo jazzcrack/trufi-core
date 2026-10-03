@@ -273,10 +273,20 @@ class _HomeScreenState extends State<HomeScreen>
       longitude: route.fromLng,
     );
 
+    // fahrplaner.de fork patch (see FAHRPLANER_PATCHES.md): a null
+    // destination means the host app only wants to prefill the origin (e.g.
+    // "plan a trip starting from this stop") - set it and let the user pick
+    // a destination themselves, instead of firing an incomplete plan
+    // request.
+    if (route.toLat == null || route.toLng == null) {
+      await cubit.setFromPlace(fromPlace);
+      return;
+    }
+
     final toPlace = TrufiLocation(
-      description: route.toName,
-      latitude: route.toLat,
-      longitude: route.toLng,
+      description: route.toName ?? '',
+      latitude: route.toLat!,
+      longitude: route.toLng!,
     );
 
     // Await the place updates before fetching: setFromPlace/setToPlace emit

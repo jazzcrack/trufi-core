@@ -2,13 +2,20 @@ import 'package:flutter/widgets.dart';
 import 'package:provider/provider.dart';
 
 /// Represents a shared route received via deep link
+///
+/// fahrplaner.de fork patch (see FAHRPLANER_PATCHES.md): [toLat]/[toLng]/
+/// [toName] are now nullable (additive change, all previous callers keep
+/// setting them). A null destination lets a host app hand off only an
+/// origin - e.g. "start planning from this stop" - and have the consumer
+/// (HomeScreenTrufiScreen) prefill just the origin field instead of
+/// immediately firing a plan request for an incomplete route.
 class SharedRoute {
   final double fromLat;
   final double fromLng;
   final String fromName;
-  final double toLat;
-  final double toLng;
-  final String toName;
+  final double? toLat;
+  final double? toLng;
+  final String? toName;
   final DateTime? time;
   final int? selectedItineraryIndex;
 
@@ -16,9 +23,9 @@ class SharedRoute {
     required this.fromLat,
     required this.fromLng,
     required this.fromName,
-    required this.toLat,
-    required this.toLng,
-    required this.toName,
+    this.toLat,
+    this.toLng,
+    this.toName,
     this.time,
     this.selectedItineraryIndex,
   });
