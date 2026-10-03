@@ -46,6 +46,13 @@ abstract class ITrufiMapEngine {
     void Function(LatLng)? onMapLongClick,
     List<TrufiLayer> layers = const [],
     List<WidgetMarker> widgetMarkers = const [],
+    // fahrplaner.de fork patch (see FAHRPLANER_PATCHES.md): lets a host app
+    // move the native map's attribution control away from a corner it
+    // overlays with its own UI (e.g. a full-width bottom panel). Additive,
+    // defaults to each engine's own default (unchanged behavior). Engines
+    // that don't use maplibre_gl (or have no attribution control) simply
+    // ignore it.
+    Offset? attributionButtonMargin,
   });
 }
 

@@ -76,6 +76,7 @@ class TrufiMap extends StatefulWidget {
     this.onMapLongClick,
     this.layers = const [],
     this.widgetMarkers = const [],
+    this.attributionButtonMargin,
   });
 
   /// MapLibre style URL or local path.
@@ -106,6 +107,15 @@ class TrufiMap extends StatefulWidget {
   /// Flutter widgets rendered as overlays on the map.
   /// Use for interactive/animated markers (limited quantity).
   final List<WidgetMarker> widgetMarkers;
+
+  /// fahrplaner.de fork patch (see FAHRPLANER_PATCHES.md): moves MapLibre's
+  /// native attribution control away from its default bottom-right corner,
+  /// for host apps that overlay their own full-width UI there (e.g. a
+  /// bottom panel) and would otherwise visually collide with it - native
+  /// platform views can composite above Flutter widgets regardless of
+  /// Flutter's own z-order, so covering it with another widget is not a
+  /// reliable fix. Null keeps MapLibre's own default position/margin.
+  final Offset? attributionButtonMargin;
 
   @override
   State<TrufiMap> createState() => _TrufiMapState();
@@ -692,6 +702,12 @@ class _TrufiMapState extends State<TrufiMap> implements TrufiMapDelegate {
       trackCameraPosition: true,
       rotateGesturesEnabled: false,
       compassEnabled: false,
+      attributionButtonMargins: widget.attributionButtonMargin == null
+          ? null
+          : Point(
+              widget.attributionButtonMargin!.dx,
+              widget.attributionButtonMargin!.dy,
+            ),
       onMapCreated: (ctl) async {
         _mapCtl = ctl;
       },

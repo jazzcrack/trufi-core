@@ -86,6 +86,7 @@ class MapLibreEngine implements ITrufiMapEngine {
     void Function(LatLng)? onMapLongClick,
     List<TrufiLayer> layers = const [],
     List<WidgetMarker> widgetMarkers = const [],
+    Offset? attributionButtonMargin,
   }) {
     return TrufiMap(
       key: ValueKey(id),
@@ -98,6 +99,7 @@ class MapLibreEngine implements ITrufiMapEngine {
       onMapLongClick: onMapLongClick,
       layers: layers,
       widgetMarkers: widgetMarkers,
+      attributionButtonMargin: attributionButtonMargin,
     );
   }
 }

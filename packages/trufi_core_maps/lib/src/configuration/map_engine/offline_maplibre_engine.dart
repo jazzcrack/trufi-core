@@ -429,6 +429,7 @@ class OfflineMapLibreEngine implements ITrufiMapEngine {
     void Function(LatLng)? onMapLongClick,
     List<TrufiLayer> layers = const [],
     List<WidgetMarker> widgetMarkers = const [],
+    Offset? attributionButtonMargin,
   }) {
     return _OfflineMapWrapper(
       key: ValueKey(id),
@@ -441,6 +442,7 @@ class OfflineMapLibreEngine implements ITrufiMapEngine {
       onMapLongClick: onMapLongClick,
       layers: layers,
       widgetMarkers: widgetMarkers,
+      attributionButtonMargin: attributionButtonMargin,
     );
   }
 }
@@ -455,6 +457,7 @@ class _OfflineMapWrapper extends StatefulWidget {
   final void Function(LatLng)? onMapLongClick;
   final List<TrufiLayer> layers;
   final List<WidgetMarker> widgetMarkers;
+  final Offset? attributionButtonMargin;
 
   const _OfflineMapWrapper({
     super.key,
@@ -467,6 +470,7 @@ class _OfflineMapWrapper extends StatefulWidget {
     this.onMapLongClick,
     this.layers = const [],
     this.widgetMarkers = const [],
+    this.attributionButtonMargin,
   });
 
   @override
@@ -563,6 +567,7 @@ class _OfflineMapWrapperState extends State<_OfflineMapWrapper> {
       onMapLongClick: widget.onMapLongClick,
       layers: widget.layers,
       widgetMarkers: widget.widgetMarkers,
+      attributionButtonMargin: widget.attributionButtonMargin,
     );
   }
 }

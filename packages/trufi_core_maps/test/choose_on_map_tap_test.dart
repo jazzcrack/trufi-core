@@ -41,6 +41,7 @@ class FakeEngine implements ITrufiMapEngine {
     void Function(LatLng)? onMapLongClick,
     List<TrufiLayer> layers = const [],
     List<WidgetMarker> widgetMarkers = const [],
+    Offset? attributionButtonMargin,
   }) {
     return _FakeMapWidget(
       key: ValueKey(engineId),
