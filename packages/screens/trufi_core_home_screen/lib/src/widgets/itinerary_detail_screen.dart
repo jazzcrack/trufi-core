@@ -41,6 +41,11 @@ class ItineraryDetailContent extends StatelessWidget {
   /// Called when the rider picks another option in the switcher.
   final void Function(routing.Itinerary alternative)? onSelectAlternative;
 
+  /// fahrplaner.de fork patch (see FAHRPLANER_PATCHES.md): called when the
+  /// rider taps "share" here, on the itinerary's own detail view. Null
+  /// hides the share action.
+  final VoidCallback? onShare;
+
   const ItineraryDetailContent({
     super.key,
     required this.itinerary,
@@ -50,6 +55,7 @@ class ItineraryDetailContent extends StatelessWidget {
     this.shrinkWrap = false,
     this.alternatives,
     this.onSelectAlternative,
+    this.onShare,
   });
 
   @override
@@ -375,6 +381,21 @@ class ItineraryDetailContent extends StatelessWidget {
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
               ),
+              // fahrplaner.de fork patch (see FAHRPLANER_PATCHES.md): share
+              // lives here, on the itinerary's OWN detail view, instead of
+              // on the list/summary header - there it was ambiguous which
+              // itinerary a tap would actually share.
+              if (onShare != null)
+                IconButton(
+                  icon: const Icon(Icons.share_rounded),
+                  onPressed: () {
+                    HapticFeedback.lightImpact();
+                    onShare!();
+                  },
+                  visualDensity: VisualDensity.compact,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+                ),
               const SizedBox(width: 4),
               // Duration chip
               Container(

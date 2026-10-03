@@ -1914,6 +1914,7 @@ class _HomeScreenState extends State<HomeScreen>
             }
           },
           onItineraryDetails: widget.onItineraryDetails,
+          onShare: (itinerary) => _shareItinerary(context, itinerary),
           onRouteTap: widget.onRouteTap != null
               ? (routeCode) => widget.onRouteTap!(context, routeCode)
               : null,
@@ -1934,6 +1935,43 @@ class _HomeScreenState extends State<HomeScreen>
           locationService: _locationService,
         ),
       ],
+    );
+  }
+
+  /// fahrplaner.de fork patch (see FAHRPLANER_PATCHES.md): shared share
+  /// logic, extracted from the two now-removed list/summary share buttons
+  /// (both shared `state.selectedItinerary`, which was ambiguous - sharing
+  /// now only happens from an itinerary's OWN detail view, which passes
+  /// [itinerary] explicitly, so there's never any doubt which one is meant).
+  void _shareItinerary(BuildContext context, routing.Itinerary itinerary) {
+    HapticFeedback.lightImpact();
+    final state = context.read<RoutePlannerCubit>().state;
+    if (state.fromPlace == null || state.toPlace == null) return;
+    final l10n = HomeScreenLocalizations.of(context);
+    final appName = widget.config.appName ?? 'Trufi App';
+    final itineraries = state.plan?.itineraries;
+    final index = itineraries?.indexOf(itinerary);
+    ShareRouteService.shareRoute(
+      from: state.fromPlace!,
+      to: state.toPlace!,
+      itinerary: itinerary,
+      selectedItineraryIndex: index != null && index != -1 ? index : null,
+      appName: appName,
+      deepLinkScheme: widget.config.deepLinkScheme,
+      webBaseUrl: widget.config.shareBaseUrl,
+      strings: ShareRouteStrings(
+        title: l10n.shareRouteTitle,
+        origin: l10n.shareRouteOrigin,
+        destination: l10n.shareRouteDestination,
+        date: l10n.shareRouteDate,
+        times: l10n.shareRouteTimes,
+        duration: l10n.shareRouteDuration,
+        itinerary: l10n.shareRouteItinerary,
+        openInApp: l10n.shareRouteOpenInApp,
+        durationMinutes: l10n.durationMinutes,
+        durationHoursMinutes: l10n.durationHoursMinutes,
+        localeTag: Localizations.localeOf(context).toLanguageTag(),
+      ),
     );
   }
 
@@ -2000,66 +2038,16 @@ class _HomeScreenState extends State<HomeScreen>
       return const SizedBox.shrink();
     }
 
-    // Find selected itinerary index
-    final selectedIndex = state.selectedItinerary != null
-        ? itineraries.indexOf(state.selectedItinerary!)
-        : null;
-
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       child: Row(
         children: [
-          // Share button on the left
-          if (state.selectedItinerary != null &&
-              state.fromPlace != null &&
-              state.toPlace != null)
-            GestureDetector(
-              onTap: () {
-                HapticFeedback.lightImpact();
-                final l10n = HomeScreenLocalizations.of(context);
-                final appName = widget.config.appName ?? 'Trufi App';
-                ShareRouteService.shareRoute(
-                  from: state.fromPlace!,
-                  to: state.toPlace!,
-                  itinerary: state.selectedItinerary!,
-                  selectedItineraryIndex: selectedIndex != -1
-                      ? selectedIndex
-                      : null,
-                  appName: appName,
-                  deepLinkScheme: widget.config.deepLinkScheme,
-                  webBaseUrl: widget.config.shareBaseUrl,
-                  strings: ShareRouteStrings(
-                    title: l10n.shareRouteTitle,
-                    origin: l10n.shareRouteOrigin,
-                    destination: l10n.shareRouteDestination,
-                    date: l10n.shareRouteDate,
-                    times: l10n.shareRouteTimes,
-                    duration: l10n.shareRouteDuration,
-                    itinerary: l10n.shareRouteItinerary,
-                    openInApp: l10n.shareRouteOpenInApp,
-                    durationMinutes: l10n.durationMinutes,
-                    durationHoursMinutes: l10n.durationHoursMinutes,
-                    localeTag: Localizations.localeOf(context).toLanguageTag(),
-                  ),
-                );
-              },
-              child: Container(
-                padding: const EdgeInsets.all(4),
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.primary.withValues(alpha: 0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  Icons.share_rounded,
-                  size: 18,
-                  color: theme.colorScheme.primary,
-                ),
-              ),
-            ),
-          if (state.selectedItinerary != null &&
-              state.fromPlace != null &&
-              state.toPlace != null)
-            const SizedBox(width: 8),
+          // fahrplaner.de fork patch: share button removed from here (see
+          // FAHRPLANER_PATCHES.md) - it used to share state.selectedItinerary,
+          // ambiguous once a rider had merely viewed another card's details
+          // without "choosing" it. Sharing now lives on the itinerary's own
+          // detail view (ItineraryDetailContent.onShare), unambiguous by
+          // construction.
           Icon(Icons.route_rounded, size: 18, color: theme.colorScheme.primary),
           const SizedBox(width: 8),
           Expanded(
@@ -2230,6 +2218,7 @@ class _HomeScreenState extends State<HomeScreen>
                         }
                       },
                       onItineraryDetails: widget.onItineraryDetails,
+                      onShare: (itinerary) => _shareItinerary(context, itinerary),
                       onRouteTap: widget.onRouteTap != null
                           ? (routeCode) =>
                                 widget.onRouteTap!(context, routeCode)
@@ -2259,6 +2248,7 @@ class _HomeScreenState extends State<HomeScreen>
                         }
                       },
                       onItineraryDetails: widget.onItineraryDetails,
+                      onShare: (itinerary) => _shareItinerary(context, itinerary),
                       onRouteTap: widget.onRouteTap != null
                           ? (routeCode) =>
                                 widget.onRouteTap!(context, routeCode)
@@ -2334,11 +2324,6 @@ class _HomeScreenState extends State<HomeScreen>
     final routeCount =
         state.plan?.groupedItineraries?.length ?? itineraries?.length ?? 0;
 
-    // Find selected itinerary index for sharing
-    final selectedIndex = state.selectedItinerary != null && itineraries != null
-        ? itineraries.indexOf(state.selectedItinerary!)
-        : null;
-
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
@@ -2393,50 +2378,9 @@ class _HomeScreenState extends State<HomeScreen>
               ],
             ),
           ),
-          // Share button
-          if (state.selectedItinerary != null &&
-              state.fromPlace != null &&
-              state.toPlace != null)
-            IconButton.filled(
-              icon: const Icon(Icons.share_rounded, size: 18),
-              style: IconButton.styleFrom(
-                backgroundColor: theme.colorScheme.primary.withValues(
-                  alpha: 0.1,
-                ),
-                foregroundColor: theme.colorScheme.primary,
-              ),
-              onPressed: () {
-                HapticFeedback.lightImpact();
-                final appName = widget.config.appName ?? 'Trufi App';
-                ShareRouteService.shareRoute(
-                  from: state.fromPlace!,
-                  to: state.toPlace!,
-                  itinerary: state.selectedItinerary!,
-                  selectedItineraryIndex:
-                      selectedIndex != null && selectedIndex != -1
-                      ? selectedIndex
-                      : null,
-                  appName: appName,
-                  deepLinkScheme: widget.config.deepLinkScheme,
-                  webBaseUrl: widget.config.shareBaseUrl,
-                  strings: ShareRouteStrings(
-                    title: l10n.shareRouteTitle,
-                    origin: l10n.shareRouteOrigin,
-                    destination: l10n.shareRouteDestination,
-                    date: l10n.shareRouteDate,
-                    times: l10n.shareRouteTimes,
-                    duration: l10n.shareRouteDuration,
-                    itinerary: l10n.shareRouteItinerary,
-                    openInApp: l10n.shareRouteOpenInApp,
-                    durationMinutes: l10n.durationMinutes,
-                    durationHoursMinutes: l10n.durationHoursMinutes,
-                    localeTag: Localizations.localeOf(context).toLanguageTag(),
-                  ),
-                );
-              },
-              tooltip: l10n.tooltipShare,
-            ),
-          const SizedBox(width: 4),
+          // fahrplaner.de fork patch: share button removed from here too
+          // (see the matching comment in _buildSummaryRow above for the
+          // rationale) - now lives on each itinerary's own detail view.
           // Close button
           IconButton.filled(
             icon: const Icon(Icons.close_rounded, size: 18),

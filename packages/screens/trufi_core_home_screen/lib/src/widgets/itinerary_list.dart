@@ -38,6 +38,12 @@ class ItineraryList extends StatefulWidget {
   /// Callback when detail view state changes (shown/hidden).
   final void Function(bool isShowingDetail)? onDetailStateChanged;
 
+  /// fahrplaner.de fork patch (see FAHRPLANER_PATCHES.md): called when the
+  /// rider taps "share" on an itinerary's OWN detail view - unlike a
+  /// list-wide share button, this is unambiguous about which itinerary is
+  /// being shared. Pass null to not show a share action at all.
+  final void Function(routing.Itinerary itinerary)? onShare;
+
   const ItineraryList({
     super.key,
     this.onItineraryDetails,
@@ -47,6 +53,7 @@ class ItineraryList extends StatefulWidget {
     this.shrinkWrap = false,
     this.showDetailOnLoad = false,
     this.onDetailStateChanged,
+    this.onShare,
   });
 
   @override
@@ -193,6 +200,7 @@ class _ItineraryListState extends State<ItineraryList> {
               widget.locationService!,
             )
           : null,
+      onShare: widget.onShare != null ? () => widget.onShare!(itinerary) : null,
     );
   }
 
@@ -261,8 +269,14 @@ class _ItineraryListState extends State<ItineraryList> {
                 itinerary: face,
                 isSelected: containsSelection,
                 slotRoutes: group.slotRoutes,
+                // fahrplaner.de fork patch (see FAHRPLANER_PATCHES.md):
+                // viewing details no longer also mutates/persists the
+                // selection - tapping a card to preview it should not
+                // silently change which itinerary stays highlighted/shared
+                // once the rider goes back to the list. Choosing an
+                // itinerary to act on (start navigation, pick an
+                // alternative) remains an explicit action elsewhere.
                 onTap: () {
-                  cubit.selectItinerary(face);
                   if (widget.onItineraryDetails != null) {
                     widget.onItineraryDetails!(face);
                   } else {
@@ -337,8 +351,10 @@ class _ItineraryListState extends State<ItineraryList> {
           child: ItineraryCard(
             itinerary: itinerary,
             isSelected: isSelected,
+            // fahrplaner.de fork patch - see the grouped list's onTap above
+            // for the rationale (viewing details must not silently change
+            // the persisted selection).
             onTap: () {
-              cubit.selectItinerary(itinerary);
               // Show details inline or use custom callback
               if (widget.onItineraryDetails != null) {
                 widget.onItineraryDetails!(itinerary);
