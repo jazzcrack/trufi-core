@@ -4,9 +4,9 @@ Dieser Fork existiert ausschließlich, um Trufi-Core-Lücken zu
 schließen, für die es keinen Konfigurationspunkt gibt (siehe
 `architektur-konzept.md` im Hauptprojekt
 [jazzcrack/-PNV-Fahrplan-App](https://github.com/jazzcrack/-PNV-Fahrplan-App),
-Kapitel 3.13/14/18–3.21 für die vollständige Herleitung jedes einzelnen
-Patches). Keine anderen Änderungen gegenüber Upstream. Stand: zehn
-Patches (zuletzt aktualisiert 03.10.2026, Kapitel 3.21).
+Kapitel 3.13/14/18–3.23 für die vollständige Herleitung jedes einzelnen
+Patches). Keine anderen Änderungen gegenüber Upstream. Stand: elf
+Patches (zuletzt aktualisiert 04.10.2026, Kapitel 3.23).
 
 ## Branch-Struktur
 
@@ -18,7 +18,7 @@ Patches (zuletzt aktualisiert 03.10.2026, Kapitel 3.21).
   `main`, wird nie direkt verändert. Dient nur als Referenz für
   `git rebase`.
 
-## Die zehn Patches
+## Die elf Patches
 
 | # | Thema | Pakete | Risiko |
 |---|---|---|---|
@@ -32,11 +32,12 @@ Patches (zuletzt aktualisiert 03.10.2026, Kapitel 3.21).
 | 8 | Live-Verspätungen für die Abfahrtstafel | `trufi_core_routing` | niedrig (additiver Optional-Hook) |
 | 9 | Auswahl entkoppelt, Teilen auf Detailseite | `trufi_core_home_screen` | niedrig |
 | 10 | Attribution-Button-Position konfigurierbar | `trufi_core_maps` | niedrig |
+| 11 | GBFS-Sharing-Filter ("Nur Leihrad"/"Kein Sharing") | `trufi_core_routing`, `trufi_core_routing_ui`, `trufi_core_home_screen` | niedrig (additiver Optional-Hook) |
 
 Patches 1–5 sind in den commit-Historien der ersten Fork-Runden
 (Kapitel 3.18–3.19 im Hauptprojekt) im Detail dokumentiert, hier nur
 tabellarisch zusammengefasst, um diese Datei kompakt zu halten.
-Patches 6–10 (Kapitel 3.21, 03.10.2026) im Detail:
+Patches 6–11 (Kapitel 3.21–3.23) im Detail:
 
 ### 1. `ChooseOnMapScreen`: "Zu meinem Standort springen"-Button
 
@@ -162,9 +163,48 @@ Teilen-Buttons (Listen-Kopfzeile, Zusammenfassungs-Leiste) in
 Engine-Implementierungen sowie der Test-Fake und die Beispiel-App
 mussten den Parameter ergänzen (Dart-Override-Regel, siehe Patch 2).
 
-Alle zehn Patches sind per `dart analyze` (keine neuen Fehler) und den
+### 11. GBFS-Sharing-Filter ("Nur Leihrad" / "Kein Sharing")
+
+- `TransportMode.scooter` (neuer Enum-Wert, `trufi_core_routing`) +
+  `Leg.isRentedVehicle` (abgeleiteter Getter, kein neues Feld/keine
+  Query-Änderung - `rentedBike == true || mode == scooter`).
+- `TransportMode.scooter`-Icon (`Icons.electric_scooter_rounded`) +
+  RENT-Qualifier-Eintrag in `trufi_core_routing_ui/transport_mode_ui.dart`.
+- Neuer `RentalFormFactor`-Enum (`bicycle`, `scooter`) + reine Funktion
+  `buildTransportModesVariable()` in `otp_28_preferences.dart`, die
+  OTPs `qualifier: RENT`-Mechanismus nutzt - bei leerem
+  `rentalFormFactors` (Default) byte-für-byte identisch zur alten
+  `.map((m) => {'mode': m.otpName})`-Ausgabe.
+- `Otp28PreferencesState` bekommt ein neues, unabhängig persistiertes
+  `rentalFormFactors`-Feld (Default leer, opt-in) + `setRentalFormFactors()`/
+  `toggleRentalFormFactor()`, gleiches Muster wie `transportModes`.
+- `Otp28RoutingProvider`: neuer `availableRentalFormFactors`-Konstruktor-
+  Parameter (Default `{RentalFormFactor.bicycle}`, additiv), minimaler
+  öffentlicher Zugriff (`rentalFormFactors`-Getter + `setRentalFormFactors()`,
+  nicht das ganze `_prefs`-Objekt).
+- Neue additive `IRoutingProvider.buildQuickFilterChips(context, {onChanged})`-
+  Methode (`routing_provider.dart`, Default `null` - gleiches Muster wie
+  `buildPreferencesUI`) für eine immer sichtbare Chip-Reihe, statt im
+  Routeneinstellungen-Sheet versteckt. `onChanged` wird sofort nach einem
+  Chip-Tap aufgerufen (kein Apply-Button wie bei `buildPreferencesUI`),
+  damit der Aufrufer die Route neu laden kann.
+- `home_screen.dart` rendert die Chip-Reihe generisch neben dem
+  bestehenden Abfahrtszeit-Chip, kein `is Otp28RoutingProvider`-Check.
+- Nebenbei: `restored_plan_map_test.dart`s `_FakeEngine.buildMap()` fehlte
+  der `attributionButtonMargin`-Parameter aus Patch 10 (dort wurden nur
+  `choose_on_map_tap_test.dart` und die Beispiel-App aktualisiert, diese
+  Testdatei übersehen) - beim Durcharbeiten dieses Patches aufgefallen
+  und ergänzt.
+- **Bewusster Scope-Cut:** keine Erweiterung auf OTPs moderne
+  `rentalVehicle`/`FormFactor`-Query-Felder in dieser Runde (keine echten
+  Free-Floating-/Scooter-Daten zum Testen vorhanden, da der einzige
+  aktuell laufende GBFS-Feed - nextbike Bremen - ein stationsbasiertes
+  Leihrad-System ist). Folgepunkt für eine spätere Runde, sobald ein
+  echter Scooter-/Free-Floating-Feed existiert.
+
+Alle elf Patches sind per `dart analyze` (keine neuen Fehler) und den
 bestehenden Testsuiten der jeweils betroffenen Pakete verifiziert
-(alle grün, inkl. neuer Tests für Patches 8/10).
+(alle grün, inkl. neuer Tests für Patches 8/10/11).
 
 ## Sync-Strategie: wie künftige Upstream-Änderungen reinkommen
 
