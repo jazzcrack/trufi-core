@@ -139,6 +139,18 @@ abstract class IRoutingProvider {
   ///
   /// Default: null (no live vehicles).
   RealtimeVehiclesProvider? get realtimeVehiclesProvider => null;
+
+  /// fahrplaner.de fork patch (see FAHRPLANER_PATCHES.md): optional live
+  /// (GTFS-RT) delay lookup for a single stop, keyed by GTFS trip id
+  /// (feed-prefix-stripped, so callers can match against trip ids from any
+  /// other GTFS source without caring which feed this engine uses - see
+  /// [stripGtfsFeedPrefix]).
+  ///
+  /// [stopId] is the plain (not feed-scoped) GTFS stop id. Engines that
+  /// don't support this (no realtime data, or not GTFS-based) return null -
+  /// callers should treat that exactly like "no realtime data available
+  /// right now", not as an error.
+  Future<Map<String, Duration>?> fetchLiveStopDelays(String stopId) async => null;
 }
 
 /// Option for routing provider selection UI.

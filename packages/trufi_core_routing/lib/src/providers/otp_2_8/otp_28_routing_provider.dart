@@ -18,6 +18,25 @@ import 'otp_2_8_queries.dart';
 import 'otp_2_8_response_parser.dart';
 import '../../../l10n/routing_localizations.dart';
 
+/// fahrplaner.de fork patch (see FAHRPLANER_PATCHES.md): builds a
+/// trip-id -> delay map from the raw `stoptimesWithoutPatterns` JSON list
+/// returned by [otp28StopDeparturesQuery]. Pure/testable: skips entries
+/// without live data ([realtime] != true) or missing fields, and strips the
+/// OTP feed prefix from each trip id (see [stripGtfsFeedPrefix]) so callers
+/// can match against trip ids from any other GTFS source.
+Map<String, Duration> parseLiveStopDelays(List<dynamic> stoptimesJson) {
+  final delays = <String, Duration>{};
+  for (final raw in stoptimesJson) {
+    final json = raw as Map<String, dynamic>;
+    if (json['realtime'] != true) continue;
+    final delaySeconds = json['departureDelay'] as int?;
+    final tripGtfsId = json['trip']?['gtfsId'] as String?;
+    if (delaySeconds == null || tripGtfsId == null) continue;
+    delays[stripGtfsFeedPrefix(tripGtfsId)] = Duration(seconds: delaySeconds);
+  }
+  return delays;
+}
+
 /// Routing provider for OpenTripPlanner 2.8.
 ///
 /// OTP 2.8 uses GraphQL API with enhanced features:
@@ -69,6 +88,13 @@ class Otp28RoutingProvider extends IRoutingProvider {
   /// [liveVehiclesEnabled] is false.
   final Duration liveVehiclesPollInterval;
 
+  /// fahrplaner.de fork patch (see FAHRPLANER_PATCHES.md): the GTFS feed id
+  /// this OTP instance was configured with (`router-config.json`'s
+  /// `feedId`, e.g. `"gtfsde"`), used to build feed-scoped stop ids for
+  /// [fetchLiveStopDelays]. Null (the default) disables that method - it
+  /// just returns null, same as any other engine without realtime support.
+  final String? feedId;
+
   Otp28RoutingProvider({
     required this.endpoint,
     this.useSimpleQuery = false,
@@ -80,6 +106,7 @@ class Otp28RoutingProvider extends IRoutingProvider {
     this.showBicycleOption = true,
     this.liveVehiclesEnabled = false,
     this.liveVehiclesPollInterval = const Duration(seconds: 10),
+    this.feedId,
   });
 
   OtpVehiclePositionsProvider? _realtimeVehiclesProvider;
@@ -353,6 +380,38 @@ class Otp28RoutingProvider extends IRoutingProvider {
     }
 
     return patternData.copyWith(stops: newListStops);
+  }
+
+  // --- Live stop delays (fahrplaner.de fork patch) ---
+
+  @override
+  Future<Map<String, Duration>?> fetchLiveStopDelays(String stopId) async {
+    if (feedId == null) return null;
+
+    try {
+      final options = WatchQueryOptions(
+        document: parseString(otp28StopDeparturesQuery),
+        fetchResults: true,
+        fetchPolicy: FetchPolicy.networkOnly,
+        variables: <String, dynamic>{
+          'stopId': '$feedId:$stopId',
+          'numberOfDepartures': 20,
+        },
+      );
+
+      final result = await _client.query(options);
+      if (result.hasException || result.data?['stop'] == null) return null;
+
+      final stoptimes =
+          (result.data!['stop']['stoptimesWithoutPatterns'] as List?) ??
+          const [];
+      return parseLiveStopDelays(stoptimes);
+    } catch (_) {
+      // Bewusst still scheitern (Doc-Kommentar auf IRoutingProvider): dies
+      // ist eine optionale Anreicherung, kein kritischer Pfad - der
+      // Aufrufer faellt auf die reinen Fahrplandaten zurueck.
+      return null;
+    }
   }
 
   // --- Helpers ---

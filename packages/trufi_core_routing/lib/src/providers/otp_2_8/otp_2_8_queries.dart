@@ -294,3 +294,24 @@ query plan(
   }
 }
 ''';
+
+/// Live (GTFS-RT) departures for a single stop (fahrplaner.de fork patch,
+/// see FAHRPLANER_PATCHES.md) - only the fields needed to build a
+/// trip-id -> delay lookup, not a full itinerary/pattern query.
+const String otp28StopDeparturesQuery = r'''
+query stopDepartures($stopId: String!, $numberOfDepartures: Int) {
+  stop(id: $stopId) {
+    stoptimesWithoutPatterns(
+      numberOfDepartures: $numberOfDepartures,
+      omitCanceled: false
+    ) {
+      realtime
+      realtimeState
+      departureDelay
+      trip {
+        gtfsId
+      }
+    }
+  }
+}
+''';
