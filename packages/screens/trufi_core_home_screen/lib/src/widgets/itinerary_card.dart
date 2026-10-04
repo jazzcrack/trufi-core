@@ -149,8 +149,20 @@ class ItineraryCard extends StatelessWidget {
           )
         else
           const Spacer(),
-        // Go button or selection indicator
-        if (isSelected && onStartNavigation != null)
+        // Go button or selection indicator. fahrplaner.de fork patch
+        // (04.10.2026, Nutzer-Feedback: "auch die anderen Karten direkt
+        // antippbar/startbar machen") - vorher war der Los-Button an
+        // `isSelected` gekoppelt, obwohl `onStartNavigation` bereits pro
+        // Karte an die JEWEILIGE Itinerary gebunden ist (siehe
+        // itinerary_list.dart) - nicht nur die hervorgehobene, objektiv
+        // beste Verbindung (sortByGeneralizedCost, siehe
+        // otp_28_routing_provider.dart) war also technisch sofort
+        // startbar, die anderen brauchten den Umweg über die
+        // Detailansicht. Der Los-Button erscheint jetzt auf jeder Karte
+        // mit einem `onStartNavigation`-Callback; die Hervorhebung
+        // (Rahmen/Hintergrund oben) bleibt die alleinige visuelle
+        // Markierung der Empfehlung.
+        if (onStartNavigation != null)
           FilledButton.icon(
             onPressed: () {
               HapticFeedback.lightImpact();
