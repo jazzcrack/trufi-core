@@ -4,9 +4,9 @@ Dieser Fork existiert ausschließlich, um Trufi-Core-Lücken zu
 schließen, für die es keinen Konfigurationspunkt gibt (siehe
 `architektur-konzept.md` im Hauptprojekt
 [jazzcrack/-PNV-Fahrplan-App](https://github.com/jazzcrack/-PNV-Fahrplan-App),
-Kapitel 3.13/14/18–3.23 für die vollständige Herleitung jedes einzelnen
-Patches). Keine anderen Änderungen gegenüber Upstream. Stand: elf
-Patches (zuletzt aktualisiert 04.10.2026, Kapitel 3.23).
+Kapitel 3.13/14/18–3.26 für die vollständige Herleitung jedes einzelnen
+Patches). Keine anderen Änderungen gegenüber Upstream. Stand: zwölf
+Patches (zuletzt aktualisiert 04.10.2026, Kapitel 3.26).
 
 ## Branch-Struktur
 
@@ -18,7 +18,7 @@ Patches (zuletzt aktualisiert 04.10.2026, Kapitel 3.23).
   `main`, wird nie direkt verändert. Dient nur als Referenz für
   `git rebase`.
 
-## Die elf Patches
+## Die zwölf Patches
 
 | # | Thema | Pakete | Risiko |
 |---|---|---|---|
@@ -33,6 +33,7 @@ Patches (zuletzt aktualisiert 04.10.2026, Kapitel 3.23).
 | 9 | Auswahl entkoppelt, Teilen auf Detailseite | `trufi_core_home_screen` | niedrig |
 | 10 | Attribution-Button-Position konfigurierbar | `trufi_core_maps` | niedrig |
 | 11 | GBFS-Sharing-Filter ("Nur Leihrad"/"Kein Sharing") | `trufi_core_routing`, `trufi_core_routing_ui`, `trufi_core_home_screen` | niedrig (additiver Optional-Hook) |
+| 12 | `tripPatternId` aus `pattern.id` statt `pattern.code` | `trufi_core_routing` | niedrig (Bugfix, ein Feldwert) |
 
 Patches 1–5 sind in den commit-Historien der ersten Fork-Runden
 (Kapitel 3.18–3.19 im Hauptprojekt) im Detail dokumentiert, hier nur
@@ -202,9 +203,32 @@ mussten den Parameter ergänzen (Dart-Override-Regel, siehe Patch 2).
   Leihrad-System ist). Folgepunkt für eine spätere Runde, sobald ein
   echter Scooter-/Free-Floating-Feed existiert.
 
-Alle elf Patches sind per `dart analyze` (keine neuen Fehler) und den
+### 12. `tripPatternId` aus `pattern.id` statt `pattern.code`
+
+Echter Upstream-Bug (Kommit `f0eb93c5`, 06.02.2026, vor unserem Fork):
+`otp_2_8_response_parser.dart` befüllte `Leg.tripPatternId` aus OTPs
+`pattern.code` statt `pattern.id`. `fetchTransitRouteById()` fragt
+anschließend `pattern(id: $id)` ab (`otp_28_routing_provider.dart`) -
+mit einem `code`-Wert statt der echten GraphQL-ID schlägt diese Abfrage
+für OTP 2.8 **immer** fehl. Betrifft eine Kernfunktion: Antippen einer
+Linienbadge in einer Verbindung (`itinerary_detail_screen.dart`s
+`_handleRouteTap`) zeigte „Linie nicht gefunden" statt des
+Liniendetails - von einem echten Nutzer per TestFlight-Feedback
+gemeldet.
+
+- `otp_2_8_queries.dart`: `pattern { code }` → `pattern { id code }`
+  (additiv, `code` bleibt für evtl. andere Konsumenten erhalten).
+- `otp_2_8_response_parser.dart`: `tripPatternId` liest jetzt
+  `pattern.id` statt `pattern.code`.
+- Blast-Radius geprüft: `tripPatternId` wird nirgends sonst gelesen
+  (nur `_handleRouteTap`, reine Lookup-ID, nie angezeigt) - die
+  Offline-Variante (`trufi_planner_provider.dart`) befüllt das Feld
+  bereits korrekt mit einem eigenen, funktionierenden Format und ist
+  von diesem Patch nicht betroffen.
+
+Alle zwölf Patches sind per `dart analyze` (keine neuen Fehler) und den
 bestehenden Testsuiten der jeweils betroffenen Pakete verifiziert
-(alle grün, inkl. neuer Tests für Patches 8/10/11).
+(alle grün, inkl. neuer Tests für Patches 8/10/11/12).
 
 ## Sync-Strategie: wie künftige Upstream-Änderungen reinkommen
 
