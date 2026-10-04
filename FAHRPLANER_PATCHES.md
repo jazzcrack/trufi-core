@@ -4,9 +4,9 @@ Dieser Fork existiert ausschließlich, um Trufi-Core-Lücken zu
 schließen, für die es keinen Konfigurationspunkt gibt (siehe
 `architektur-konzept.md` im Hauptprojekt
 [jazzcrack/-PNV-Fahrplan-App](https://github.com/jazzcrack/-PNV-Fahrplan-App),
-Kapitel 3.13/14/18–3.29 für die vollständige Herleitung jedes einzelnen
-Patches). Keine anderen Änderungen gegenüber Upstream. Stand: vierzehn
-Patches (zuletzt aktualisiert 04.10.2026, Kapitel 3.29).
+Kapitel 3.13/14/18–3.32 für die vollständige Herleitung jedes einzelnen
+Patches). Keine anderen Änderungen gegenüber Upstream. Stand: fünfzehn
+Patches (zuletzt aktualisiert 04.10.2026, Kapitel 3.32).
 
 ## Branch-Struktur
 
@@ -18,7 +18,7 @@ Patches (zuletzt aktualisiert 04.10.2026, Kapitel 3.29).
   `main`, wird nie direkt verändert. Dient nur als Referenz für
   `git rebase`.
 
-## Die vierzehn Patches
+## Die fünfzehn Patches
 
 | # | Thema | Pakete | Risiko |
 |---|---|---|---|
@@ -36,6 +36,7 @@ Patches (zuletzt aktualisiert 04.10.2026, Kapitel 3.29).
 | 12 | `tripPatternId` aus `pattern.id` statt `pattern.code` | `trufi_core_routing` | niedrig (Bugfix, ein Feldwert) |
 | 13 | "Mehr laden": chronologische Sortierung + größere Seite | `trufi_core_home_screen` | niedrig (additiver Parameter + lokaler Sort) |
 | 14 | Onboarding: Kartenstil-Auswahl ausblendbar | `trufi_core_settings` | niedrig (additiver Optional-Parameter) |
+| 15 | Attribution-Button: echte Eckenwahl statt nur Marge (+ Compile-Fix) | `trufi_core_maps`, `trufi_core_transport_list` | niedrig (additiver Optional-Parameter + nachgezogener Testfix) |
 
 Patches 1–5 sind in den commit-Historien der ersten Fork-Runden
 (Kapitel 3.18–3.19 im Hauptprojekt) im Detail dokumentiert, hier nur
@@ -289,7 +290,39 @@ Test-Infrastruktur (kein `test/`-Verzeichnis), ein neues Harness nur für
 diesen einen additiven Boolean-Guard wäre unverhältnismäßig - analog zu
 Patch 6, der aus demselben Grund ebenfalls ohne dedizierten Test blieb.
 
-Alle vierzehn Patches sind per `dart analyze` (keine neuen Fehler) und den
+### 15. Attribution-Button: echte Eckenwahl statt nur Marge (+ Compile-Fix)
+
+Echter Nutzer-Fund (04.10.2026): Patch 10 (Kapitel 3.21) verschob das
+native Attribution-Steuerelement per `attributionButtonMargin` nur
+INNERHALB seiner Standard-Ecke (unten rechts). Eine Margin-Schätzung
+(`Offset(8, 220)`, nie am Gerät gemessen) sollte es über ein
+raumfüllendes Navigations-Panel heben - blieb am echten Gerät aber
+weiterhin verdeckt (App-seitig jetzt auf eine andere Ecke umgestellt,
+siehe Hauptprojekt-Kapitel 3.32).
+
+- Neuer additiver Parameter `attributionButtonPosition`
+  (`AttributionButtonPosition?`, Default `null` = unveränderte
+  Standard-Ecke) auf `ITrufiMapEngine.buildMap()` - nativ in
+  `maplibre_gl` bereits als `MapLibreMap.attributionButtonPosition`
+  vorhanden (iOS: `MLNMapView.attributionButtonPosition`, Android:
+  `Gravity`-Mapping), bisher nur nie durchgereicht.
+- Durchgereicht durch `MapLibreEngine`/`OfflineMapLibreEngine`/
+  `TrufiMap` bis zur eigentlichen `MapLibreMap(...)`-Konstruktion,
+  gleiches additive Muster wie Patch 10.
+- Alle Implementierungen/Fakes von `ITrufiMapEngine.buildMap()`
+  mussten den neuen Parameter ergänzen (Dart-Override-Regel, siehe
+  Patch 2/10): `FlutterMapEngine` (Beispiel-App),
+  `FakeEngine`/`_FakeEngine` in drei verschiedenen Testdateien.
+- **Nebenbei gefunden und behoben:** `transport_detail_copy_test.dart`
+  (`trufi_core_transport_list`) fehlte bereits beim zehnten Fork-Patch
+  der damals neue `attributionButtonMargin`-Parameter - ein echter
+  Compile-Fehler (`invalid_override`), der seitdem unbemerkt blieb
+  (per `git stash` bestätigt: bestand bereits vor diesem Patch 15).
+  Dessen komplette Testsuite (`trufi_core_transport_list`, 29 Tests)
+  lief seit Kapitel 3.21 vermutlich nie mehr grün durch - jetzt
+  behoben und verifiziert.
+
+Alle fünfzehn Patches sind per `dart analyze` (keine neuen Fehler) und den
 bestehenden Testsuiten der jeweils betroffenen Pakete verifiziert
 (alle grün, inkl. neuer Tests für Patches 8/10/11/12/13).
 
