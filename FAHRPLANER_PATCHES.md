@@ -4,9 +4,9 @@ Dieser Fork existiert ausschließlich, um Trufi-Core-Lücken zu
 schließen, für die es keinen Konfigurationspunkt gibt (siehe
 `architektur-konzept.md` im Hauptprojekt
 [jazzcrack/-PNV-Fahrplan-App](https://github.com/jazzcrack/-PNV-Fahrplan-App),
-Kapitel 3.13/14/18–3.32 für die vollständige Herleitung jedes einzelnen
-Patches). Keine anderen Änderungen gegenüber Upstream. Stand: fünfzehn
-Patches (zuletzt aktualisiert 04.10.2026, Kapitel 3.32).
+Kapitel 3.13/14/18–3.33 für die vollständige Herleitung jedes einzelnen
+Patches). Keine anderen Änderungen gegenüber Upstream. Stand: sechzehn
+Patches (zuletzt aktualisiert 04.10.2026, Kapitel 3.33).
 
 ## Branch-Struktur
 
@@ -18,7 +18,7 @@ Patches (zuletzt aktualisiert 04.10.2026, Kapitel 3.32).
   `main`, wird nie direkt verändert. Dient nur als Referenz für
   `git rebase`.
 
-## Die fünfzehn Patches
+## Die sechzehn Patches
 
 | # | Thema | Pakete | Risiko |
 |---|---|---|---|
@@ -37,6 +37,7 @@ Patches (zuletzt aktualisiert 04.10.2026, Kapitel 3.32).
 | 13 | "Mehr laden": chronologische Sortierung + größere Seite | `trufi_core_home_screen` | niedrig (additiver Parameter + lokaler Sort) |
 | 14 | Onboarding: Kartenstil-Auswahl ausblendbar | `trufi_core_settings` | niedrig (additiver Optional-Parameter) |
 | 15 | Attribution-Button: echte Eckenwahl statt nur Marge (+ Compile-Fix) | `trufi_core_maps`, `trufi_core_transport_list` | niedrig (additiver Optional-Parameter + nachgezogener Testfix) |
+| 16 | Los-Button auf jeder Verbindungskarte, nicht nur der hervorgehobenen | `trufi_core_home_screen` | niedrig (Bedingung gelockert, kein neuer Zustand) |
 
 Patches 1–5 sind in den commit-Historien der ersten Fork-Runden
 (Kapitel 3.18–3.19 im Hauptprojekt) im Detail dokumentiert, hier nur
@@ -322,9 +323,34 @@ siehe Hauptprojekt-Kapitel 3.32).
   lief seit Kapitel 3.21 vermutlich nie mehr grün durch - jetzt
   behoben und verifiziert.
 
-Alle fünfzehn Patches sind per `dart analyze` (keine neuen Fehler) und den
+### 16. Los-Button auf jeder Verbindungskarte, nicht nur der hervorgehobenen
+
+Nutzer-Rückfrage (04.10.2026): „Macht es Sinn, dass eine Fahrt hervorgehoben
+ist?" - beantwortet (Hauptprojekt-Kapitel 3.33): ja, die Hervorhebung
+markiert die per `sortByGeneralizedCost` objektiv beste Verbindung (z. B.
+gleiche Ankunftszeit bei deutlich weniger Fußweg). Dabei aber entdeckt:
+der Los-Button war an `isSelected` gekoppelt, obwohl `onStartNavigation`
+in `itinerary_list.dart` schon vorher pro Karte an die JEWEILIGE
+Itinerary gebunden wird (`onStartNavigation: () => widget
+.onStartNavigation!(context, face/itinerary, ...)`, nicht nur an die
+ausgewählte). Nicht hervorgehobene Karten waren damit technisch bereits
+sofort startbar, zeigten aber keinen Button dafür - der einzige Weg war
+der Umweg über die Detailansicht. Auf Nutzer-Wunsch behoben.
+
+- `itinerary_card.dart`: Bedingung von `if (isSelected &&
+  onStartNavigation != null)` auf `if (onStartNavigation != null)`
+  gelockert - kein neuer Zustand, keine neue Schnittstelle, nur eine
+  Anzeigebedingung. Die Hervorhebung (Rahmen/Hintergrund) bleibt die
+  alleinige visuelle Markierung der Empfehlung.
+- Zwei neue Widget-Tests (`itinerary_card_go_button_test.dart`): eine
+  nicht hervorgehobene Karte zeigt trotzdem einen funktionierenden
+  Los-Button; eine hervorgehobene Karte OHNE `onStartNavigation`-
+  Callback zeigt weiterhin nur das Auswahl-Häkchen (Regressionsschutz
+  für den verbleibenden Zweig).
+
+Alle sechzehn Patches sind per `dart analyze` (keine neuen Fehler) und den
 bestehenden Testsuiten der jeweils betroffenen Pakete verifiziert
-(alle grün, inkl. neuer Tests für Patches 8/10/11/12/13).
+(alle grün, inkl. neuer Tests für Patches 8/10/11/12/13/16).
 
 ## Sync-Strategie: wie künftige Upstream-Änderungen reinkommen
 
