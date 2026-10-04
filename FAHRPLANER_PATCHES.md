@@ -4,9 +4,9 @@ Dieser Fork existiert ausschließlich, um Trufi-Core-Lücken zu
 schließen, für die es keinen Konfigurationspunkt gibt (siehe
 `architektur-konzept.md` im Hauptprojekt
 [jazzcrack/-PNV-Fahrplan-App](https://github.com/jazzcrack/-PNV-Fahrplan-App),
-Kapitel 3.13/14/18–3.27 für die vollständige Herleitung jedes einzelnen
-Patches). Keine anderen Änderungen gegenüber Upstream. Stand: dreizehn
-Patches (zuletzt aktualisiert 04.10.2026, Kapitel 3.27).
+Kapitel 3.13/14/18–3.29 für die vollständige Herleitung jedes einzelnen
+Patches). Keine anderen Änderungen gegenüber Upstream. Stand: vierzehn
+Patches (zuletzt aktualisiert 04.10.2026, Kapitel 3.29).
 
 ## Branch-Struktur
 
@@ -18,7 +18,7 @@ Patches (zuletzt aktualisiert 04.10.2026, Kapitel 3.27).
   `main`, wird nie direkt verändert. Dient nur als Referenz für
   `git rebase`.
 
-## Die dreizehn Patches
+## Die vierzehn Patches
 
 | # | Thema | Pakete | Risiko |
 |---|---|---|---|
@@ -35,6 +35,7 @@ Patches (zuletzt aktualisiert 04.10.2026, Kapitel 3.27).
 | 11 | GBFS-Sharing-Filter ("Nur Leihrad"/"Kein Sharing") | `trufi_core_routing`, `trufi_core_routing_ui`, `trufi_core_home_screen` | niedrig (additiver Optional-Hook) |
 | 12 | `tripPatternId` aus `pattern.id` statt `pattern.code` | `trufi_core_routing` | niedrig (Bugfix, ein Feldwert) |
 | 13 | "Mehr laden": chronologische Sortierung + größere Seite | `trufi_core_home_screen` | niedrig (additiver Parameter + lokaler Sort) |
+| 14 | Onboarding: Kartenstil-Auswahl ausblendbar | `trufi_core_settings` | niedrig (additiver Optional-Parameter) |
 
 Patches 1–5 sind in den commit-Historien der ersten Fork-Runden
 (Kapitel 3.18–3.19 im Hauptprojekt) im Detail dokumentiert, hier nur
@@ -264,7 +265,31 @@ Verbindungen ... mit großen zeitlichen Lücken"):
   bewusst den Request-Flow, nicht die Kartenanzahl (siehe deren eigener
   Kommentar), bleibt also gültig.
 
-Alle dreizehn Patches sind per `dart analyze` (keine neuen Fehler) und den
+### 14. Onboarding: Kartenstil-Auswahl ausblendbar
+
+Nutzer-Feedback (04.10.2026): Im Onboarding-Dialog (`OnboardingSheet`)
+fragt `_OnboardingMapSection` eine Kartenstil-Auswahl (Hell/Dunkel) ab,
+die seit der Dark-Mode-Kopplung des Kartenstils (`_mapDarkModeSync` in
+`main.dart`, überschreibt den Stil bei jedem Rebuild anhand der
+effektiven Helligkeit) rein kosmetisch wirkungslos ist - dieselbe
+Begründung, aus der die Einstellungen-Karte bereits per Patch 6
+(`SettingsTrufiScreen.showMapSettings`) und der schwebende
+Kartentyp-Button bereits app-seitig ausgeblendet sind. Die
+Onboarding-Sektion wurde dabei übersehen.
+
+`OnboardingSheet` bekommt einen neuen, additiven `showMapSection`-
+Parameter (Default `true`, Upstream-Verhalten unverändert) - exakt
+dasselbe additive Muster wie Patch 6s `showMapSettings`. Guard um
+`_OnboardingMapSection` in `_buildContent()`, keine Pagination-/Index-
+Logik betroffen (der Dialog ist eine einzelne scrollbare Spalte, keine
+Multi-Page-Sequenz mit Zählern/Punkten).
+
+Kein eigener Test: `trufi_core_settings` hatte bisher keine
+Test-Infrastruktur (kein `test/`-Verzeichnis), ein neues Harness nur für
+diesen einen additiven Boolean-Guard wäre unverhältnismäßig - analog zu
+Patch 6, der aus demselben Grund ebenfalls ohne dedizierten Test blieb.
+
+Alle vierzehn Patches sind per `dart analyze` (keine neuen Fehler) und den
 bestehenden Testsuiten der jeweils betroffenen Pakete verifiziert
 (alle grün, inkl. neuer Tests für Patches 8/10/11/12/13).
 
