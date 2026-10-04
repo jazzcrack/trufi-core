@@ -4,9 +4,9 @@ Dieser Fork existiert ausschließlich, um Trufi-Core-Lücken zu
 schließen, für die es keinen Konfigurationspunkt gibt (siehe
 `architektur-konzept.md` im Hauptprojekt
 [jazzcrack/-PNV-Fahrplan-App](https://github.com/jazzcrack/-PNV-Fahrplan-App),
-Kapitel 3.13/14/18–3.26 für die vollständige Herleitung jedes einzelnen
-Patches). Keine anderen Änderungen gegenüber Upstream. Stand: zwölf
-Patches (zuletzt aktualisiert 04.10.2026, Kapitel 3.26).
+Kapitel 3.13/14/18–3.27 für die vollständige Herleitung jedes einzelnen
+Patches). Keine anderen Änderungen gegenüber Upstream. Stand: dreizehn
+Patches (zuletzt aktualisiert 04.10.2026, Kapitel 3.27).
 
 ## Branch-Struktur
 
@@ -18,7 +18,7 @@ Patches (zuletzt aktualisiert 04.10.2026, Kapitel 3.26).
   `main`, wird nie direkt verändert. Dient nur als Referenz für
   `git rebase`.
 
-## Die zwölf Patches
+## Die dreizehn Patches
 
 | # | Thema | Pakete | Risiko |
 |---|---|---|---|
@@ -34,6 +34,7 @@ Patches (zuletzt aktualisiert 04.10.2026, Kapitel 3.26).
 | 10 | Attribution-Button-Position konfigurierbar | `trufi_core_maps` | niedrig |
 | 11 | GBFS-Sharing-Filter ("Nur Leihrad"/"Kein Sharing") | `trufi_core_routing`, `trufi_core_routing_ui`, `trufi_core_home_screen` | niedrig (additiver Optional-Hook) |
 | 12 | `tripPatternId` aus `pattern.id` statt `pattern.code` | `trufi_core_routing` | niedrig (Bugfix, ein Feldwert) |
+| 13 | "Mehr laden": chronologische Sortierung + größere Seite | `trufi_core_home_screen` | niedrig (additiver Parameter + lokaler Sort) |
 
 Patches 1–5 sind in den commit-Historien der ersten Fork-Runden
 (Kapitel 3.18–3.19 im Hauptprojekt) im Detail dokumentiert, hier nur
@@ -226,9 +227,46 @@ gemeldet.
   bereits korrekt mit einem eigenen, funktionierenden Format und ist
   von diesem Patch nicht betroffen.
 
-Alle zwölf Patches sind per `dart analyze` (keine neuen Fehler) und den
+### 13. "Mehr laden": chronologische Sortierung + größere Seite
+
+Zwei Teile desselben TestFlight-Reports ("immer maximal 5
+Verbindungen ... mit großen zeitlichen Lücken"):
+
+- **Unsortierte Reihenfolge:** `fetchPlan()` sortiert jede Antwort per
+  `sortByGeneralizedCost()` nach OTPs Generalized Cost statt nach Zeit
+  (`otp_28_routing_provider.dart`, begründet mit #849/#847 - für eine
+  einzelne Suche gewollt: "beste Option zuerst"). `loadMoreItineraries()`
+  (`route_planner_cubit.dart`) mergte eine zweite, unabhängig
+  kostensortierte Seite per simpler Listenkonkatenation - die
+  chronologische Reihenfolge der kombinierten Liste ging dabei verloren
+  (live gemeldet: 03:04 → 05:06 → 03:20 → 07:45 → 11:18). Fix: nach dem
+  Merge wird explizit nach `Itinerary.startTime` sortiert - nur in
+  diesem Pagination-Pfad, die Kostensortierung der Erstsuche bleibt
+  unverändert (`groupItineraries()` behält die eingehende Reihenfolge
+  bei, siehe dessen eigener Doc-Kommentar - der Fix muss also vor der
+  Gruppierung greifen, tut er, da `loadMoreItineraries()` erst mergt+
+  sortiert und danach `_groupPlanItineraries()` aufruft).
+- **Immer nur 5:** `fetchPlan()`s `numItineraries`-Parameter (Default 5,
+  für die Erstsuche gedacht) wurde von `RequestPlanService` nie
+  durchgereicht - jeder Aufruf (Erstsuche UND "mehr laden") fiel auf
+  denselben Wert zurück. Jetzt additiv durch `RequestPlanService` →
+  `RoutingEngineRequestPlanService` gezogen; `loadMoreItineraries()`
+  fordert explizit `loadMoreItinerariesPageSize` (10) an, die Erstsuche
+  bleibt unverändert bei 5.
+- Drei Test-Fakes (`implements RequestPlanService`) mussten den neuen
+  Parameter ergänzen (gleiches Dart-Override-Muster wie Patch 2/10).
+- Neue Unit-Tests (`route_planner_load_more_test.dart`): simulieren
+  zwei unabhängig kostensortierte Seiten und prüfen, dass die gemergte
+  Liste chronologisch ist; prüfen, dass `numItineraries` nur bei "mehr
+  laden" gesetzt wird, nicht bei der Erstsuche.
+- Bewusst NICHT verändert: die bestehende Integration-Test-Datei
+  `itinerary_pagination_test.dart` (App-Repo) - die prüft bereits
+  bewusst den Request-Flow, nicht die Kartenanzahl (siehe deren eigener
+  Kommentar), bleibt also gültig.
+
+Alle dreizehn Patches sind per `dart analyze` (keine neuen Fehler) und den
 bestehenden Testsuiten der jeweils betroffenen Pakete verifiziert
-(alle grün, inkl. neuer Tests für Patches 8/10/11/12).
+(alle grün, inkl. neuer Tests für Patches 8/10/11/12/13).
 
 ## Sync-Strategie: wie künftige Upstream-Änderungen reinkommen
 
