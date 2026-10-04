@@ -13,10 +13,22 @@ import '../../l10n/settings_localizations.dart';
 class OnboardingSheet extends StatelessWidget {
   final VoidCallback onComplete;
 
+  /// fahrplaner.de fork patch (04.10.2026, siehe FAHRPLANER_PATCHES.md):
+  /// blendet die Kartenstil-Auswahl aus. Additiv, Default `true` (Upstream-
+  /// Verhalten unveraendert) - fuer Host-Apps gedacht, deren Kartenstil
+  /// bereits fest an den App-/System-Dark-Mode gekoppelt ist (siehe
+  /// `SettingsTrufiScreen.showMapSettings`, dasselbe Muster fuer die
+  /// Einstellungen-Karte), wo eine manuelle Auswahl hier wirkungslos waere.
+  final bool showMapSection;
+
   /// Breakpoint for switching between modal and bottom sheet
   static const double _breakpoint = 600;
 
-  const OnboardingSheet({super.key, required this.onComplete});
+  const OnboardingSheet({
+    super.key,
+    required this.onComplete,
+    this.showMapSection = true,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -200,8 +212,10 @@ class OnboardingSheet extends StatelessWidget {
                 _OnboardingLanguageSection(l10n: l10n),
                 const SizedBox(height: 16),
                 _OnboardingThemeSection(l10n: l10n),
-                const SizedBox(height: 16),
-                _OnboardingMapSection(l10n: l10n),
+                if (showMapSection) ...[
+                  const SizedBox(height: 16),
+                  _OnboardingMapSection(l10n: l10n),
+                ],
                 const SizedBox(height: 16),
                 _OnboardingRoutingSection(l10n: l10n),
               ],
