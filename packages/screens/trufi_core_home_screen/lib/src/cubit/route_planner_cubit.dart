@@ -25,6 +25,15 @@ const String tooCloseErrorKey = 'origin_destination_too_close';
 /// route to host, errno = 65) ..."), shown verbatim to the user.
 const String networkErrorKey = 'network_error';
 
+/// Number of itineraries requested per [RoutePlannerCubit.loadMoreItineraries]
+/// call. fahrplaner.de fork patch (04.10.2026, Kapitel 3.27, see
+/// FAHRPLANER_PATCHES.md): fetchPlan() defaults to 5 itineraries (sized for
+/// the initial "best option first" search); without overriding it here,
+/// every "earlier/later connections" tap would silently add only 5 more,
+/// which read as a hard cap. Deliberately larger than the initial-search
+/// default, not applied to it.
+const int loadMoreItinerariesPageSize = 10;
+
 /// Best-effort classification of a routing-provider exception as a
 /// network/connectivity failure vs. anything else (bad request, server-side
 /// routing error, etc.), which keep surfacing as `e.toString()` - this is
@@ -377,12 +386,29 @@ class RoutePlannerCubit extends Cubit<RoutePlannerState> {
         locale: _locale,
         dateTime: DateTime.now(),
         pageCursor: cursor,
+        // fahrplaner.de fork patch (04.10.2026, Kapitel 3.27, siehe
+        // FAHRPLANER_PATCHES.md): ohne dies faellt fetchPlan() auf den
+        // Erstsuche-Standard von 5 zurueck - "mehr laden" haette also
+        // immer nur 5 weitere Verbindungen ergaenzt, was sich wie eine
+        // feste Obergrenze anfuehlte.
+        numItineraries: loadMoreItinerariesPageSize,
       );
 
       final enriched = _enrichServiceHours(rawPlan);
       final existing = currentPlan.itineraries ?? [];
       final fetched = enriched.itineraries ?? [];
-      final merged = earlier ? [...fetched, ...existing] : [...existing, ...fetched];
+      // fahrplaner.de fork patch (04.10.2026, Kapitel 3.27, siehe
+      // FAHRPLANER_PATCHES.md): fetchPlan() sortiert jede einzelne Antwort
+      // per sortByGeneralizedCost() nach OTP-Kosten, nicht nach Zeit (siehe
+      // otp_28_routing_provider.dart) - das ist fuer eine einzelne Suche
+      // gewollt ("beste Option zuerst"), zerstoert aber beim Zusammenfuegen
+      // zweier UNABHAENGIG kostensortierter Seiten die chronologische
+      // Reihenfolge (z.B. 03:04 -> 05:06 -> 03:20 -> 07:45). Deshalb hier
+      // nach dem Merge explizit nach startTime neu sortieren - nur fuer
+      // diesen Pagination-Pfad, die Kostensortierung der einzelnen Suche
+      // bleibt unveraendert.
+      final merged = [...existing, ...fetched]
+        ..sort((a, b) => a.startTime.compareTo(b.startTime));
 
       final mergedPlan = _groupPlanItineraries(
         currentPlan.copyWith(

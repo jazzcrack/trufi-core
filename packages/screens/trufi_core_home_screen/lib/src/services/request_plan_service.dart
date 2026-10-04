@@ -13,5 +13,11 @@ abstract class RequestPlanService {
     // fahrplaner.de fork patch (see FAHRPLANER_PATCHES.md): "earlier/later
     // connections" pagination, forwarded to the routing provider.
     String? pageCursor,
+    // fahrplaner.de fork patch (04.10.2026, Kapitel 3.27, siehe
+    // FAHRPLANER_PATCHES.md): laesst "frueher/spaeter"-Anfragen eine
+    // groessere Seitengroesse anfordern als die Erstsuche (Standard des
+    // Managers, aktuell 5) - sonst liefert jeder "mehr laden"-Tap nur
+    // dieselbe kleine Stapelgroesse.
+    int? numItineraries,
   });
 }

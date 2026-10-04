@@ -23,6 +23,7 @@ class _ThrowingPlanService implements RequestPlanService {
     required DateTime dateTime,
     bool arriveBy = false,
     String? pageCursor,
+    int? numItineraries,
   }) async {
     throw error;
   }

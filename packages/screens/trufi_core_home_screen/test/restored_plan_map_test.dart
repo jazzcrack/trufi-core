@@ -168,6 +168,7 @@ class _FakePlanService implements RequestPlanService {
     required DateTime dateTime,
     bool arriveBy = false,
     String? pageCursor,
+    int? numItineraries,
   }) async {
     calls++;
     return plan;
