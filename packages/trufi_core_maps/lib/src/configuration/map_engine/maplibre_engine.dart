@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:maplibre_gl/maplibre_gl.dart' show AttributionButtonPosition;
 
 import '../../../l10n/maps_localizations.dart';
 import '../../domain/controller/map_controller.dart';
@@ -87,6 +88,7 @@ class MapLibreEngine implements ITrufiMapEngine {
     List<TrufiLayer> layers = const [],
     List<WidgetMarker> widgetMarkers = const [],
     Offset? attributionButtonMargin,
+    AttributionButtonPosition? attributionButtonPosition,
   }) {
     return TrufiMap(
       key: ValueKey(id),
@@ -100,6 +102,7 @@ class MapLibreEngine implements ITrufiMapEngine {
       layers: layers,
       widgetMarkers: widgetMarkers,
       attributionButtonMargin: attributionButtonMargin,
+      attributionButtonPosition: attributionButtonPosition,
     );
   }
 }

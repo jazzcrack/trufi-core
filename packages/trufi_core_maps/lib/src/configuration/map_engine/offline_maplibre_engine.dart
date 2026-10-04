@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:maplibre_gl/maplibre_gl.dart' show AttributionButtonPosition;
 import 'package:path_provider/path_provider.dart';
 import 'package:trufi_core_utils/packge_info_platform.dart';
 
@@ -430,6 +431,7 @@ class OfflineMapLibreEngine implements ITrufiMapEngine {
     List<TrufiLayer> layers = const [],
     List<WidgetMarker> widgetMarkers = const [],
     Offset? attributionButtonMargin,
+    AttributionButtonPosition? attributionButtonPosition,
   }) {
     return _OfflineMapWrapper(
       key: ValueKey(id),
@@ -443,6 +445,7 @@ class OfflineMapLibreEngine implements ITrufiMapEngine {
       layers: layers,
       widgetMarkers: widgetMarkers,
       attributionButtonMargin: attributionButtonMargin,
+      attributionButtonPosition: attributionButtonPosition,
     );
   }
 }
@@ -458,6 +461,7 @@ class _OfflineMapWrapper extends StatefulWidget {
   final List<TrufiLayer> layers;
   final List<WidgetMarker> widgetMarkers;
   final Offset? attributionButtonMargin;
+  final AttributionButtonPosition? attributionButtonPosition;
 
   const _OfflineMapWrapper({
     super.key,
@@ -471,6 +475,7 @@ class _OfflineMapWrapper extends StatefulWidget {
     this.layers = const [],
     this.widgetMarkers = const [],
     this.attributionButtonMargin,
+    this.attributionButtonPosition,
   });
 
   @override
@@ -568,6 +573,7 @@ class _OfflineMapWrapperState extends State<_OfflineMapWrapper> {
       layers: widget.layers,
       widgetMarkers: widget.widgetMarkers,
       attributionButtonMargin: widget.attributionButtonMargin,
+      attributionButtonPosition: widget.attributionButtonPosition,
     );
   }
 }

@@ -11,6 +11,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:trufi_core_home_screen/trufi_core_home_screen.dart';
 import 'package:trufi_core_interfaces/trufi_core_interfaces.dart'
     show TrufiLocation;
+import 'package:maplibre_gl/maplibre_gl.dart' show AttributionButtonPosition;
 import 'package:trufi_core_maps/trufi_core_maps.dart';
 import 'package:trufi_core_routing/trufi_core_routing.dart' as routing;
 import 'package:trufi_core_search_locations/trufi_core_search_locations.dart'
@@ -218,6 +219,7 @@ class _FakeEngine extends ITrufiMapEngine {
     List<TrufiLayer> layers = const [],
     List<WidgetMarker> widgetMarkers = const [],
     Offset? attributionButtonMargin,
+    AttributionButtonPosition? attributionButtonPosition,
   }) {
     calls.layers = layers;
     calls.camera = camera;

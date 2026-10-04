@@ -77,6 +77,7 @@ class TrufiMap extends StatefulWidget {
     this.layers = const [],
     this.widgetMarkers = const [],
     this.attributionButtonMargin,
+    this.attributionButtonPosition,
   });
 
   /// MapLibre style URL or local path.
@@ -116,6 +117,15 @@ class TrufiMap extends StatefulWidget {
   /// Flutter's own z-order, so covering it with another widget is not a
   /// reliable fix. Null keeps MapLibre's own default position/margin.
   final Offset? attributionButtonMargin;
+
+  /// fahrplaner.de fork patch (04.10.2026, see FAHRPLANER_PATCHES.md): moves
+  /// the attribution control to an entirely different CORNER (not just an
+  /// offset within its default one) - for a host UI whose overlay is itself
+  /// so tall/wide that no margin within the default corner clears it
+  /// (echter Nutzer-Fund, Kapitel 3.32: eine Bounding-Box-Schaetzung der
+  /// noetigen Margin ist zu fragil). Null keeps MapLibre's own default
+  /// corner.
+  final AttributionButtonPosition? attributionButtonPosition;
 
   @override
   State<TrufiMap> createState() => _TrufiMapState();
@@ -708,6 +718,7 @@ class _TrufiMapState extends State<TrufiMap> implements TrufiMapDelegate {
               widget.attributionButtonMargin!.dx,
               widget.attributionButtonMargin!.dy,
             ),
+      attributionButtonPosition: widget.attributionButtonPosition,
       onMapCreated: (ctl) async {
         _mapCtl = ctl;
       },

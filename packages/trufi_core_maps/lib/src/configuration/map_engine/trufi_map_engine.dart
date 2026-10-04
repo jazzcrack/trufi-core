@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:maplibre_gl/maplibre_gl.dart' show AttributionButtonPosition;
 
 import '../../domain/controller/map_controller.dart';
 import '../../domain/entities/camera.dart';
@@ -53,6 +54,16 @@ abstract class ITrufiMapEngine {
     // that don't use maplibre_gl (or have no attribution control) simply
     // ignore it.
     Offset? attributionButtonMargin,
+    // fahrplaner.de fork patch (04.10.2026, siehe FAHRPLANER_PATCHES.md):
+    // laesst eine Host-App das native Attribution-Steuerelement in eine
+    // ANDERE Ecke verschieben statt es nur innerhalb seiner Standard-Ecke zu
+    // verschieben ([attributionButtonMargin] allein reicht nicht, wenn eine
+    // raumfuellende UI dessen gesamte Standard-Ecke dauerhaft verdeckt - ein
+    // echter TestFlight-Fund, Kapitel 3.32). Additiv, Default `null` = jeweils
+    // die unveraenderte Standard-Ecke des Engines. Wird zusammen mit
+    // [attributionButtonMargin] ausgewertet (die Margin bleibt dann relativ
+    // zur NEUEN Ecke).
+    AttributionButtonPosition? attributionButtonPosition,
   });
 }
 

@@ -15,6 +15,12 @@ dependencies:
   provider: ^6.1.2
   flutter_map: ^8.2.2
   cached_network_image: ^3.4.1
+  # fahrplaner.de fork patch (04.10.2026, siehe FAHRPLANER_PATCHES.md): nur
+  # fuer den AttributionButtonPosition-Typ in FlutterMapEngine.buildMap()s
+  # Signatur noetig (ITrufiMapEngine-Override) - wurde bisher transitiv ueber
+  # trufi_core_maps aufgeloest, depend_on_referenced_packages verlangt eine
+  # direkte Abhaengigkeit.
+  maplibre_gl: ^0.26.2
 
 dependency_overrides:
   trufi_core_interfaces:

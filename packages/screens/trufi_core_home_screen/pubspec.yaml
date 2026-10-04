@@ -38,6 +38,10 @@ dev_dependencies:
     sdk: flutter
   flutter_lints: ^6.0.0
   mocktail: ^1.0.4
+  # fahrplaner.de fork patch (04.10.2026, siehe FAHRPLANER_PATCHES.md): nur
+  # fuer den AttributionButtonPosition-Typ in restored_plan_map_test.darts
+  # Fake-Engine-Signatur noetig (ITrufiMapEngine-Override).
+  maplibre_gl: ^0.26.2
 
 flutter:
   generate: true

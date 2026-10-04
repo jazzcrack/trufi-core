@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:maplibre_gl/maplibre_gl.dart' show AttributionButtonPosition;
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:trufi_core_maps/trufi_core_maps.dart';
@@ -42,6 +43,7 @@ class FakeEngine implements ITrufiMapEngine {
     List<TrufiLayer> layers = const [],
     List<WidgetMarker> widgetMarkers = const [],
     Offset? attributionButtonMargin,
+    AttributionButtonPosition? attributionButtonPosition,
   }) {
     return _FakeMapWidget(
       key: ValueKey(engineId),

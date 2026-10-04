@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart' as fm;
 import 'package:latlong2/latlong.dart';
+import 'package:maplibre_gl/maplibre_gl.dart' show AttributionButtonPosition;
 import 'package:trufi_core_maps/trufi_core_maps.dart';
 
 /// FlutterMap (OpenStreetMap raster tiles) engine.
@@ -66,6 +67,7 @@ class FlutterMapEngine implements ITrufiMapEngine {
     List<TrufiLayer> layers = const [],
     List<WidgetMarker> widgetMarkers = const [],
     Offset? attributionButtonMargin,
+    AttributionButtonPosition? attributionButtonPosition,
   }) {
     return _FlutterMapWidget(
       key: ValueKey(id),
