@@ -166,6 +166,7 @@ query plan(
           wheelchairAccessible
           bikesAllowed
           pattern {
+            id
             code
           }
         }

@@ -87,7 +87,16 @@ class Otp28ResponseParser {
 
     final routeData = json['route'] as Map<String, dynamic>?;
     final tripData = json['trip'] as Map<String, dynamic>?;
-    final tripPatternId = tripData?['pattern']?['code'] as String?;
+    // fahrplaner.de fork patch (04.10.2026, Kapitel 3.26, siehe
+    // FAHRPLANER_PATCHES.md): echter Upstream-Bug - dieses Feld hiess zwar
+    // "tripPatternId", wurde aber aus `pattern.code` befuellt, nicht
+    // `pattern.id`. `fetchTransitRouteById()` fragt anschliessend
+    // `pattern(id: $id)` ab (siehe otp_28_routing_provider.dart) - mit
+    // `code` statt `id` schlaegt diese Abfrage fuer OTP 2.8 IMMER fehl
+    // ("Linie nicht gefunden" beim Antippen einer Linienbadge in einer
+    // Verbindung). `code` ist bei OTP keine gueltige Lookup-ID, nur ein
+    // menschenlesbares Kuerzel.
+    final tripPatternId = tripData?['pattern']?['id'] as String?;
 
     return Leg(
       mode: mode,
