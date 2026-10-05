@@ -4,9 +4,9 @@ Dieser Fork existiert ausschließlich, um Trufi-Core-Lücken zu
 schließen, für die es keinen Konfigurationspunkt gibt (siehe
 `architektur-konzept.md` im Hauptprojekt
 [jazzcrack/-PNV-Fahrplan-App](https://github.com/jazzcrack/-PNV-Fahrplan-App),
-Kapitel 3.13/14/18–3.37 für die vollständige Herleitung jedes einzelnen
-Patches). Keine anderen Änderungen gegenüber Upstream. Stand: achtzehn
-Patches (zuletzt aktualisiert 05.10.2026, Kapitel 3.37).
+Kapitel 3.13/14/18–3.38 für die vollständige Herleitung jedes einzelnen
+Patches). Keine anderen Änderungen gegenüber Upstream. Stand: neunzehn
+Patches (zuletzt aktualisiert 05.10.2026, Kapitel 3.38).
 
 ## Branch-Struktur
 
@@ -18,7 +18,7 @@ Patches (zuletzt aktualisiert 05.10.2026, Kapitel 3.37).
   `main`, wird nie direkt verändert. Dient nur als Referenz für
   `git rebase`.
 
-## Die achtzehn Patches
+## Die neunzehn Patches
 
 | # | Thema | Pakete | Risiko |
 |---|---|---|---|
@@ -40,6 +40,7 @@ Patches (zuletzt aktualisiert 05.10.2026, Kapitel 3.37).
 | 16 | Los-Button auf jeder Verbindungskarte, nicht nur der hervorgehobenen | `trufi_core_home_screen` | niedrig (Bedingung gelockert, kein neuer Zustand) |
 | 17 | "Fahrt merken"-Callback auf der Itinerary-Detailansicht | `trufi_core_home_screen` | niedrig (additiver Optional-Callback) |
 | 18 | `SearchLocationType`: optisch unterscheidbare Trefferliste | `trufi_core_search_locations` | niedrig (additives Enum-Feld + zwei neue Icon-Zuordnungen) |
+| 19 | `NavigationState.copyWith`: `distanceFromRoute`-Nullable-Bug behoben | `trufi_core_navigation` | niedrig (additiver Sentinel-Parameter, kein aktueller UI-Konsument betroffen) |
 
 Patches 1–5 sind in den commit-Historien der ersten Fork-Runden
 (Kapitel 3.18–3.19 im Hauptprojekt) im Detail dokumentiert, hier nur
@@ -412,9 +413,30 @@ Fork leben muss: das Datenmodell und die Icon-Zuordnung.
   für `locationType`), `test/widget/location_type_icons_test.dart` (neu,
   prüft alle vier unterscheidbaren Icons in einer echten Trefferliste).
 
-Alle achtzehn Patches sind per `dart analyze` (keine neuen Fehler) und den
+### 19. `NavigationState.copyWith`: `distanceFromRoute`-Nullable-Bug behoben
+
+Gefunden beim Schreiben eines Navigations-Szenario-Tests im Hauptprojekt
+(05.10.2026, Kapitel 3.38) - kein von einem echten Nutzer gemeldeter Bug,
+sondern eine durch den neuen automatisierten Test aufgedeckte, bis dahin
+folgenlose Dateninkonsistenz (aktuell liest keine App-UI
+`distanceFromRoute`).
+
+- `copyWith(distanceFromRoute: null)` kam nie an: `null ?? this
+  .distanceFromRoute` liefert unverändert den alten Wert zurück -
+  klassischer copyWith-Nullable-Bug. Betraf konkret
+  `NavigationCubit._checkOffRoute()`s "zurück auf der Route"-Zweig
+  (`isOffRoute` sprang korrekt auf `false`, `distanceFromRoute` blieb
+  aber auf dem letzten Abweichungswert stehen) sowie die bis dahin
+  nirgends aufgerufene `NavigationState.clearError()`.
+- Neuer additiver `clearDistanceFromRoute`-Parameter (Default `false`)
+  auf `copyWith` statt des unwirksamen `null`-Arguments, an beiden
+  Aufrufstellen nachgezogen.
+- Neue Tests: `test/navigation_state_copy_with_test.dart` (4 neue Fälle,
+  inkl. Regressionstest für genau dieses Verhalten).
+
+Alle neunzehn Patches sind per `dart analyze` (keine neuen Fehler) und den
 bestehenden Testsuiten der jeweils betroffenen Pakete verifiziert
-(alle grün, inkl. neuer Tests für Patches 8/10/11/12/13/16/17/18).
+(alle grün, inkl. neuer Tests für Patches 8/10/11/12/13/16/17/18/19).
 
 ## Sync-Strategie: wie künftige Upstream-Änderungen reinkommen
 
