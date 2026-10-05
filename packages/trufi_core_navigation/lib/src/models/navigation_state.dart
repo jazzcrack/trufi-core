@@ -340,6 +340,14 @@ class NavigationState extends Equatable {
     NavigationError? errorType,
     bool? isOffRoute,
     double? distanceFromRoute,
+    // fahrplaner.de fork patch (05.10.2026, siehe FAHRPLANER_PATCHES.md):
+    // `distanceFromRoute: null` allein kam nie an - `null ?? this
+    // .distanceFromRoute` liefert unveraendert den ALTEN Wert zurueck, ein
+    // klassischer copyWith-Nullable-Bug. Ohne diesen Sentinel-Parameter
+    // blieb `distanceFromRoute` nach "zurueck auf der Route" auf dem
+    // zuletzt gemessenen Abweichungswert stehen, obwohl `isOffRoute`
+    // korrekt auf `false` sprang.
+    bool clearDistanceFromRoute = false,
     bool? isGpsWeak,
     bool? isMapFollowingUser,
     bool? isInBackground,
@@ -363,7 +371,9 @@ class NavigationState extends Equatable {
       errorMessage: errorMessage ?? this.errorMessage,
       errorType: errorType ?? this.errorType,
       isOffRoute: isOffRoute ?? this.isOffRoute,
-      distanceFromRoute: distanceFromRoute ?? this.distanceFromRoute,
+      distanceFromRoute: clearDistanceFromRoute
+          ? null
+          : (distanceFromRoute ?? this.distanceFromRoute),
       isGpsWeak: isGpsWeak ?? this.isGpsWeak,
       isMapFollowingUser: isMapFollowingUser ?? this.isMapFollowingUser,
       isInBackground: isInBackground ?? this.isInBackground,
@@ -376,7 +386,7 @@ class NavigationState extends Equatable {
       status: NavigationStatus.navigating,
       errorMessage: null,
       isOffRoute: false,
-      distanceFromRoute: null,
+      clearDistanceFromRoute: true,
       isGpsWeak: false,
     );
   }

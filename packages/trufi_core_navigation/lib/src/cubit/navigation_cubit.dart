@@ -363,7 +363,7 @@ class NavigationCubit extends Cubit<NavigationState> {
       HapticFeedback.heavyImpact();
     } else if (!isOffRoute && state.isOffRoute) {
       // Back on route
-      emit(state.copyWith(isOffRoute: false, distanceFromRoute: null));
+      emit(state.copyWith(isOffRoute: false, clearDistanceFromRoute: true));
     }
   }
 
