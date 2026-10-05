@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:mocktail/mocktail.dart';
+import 'package:trufi_core_search_locations/src/models/search_location.dart';
 import 'package:trufi_core_search_locations/src/services/photon_search_service.dart';
 import 'package:trufi_core_search_locations/src/services/search_location_service.dart';
 
@@ -94,6 +95,118 @@ void main() {
         // Third result - Restaurant
         expect(results[2].displayName, equals('Berlin Döner'));
         expect(results[2].id, equals('osm_12345678'));
+      });
+
+      // fahrplaner.de fork patch (05.10.2026, siehe FAHRPLANER_PATCHES.md):
+      // locationType aus osm_key/osm_value, fuer eine optisch
+      // unterscheidbare Trefferliste.
+      group('locationType', () {
+        test('osm_key "place" -> address (Berlin, the city)', () async {
+          when(
+            () => mockHttpClient.get(any()),
+          ).thenAnswer((_) async => http.Response(searchFixtureResponse, 200));
+
+          final results = await service.search('Berlin');
+
+          expect(results[0].locationType, SearchLocationType.address);
+        });
+
+        test('osm_key "tourism" -> poi (Brandenburg Gate)', () async {
+          when(
+            () => mockHttpClient.get(any()),
+          ).thenAnswer((_) async => http.Response(searchFixtureResponse, 200));
+
+          final results = await service.search('Berlin');
+
+          expect(results[1].locationType, SearchLocationType.poi);
+        });
+
+        test('osm_key "amenity" -> poi (restaurant)', () async {
+          when(
+            () => mockHttpClient.get(any()),
+          ).thenAnswer((_) async => http.Response(searchFixtureResponse, 200));
+
+          final results = await service.search('Berlin');
+
+          expect(results[2].locationType, SearchLocationType.poi);
+        });
+
+        test('osm_key "railway"/osm_value "station" -> stop', () async {
+          final response = jsonEncode({
+            'features': [
+              {
+                'geometry': {
+                  'coordinates': [13.4, 52.52],
+                  'type': 'Point',
+                },
+                'properties': {
+                  'name': 'Berlin Hauptbahnhof',
+                  'osm_key': 'railway',
+                  'osm_value': 'station',
+                },
+              },
+            ],
+          });
+          when(
+            () => mockHttpClient.get(any()),
+          ).thenAnswer((_) async => http.Response(response, 200));
+
+          final results = await service.search('Hauptbahnhof');
+
+          expect(results, hasLength(1));
+          expect(results[0].locationType, SearchLocationType.stop);
+        });
+
+        test('osm_key "highway" -> street', () async {
+          final response = jsonEncode({
+            'features': [
+              {
+                'geometry': {
+                  'coordinates': [13.4, 52.52],
+                  'type': 'Point',
+                },
+                'properties': {
+                  'name': 'Friedrichstraße',
+                  'osm_key': 'highway',
+                  'osm_value': 'residential',
+                },
+              },
+            ],
+          });
+          when(
+            () => mockHttpClient.get(any()),
+          ).thenAnswer((_) async => http.Response(response, 200));
+
+          final results = await service.search('Friedrichstraße');
+
+          expect(results, hasLength(1));
+          expect(results[0].locationType, SearchLocationType.street);
+        });
+
+        test('unknown osm_key -> null (generic icon, no guessing)', () async {
+          final response = jsonEncode({
+            'features': [
+              {
+                'geometry': {
+                  'coordinates': [13.4, 52.52],
+                  'type': 'Point',
+                },
+                'properties': {
+                  'name': 'Mystery Place',
+                  'osm_key': 'some_future_tag',
+                },
+              },
+            ],
+          });
+          when(
+            () => mockHttpClient.get(any()),
+          ).thenAnswer((_) async => http.Response(response, 200));
+
+          final results = await service.search('Mystery');
+
+          expect(results, hasLength(1));
+          expect(results[0].locationType, isNull);
+        });
       });
 
       test('includes language parameter when specified', () async {

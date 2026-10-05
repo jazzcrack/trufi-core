@@ -590,9 +590,15 @@ class _LocationSearchScreenState extends State<LocationSearchScreen>
                           padding: const EdgeInsets.only(bottom: 8),
                           child: _ModernLocationTile(
                             location: location,
+                            // fahrplaner.de fork patch (05.10.2026, siehe
+                            // FAHRPLANER_PATCHES.md): optisch zwischen
+                            // Haltestelle/POI/Strasse/Adresse unterscheiden,
+                            // wenn der Suchdienst locationType befuellt hat -
+                            // sonst unveraendertes Verhalten (canDrill-Pfeil
+                            // bzw. generischer Pin).
                             icon: canDrill
                                 ? Icons.fork_right_rounded
-                                : Icons.place_rounded,
+                                : _iconForLocationType(location.locationType),
                             iconColor: colorScheme.primary,
                             // A street with known corners is not a point —
                             // picking it directly answers nothing. Tapping
@@ -624,6 +630,21 @@ class _LocationSearchScreenState extends State<LocationSearchScreen>
         ),
       ),
     );
+  }
+
+  /// fahrplaner.de fork patch (05.10.2026, siehe FAHRPLANER_PATCHES.md).
+  IconData _iconForLocationType(SearchLocationType? type) {
+    switch (type) {
+      case SearchLocationType.stop:
+        return Icons.directions_bus_rounded;
+      case SearchLocationType.poi:
+        return Icons.storefront_rounded;
+      case SearchLocationType.street:
+        return Icons.add_road_rounded;
+      case SearchLocationType.address:
+      case null:
+        return Icons.place_rounded;
+    }
   }
 
   IconData _getIconForPlace(SearchLocation location) {

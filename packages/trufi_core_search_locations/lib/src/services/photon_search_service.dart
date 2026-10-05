@@ -215,7 +215,45 @@ class PhotonSearchService
       address: address,
       latitude: lat,
       longitude: lon,
+      locationType: _locationTypeFromOsmTag(
+        properties['osm_key'] as String?,
+        properties['osm_value'] as String?,
+        hasHouseNumber: houseNumber != null,
+      ),
     );
+  }
+
+  /// fahrplaner.de fork patch (05.10.2026, siehe FAHRPLANER_PATCHES.md):
+  /// leitet [SearchLocationType] aus Photons eigenem osm_key/osm_value-Paar
+  /// ab (dieselben OSM-Tags, die auch im Rohdatensatz stehen - Photon
+  /// reicht genau EIN Haupt-Tag pro Treffer durch, nicht die volle
+  /// Tag-Liste). Bewusst eine grobe, nicht erschoepfende Zuordnung - ein
+  /// unbekanntes Tag faellt auf null (generisches Icon) zurueck statt zu
+  /// raten.
+  SearchLocationType? _locationTypeFromOsmTag(
+    String? osmKey,
+    String? osmValue, {
+    required bool hasHouseNumber,
+  }) {
+    if (osmKey == 'railway' &&
+        (osmValue == 'station' || osmValue == 'halt' || osmValue == 'tram_stop')) {
+      return SearchLocationType.stop;
+    }
+    if (osmKey == 'public_transport' ||
+        (osmKey == 'amenity' && osmValue == 'bus_station')) {
+      return SearchLocationType.stop;
+    }
+    if (osmKey == 'highway') return SearchLocationType.street;
+    if (osmKey == 'amenity' ||
+        osmKey == 'shop' ||
+        osmKey == 'tourism' ||
+        osmKey == 'leisure') {
+      return SearchLocationType.poi;
+    }
+    if (osmKey == 'building' || hasHouseNumber || osmKey == 'place') {
+      return SearchLocationType.address;
+    }
+    return null;
   }
 
   @override
