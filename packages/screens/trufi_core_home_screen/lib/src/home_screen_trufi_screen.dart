@@ -47,8 +47,12 @@ class HomeScreenTrufiScreen extends TrufiScreen {
   /// view (same unambiguous-which-itinerary pattern as the existing
   /// [HomeScreen]-internal `onShare`, but this one must reach the HOST APP -
   /// persisting a saved trip is app-specific storage, not something the
-  /// fork itself can own). Pass null to not show the action at all.
-  final void Function(routing.Itinerary itinerary)? onSaveTrip;
+  /// fork itself can own). Carries BuildContext like [onRouteTap] above,
+  /// since the host app builds its `screens:` list without one of its own
+  /// (e.g. to show a SnackBar confirmation). Pass null to not show the
+  /// action at all.
+  final void Function(BuildContext context, routing.Itinerary itinerary)?
+  onSaveTrip;
 
   /// Static initialization for the module.
   /// Call this once at app startup before using any HomeScreen functionality.

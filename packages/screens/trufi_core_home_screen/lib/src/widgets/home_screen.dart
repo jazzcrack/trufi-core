@@ -55,7 +55,8 @@ class HomeScreen extends StatefulWidget {
   final void Function(BuildContext context, String routeCode)? onRouteTap;
 
   /// fahrplaner.de fork patch (see home_screen_trufi_screen.dart).
-  final void Function(routing.Itinerary itinerary)? onSaveTrip;
+  final void Function(BuildContext context, routing.Itinerary itinerary)?
+  onSaveTrip;
 
   const HomeScreen({
     super.key,
@@ -1941,7 +1942,9 @@ class _HomeScreenState extends State<HomeScreen>
           },
           onItineraryDetails: widget.onItineraryDetails,
           onShare: (itinerary) => _shareItinerary(context, itinerary),
-          onSaveTrip: widget.onSaveTrip,
+          onSaveTrip: widget.onSaveTrip != null
+              ? (itinerary) => widget.onSaveTrip!(context, itinerary)
+              : null,
           onRouteTap: widget.onRouteTap != null
               ? (routeCode) => widget.onRouteTap!(context, routeCode)
               : null,
@@ -2251,7 +2254,9 @@ class _HomeScreenState extends State<HomeScreen>
                       },
                       onItineraryDetails: widget.onItineraryDetails,
                       onShare: (itinerary) => _shareItinerary(context, itinerary),
-                      onSaveTrip: widget.onSaveTrip,
+                      onSaveTrip: widget.onSaveTrip != null
+                          ? (itinerary) => widget.onSaveTrip!(context, itinerary)
+                          : null,
                       onRouteTap: widget.onRouteTap != null
                           ? (routeCode) =>
                                 widget.onRouteTap!(context, routeCode)
@@ -2282,7 +2287,9 @@ class _HomeScreenState extends State<HomeScreen>
                       },
                       onItineraryDetails: widget.onItineraryDetails,
                       onShare: (itinerary) => _shareItinerary(context, itinerary),
-                      onSaveTrip: widget.onSaveTrip,
+                      onSaveTrip: widget.onSaveTrip != null
+                          ? (itinerary) => widget.onSaveTrip!(context, itinerary)
+                          : null,
                       onRouteTap: widget.onRouteTap != null
                           ? (routeCode) =>
                                 widget.onRouteTap!(context, routeCode)
