@@ -4,9 +4,9 @@ Dieser Fork existiert ausschließlich, um Trufi-Core-Lücken zu
 schließen, für die es keinen Konfigurationspunkt gibt (siehe
 `architektur-konzept.md` im Hauptprojekt
 [jazzcrack/-PNV-Fahrplan-App](https://github.com/jazzcrack/-PNV-Fahrplan-App),
-Kapitel 3.13/14/18–3.33 für die vollständige Herleitung jedes einzelnen
-Patches). Keine anderen Änderungen gegenüber Upstream. Stand: sechzehn
-Patches (zuletzt aktualisiert 04.10.2026, Kapitel 3.33).
+Kapitel 3.13/14/18–3.35 für die vollständige Herleitung jedes einzelnen
+Patches). Keine anderen Änderungen gegenüber Upstream. Stand: siebzehn
+Patches (zuletzt aktualisiert 05.10.2026, Kapitel 3.35).
 
 ## Branch-Struktur
 
@@ -18,7 +18,7 @@ Patches (zuletzt aktualisiert 04.10.2026, Kapitel 3.33).
   `main`, wird nie direkt verändert. Dient nur als Referenz für
   `git rebase`.
 
-## Die sechzehn Patches
+## Die siebzehn Patches
 
 | # | Thema | Pakete | Risiko |
 |---|---|---|---|
@@ -38,6 +38,7 @@ Patches (zuletzt aktualisiert 04.10.2026, Kapitel 3.33).
 | 14 | Onboarding: Kartenstil-Auswahl ausblendbar | `trufi_core_settings` | niedrig (additiver Optional-Parameter) |
 | 15 | Attribution-Button: echte Eckenwahl statt nur Marge (+ Compile-Fix) | `trufi_core_maps`, `trufi_core_transport_list` | niedrig (additiver Optional-Parameter + nachgezogener Testfix) |
 | 16 | Los-Button auf jeder Verbindungskarte, nicht nur der hervorgehobenen | `trufi_core_home_screen` | niedrig (Bedingung gelockert, kein neuer Zustand) |
+| 17 | "Fahrt merken"-Callback auf der Itinerary-Detailansicht | `trufi_core_home_screen` | niedrig (additiver Optional-Callback) |
 
 Patches 1–5 sind in den commit-Historien der ersten Fork-Runden
 (Kapitel 3.18–3.19 im Hauptprojekt) im Detail dokumentiert, hier nur
@@ -348,9 +349,31 @@ der Umweg über die Detailansicht. Auf Nutzer-Wunsch behoben.
   Callback zeigt weiterhin nur das Auswahl-Häkchen (Regressionsschutz
   für den verbleibenden Zweig).
 
-Alle sechzehn Patches sind per `dart analyze` (keine neuen Fehler) und den
+### 17. "Fahrt merken"-Callback auf der Itinerary-Detailansicht
+
+Echter Nutzer-Wunsch, wiederholt genannt (05.10.2026, Hauptprojekt
+Kapitel 3.35): konkrete Fahrten speichern (Linien + Abfahrtszeit), nicht
+nur Start/Ziel-Paare. Der eigentliche Speicher-Mechanismus lebt in der
+App (`SavedTripsManager`, app-eigene Persistenz) - dieser Patch liefert
+nur den fehlenden Haken dafür im Fork.
+
+- Neuer additiver `onSaveTrip`-Callback (`void
+  Function(routing.Itinerary)?`) auf `ItineraryDetailContent`/
+  `ItineraryDetailScreen`, durchgereicht über `ItineraryList` bis zu
+  `HomeScreenConfig`/`HomeScreenTrufiScreen` - anders als `onShare`
+  (bleibt komplett fork-intern, ruft `ShareRouteService` selbst auf)
+  MUSS dieser Callback die Host-App erreichen.
+- Zeigt einen Bookmark-Button neben dem bestehenden Share-Button, auf
+  derselben Detailansicht (eindeutig, welche Itinerary - gleicher Grund
+  wie bei `onShare`).
+- Drei neue Widget-Tests (`itinerary_detail_save_trip_test.dart`):
+  Button sichtbar + ruft Callback auf, wenn gesetzt; Button ausgeblendet
+  ohne Callback - für beide Widgets (`ItineraryDetailContent` und
+  `ItineraryDetailScreen`).
+
+Alle siebzehn Patches sind per `dart analyze` (keine neuen Fehler) und den
 bestehenden Testsuiten der jeweils betroffenen Pakete verifiziert
-(alle grün, inkl. neuer Tests für Patches 8/10/11/12/13/16).
+(alle grün, inkl. neuer Tests für Patches 8/10/11/12/13/16/17).
 
 ## Sync-Strategie: wie künftige Upstream-Änderungen reinkommen
 
