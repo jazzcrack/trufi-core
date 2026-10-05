@@ -42,6 +42,14 @@ class HomeScreenTrufiScreen extends TrufiScreen {
   /// Provides the route code to allow navigation to route details screen.
   final void Function(BuildContext context, String routeCode)? onRouteTap;
 
+  /// fahrplaner.de fork patch (05.10.2026, siehe FAHRPLANER_PATCHES.md):
+  /// called when the rider taps "Fahrt merken" on an itinerary's OWN detail
+  /// view (same unambiguous-which-itinerary pattern as the existing
+  /// [HomeScreen]-internal `onShare`, but this one must reach the HOST APP -
+  /// persisting a saved trip is app-specific storage, not something the
+  /// fork itself can own). Pass null to not show the action at all.
+  final void Function(routing.Itinerary itinerary)? onSaveTrip;
+
   /// Static initialization for the module.
   /// Call this once at app startup before using any HomeScreen functionality.
   static Future<void> init() async {
@@ -54,6 +62,7 @@ class HomeScreenTrufiScreen extends TrufiScreen {
     this.onItineraryDetails,
     this.onStartNavigation,
     this.onRouteTap,
+    this.onSaveTrip,
   }) {
     _repository = repository ?? HomeScreenRepositoryImpl();
   }
@@ -96,6 +105,7 @@ class HomeScreenTrufiScreen extends TrufiScreen {
       onItineraryDetails: onItineraryDetails,
       onStartNavigation: onStartNavigation,
       onRouteTap: onRouteTap,
+      onSaveTrip: onSaveTrip,
     );
   };
 

@@ -54,6 +54,9 @@ class HomeScreen extends StatefulWidget {
   /// Provides the route code to allow navigation to route details screen.
   final void Function(BuildContext context, String routeCode)? onRouteTap;
 
+  /// fahrplaner.de fork patch (see home_screen_trufi_screen.dart).
+  final void Function(routing.Itinerary itinerary)? onSaveTrip;
+
   const HomeScreen({
     super.key,
     required this.onMenuPressed,
@@ -61,6 +64,7 @@ class HomeScreen extends StatefulWidget {
     this.onItineraryDetails,
     this.onStartNavigation,
     this.onRouteTap,
+    this.onSaveTrip,
   });
 
   @override
@@ -1937,6 +1941,7 @@ class _HomeScreenState extends State<HomeScreen>
           },
           onItineraryDetails: widget.onItineraryDetails,
           onShare: (itinerary) => _shareItinerary(context, itinerary),
+          onSaveTrip: widget.onSaveTrip,
           onRouteTap: widget.onRouteTap != null
               ? (routeCode) => widget.onRouteTap!(context, routeCode)
               : null,
@@ -2246,6 +2251,7 @@ class _HomeScreenState extends State<HomeScreen>
                       },
                       onItineraryDetails: widget.onItineraryDetails,
                       onShare: (itinerary) => _shareItinerary(context, itinerary),
+                      onSaveTrip: widget.onSaveTrip,
                       onRouteTap: widget.onRouteTap != null
                           ? (routeCode) =>
                                 widget.onRouteTap!(context, routeCode)
@@ -2276,6 +2282,7 @@ class _HomeScreenState extends State<HomeScreen>
                       },
                       onItineraryDetails: widget.onItineraryDetails,
                       onShare: (itinerary) => _shareItinerary(context, itinerary),
+                      onSaveTrip: widget.onSaveTrip,
                       onRouteTap: widget.onRouteTap != null
                           ? (routeCode) =>
                                 widget.onRouteTap!(context, routeCode)

@@ -44,6 +44,12 @@ class ItineraryList extends StatefulWidget {
   /// being shared. Pass null to not show a share action at all.
   final void Function(routing.Itinerary itinerary)? onShare;
 
+  /// fahrplaner.de fork patch (05.10.2026, siehe FAHRPLANER_PATCHES.md):
+  /// "Fahrt merken" auf der Detailansicht einer Itinerary - gleiches
+  /// unambiguous-welche-Itinerary-Muster wie [onShare], muss aber die
+  /// App selbst erreichen (Speichern ist App-spezifisch).
+  final void Function(routing.Itinerary itinerary)? onSaveTrip;
+
   const ItineraryList({
     super.key,
     this.onItineraryDetails,
@@ -54,6 +60,7 @@ class ItineraryList extends StatefulWidget {
     this.showDetailOnLoad = false,
     this.onDetailStateChanged,
     this.onShare,
+    this.onSaveTrip,
   });
 
   @override
@@ -201,6 +208,9 @@ class _ItineraryListState extends State<ItineraryList> {
             )
           : null,
       onShare: widget.onShare != null ? () => widget.onShare!(itinerary) : null,
+      onSaveTrip: widget.onSaveTrip != null
+          ? () => widget.onSaveTrip!(itinerary)
+          : null,
     );
   }
 

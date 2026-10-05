@@ -46,6 +46,12 @@ class ItineraryDetailContent extends StatelessWidget {
   /// hides the share action.
   final VoidCallback? onShare;
 
+  /// fahrplaner.de fork patch (05.10.2026, siehe FAHRPLANER_PATCHES.md):
+  /// called when der Rider auf "Fahrt merken" tippt - speichert diese
+  /// KONKRETE Verbindung (Abfahrtszeit, Linien, Umstiege), nicht nur
+  /// Start/Ziel. Null blendet die Aktion aus.
+  final VoidCallback? onSaveTrip;
+
   const ItineraryDetailContent({
     super.key,
     required this.itinerary,
@@ -56,6 +62,7 @@ class ItineraryDetailContent extends StatelessWidget {
     this.alternatives,
     this.onSelectAlternative,
     this.onShare,
+    this.onSaveTrip,
   });
 
   @override
@@ -391,6 +398,20 @@ class ItineraryDetailContent extends StatelessWidget {
                   onPressed: () {
                     HapticFeedback.lightImpact();
                     onShare!();
+                  },
+                  visualDensity: VisualDensity.compact,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+                ),
+              // fahrplaner.de fork patch (05.10.2026, siehe
+              // FAHRPLANER_PATCHES.md): "Fahrt merken" lebt aus demselben
+              // Grund wie onShare hier - eindeutig, welche Itinerary.
+              if (onSaveTrip != null)
+                IconButton(
+                  icon: const Icon(Icons.bookmark_add_outlined),
+                  onPressed: () {
+                    HapticFeedback.lightImpact();
+                    onSaveTrip!();
                   },
                   visualDensity: VisualDensity.compact,
                   padding: EdgeInsets.zero,
@@ -1318,11 +1339,15 @@ class ItineraryDetailScreen extends StatelessWidget {
   final VoidCallback? onStartNavigation;
   final void Function(String routeCode)? onRouteTap;
 
+  /// fahrplaner.de fork patch (see ItineraryDetailContent.onSaveTrip).
+  final VoidCallback? onSaveTrip;
+
   const ItineraryDetailScreen({
     super.key,
     required this.itinerary,
     this.onStartNavigation,
     this.onRouteTap,
+    this.onSaveTrip,
   });
 
   /// Shows the itinerary detail screen with a slide transition.
@@ -1331,6 +1356,7 @@ class ItineraryDetailScreen extends StatelessWidget {
     required routing.Itinerary itinerary,
     VoidCallback? onStartNavigation,
     void Function(String routeCode)? onRouteTap,
+    VoidCallback? onSaveTrip,
   }) {
     return Navigator.of(context).push(
       PageRouteBuilder(
@@ -1339,6 +1365,7 @@ class ItineraryDetailScreen extends StatelessWidget {
               itinerary: itinerary,
               onStartNavigation: onStartNavigation,
               onRouteTap: onRouteTap,
+              onSaveTrip: onSaveTrip,
             ),
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
           return SlideTransition(
@@ -1413,6 +1440,15 @@ class ItineraryDetailScreen extends StatelessWidget {
           ],
         ),
         actions: [
+          // fahrplaner.de fork patch (05.10.2026, siehe FAHRPLANER_PATCHES.md).
+          if (onSaveTrip != null)
+            IconButton(
+              icon: const Icon(Icons.bookmark_add_outlined),
+              onPressed: () {
+                HapticFeedback.lightImpact();
+                onSaveTrip!();
+              },
+            ),
           Padding(
             padding: const EdgeInsets.only(right: 16),
             child: Row(
