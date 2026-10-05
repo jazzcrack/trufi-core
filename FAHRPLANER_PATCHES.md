@@ -4,9 +4,9 @@ Dieser Fork existiert ausschließlich, um Trufi-Core-Lücken zu
 schließen, für die es keinen Konfigurationspunkt gibt (siehe
 `architektur-konzept.md` im Hauptprojekt
 [jazzcrack/-PNV-Fahrplan-App](https://github.com/jazzcrack/-PNV-Fahrplan-App),
-Kapitel 3.13/14/18–3.35 für die vollständige Herleitung jedes einzelnen
+Kapitel 3.13/14/18–3.36 für die vollständige Herleitung jedes einzelnen
 Patches). Keine anderen Änderungen gegenüber Upstream. Stand: siebzehn
-Patches (zuletzt aktualisiert 05.10.2026, Kapitel 3.35).
+Patches (zuletzt aktualisiert 05.10.2026, Kapitel 3.36).
 
 ## Branch-Struktur
 
@@ -352,7 +352,7 @@ der Umweg über die Detailansicht. Auf Nutzer-Wunsch behoben.
 ### 17. "Fahrt merken"-Callback auf der Itinerary-Detailansicht
 
 Echter Nutzer-Wunsch, wiederholt genannt (05.10.2026, Hauptprojekt
-Kapitel 3.35): konkrete Fahrten speichern (Linien + Abfahrtszeit), nicht
+Kapitel 3.36): konkrete Fahrten speichern (Linien + Abfahrtszeit), nicht
 nur Start/Ziel-Paare. Der eigentliche Speicher-Mechanismus lebt in der
 App (`SavedTripsManager`, app-eigene Persistenz) - dieser Patch liefert
 nur den fehlenden Haken dafür im Fork.
