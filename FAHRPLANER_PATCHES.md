@@ -357,12 +357,23 @@ nur Start/Ziel-Paare. Der eigentliche Speicher-Mechanismus lebt in der
 App (`SavedTripsManager`, app-eigene Persistenz) - dieser Patch liefert
 nur den fehlenden Haken dafür im Fork.
 
-- Neuer additiver `onSaveTrip`-Callback (`void
-  Function(routing.Itinerary)?`) auf `ItineraryDetailContent`/
-  `ItineraryDetailScreen`, durchgereicht über `ItineraryList` bis zu
+- Neuer additiver `onSaveTrip`-Callback auf `ItineraryDetailContent`/
+  `ItineraryDetailScreen` (`void Function(routing.Itinerary)?`,
+  kontextlos - dieselben Widgets haben ohnehin einen eigenen
+  `BuildContext`), durchgereicht über `ItineraryList` bis zu
   `HomeScreenConfig`/`HomeScreenTrufiScreen` - anders als `onShare`
   (bleibt komplett fork-intern, ruft `ShareRouteService` selbst auf)
   MUSS dieser Callback die Host-App erreichen.
+- **Nachgebessert (derselbe Tag):** Auf `HomeScreenTrufiScreen`/
+  `HomeScreen` selbst ist die Signatur `void Function(BuildContext,
+  routing.Itinerary)?`, analog zu `onRouteTap` - die App baut ihre
+  `screens:`-Liste ohne eigenen `BuildContext`, ein reiner
+  `VoidCallback`-Stil haette sich dort nicht sinnvoll anschliessen
+  lassen (z. B. keine SnackBar-Bestaetigung ohne Context). Erst beim
+  echten Verdrahtungsversuch in `main.dart` aufgefallen - `home_screen
+  .dart` faengt seinen eigenen `context` ab und reicht ihn durch, die
+  Leaf-Ebene (`ItineraryDetailContent`/`-Screen`, `ItineraryList`)
+  blieb unveraendert kontextlos.
 - Zeigt einen Bookmark-Button neben dem bestehenden Share-Button, auf
   derselben Detailansicht (eindeutig, welche Itinerary - gleicher Grund
   wie bei `onShare`).
