@@ -4,9 +4,9 @@ Dieser Fork existiert ausschließlich, um Trufi-Core-Lücken zu
 schließen, für die es keinen Konfigurationspunkt gibt (siehe
 `architektur-konzept.md` im Hauptprojekt
 [jazzcrack/-PNV-Fahrplan-App](https://github.com/jazzcrack/-PNV-Fahrplan-App),
-Kapitel 3.13/14/18–3.36 für die vollständige Herleitung jedes einzelnen
-Patches). Keine anderen Änderungen gegenüber Upstream. Stand: siebzehn
-Patches (zuletzt aktualisiert 05.10.2026, Kapitel 3.36).
+Kapitel 3.13/14/18–3.37 für die vollständige Herleitung jedes einzelnen
+Patches). Keine anderen Änderungen gegenüber Upstream. Stand: achtzehn
+Patches (zuletzt aktualisiert 05.10.2026, Kapitel 3.37).
 
 ## Branch-Struktur
 
@@ -18,7 +18,7 @@ Patches (zuletzt aktualisiert 05.10.2026, Kapitel 3.36).
   `main`, wird nie direkt verändert. Dient nur als Referenz für
   `git rebase`.
 
-## Die siebzehn Patches
+## Die achtzehn Patches
 
 | # | Thema | Pakete | Risiko |
 |---|---|---|---|
@@ -39,6 +39,7 @@ Patches (zuletzt aktualisiert 05.10.2026, Kapitel 3.36).
 | 15 | Attribution-Button: echte Eckenwahl statt nur Marge (+ Compile-Fix) | `trufi_core_maps`, `trufi_core_transport_list` | niedrig (additiver Optional-Parameter + nachgezogener Testfix) |
 | 16 | Los-Button auf jeder Verbindungskarte, nicht nur der hervorgehobenen | `trufi_core_home_screen` | niedrig (Bedingung gelockert, kein neuer Zustand) |
 | 17 | "Fahrt merken"-Callback auf der Itinerary-Detailansicht | `trufi_core_home_screen` | niedrig (additiver Optional-Callback) |
+| 18 | `SearchLocationType`: optisch unterscheidbare Trefferliste | `trufi_core_search_locations` | niedrig (additives Enum-Feld + zwei neue Icon-Zuordnungen) |
 
 Patches 1–5 sind in den commit-Historien der ersten Fork-Runden
 (Kapitel 3.18–3.19 im Hauptprojekt) im Detail dokumentiert, hier nur
@@ -382,9 +383,38 @@ nur den fehlenden Haken dafür im Fork.
   ohne Callback - für beide Widgets (`ItineraryDetailContent` und
   `ItineraryDetailScreen`).
 
-Alle siebzehn Patches sind per `dart analyze` (keine neuen Fehler) und den
+### 18. `SearchLocationType`: optisch unterscheidbare Trefferliste
+
+Echter Nutzer-Wunsch (05.10.2026, Hauptprojekt Kapitel 3.37): "wäre es
+schön wenn bei Suchergebnissen auf optisch klar zwischen den
+unterschiedlichen Ortsarten unterschieden würde (z.B. Haltestelle, POI,
+Straße)". Teil eines größeren Suchverbesserungs-Pakets (siehe Kapitel
+3.37 im Hauptprojekt) - dieser Patch liefert nur den Baustein, der im
+Fork leben muss: das Datenmodell und die Icon-Zuordnung.
+
+- Neues additives Enum `SearchLocationType` (`stop`/`poi`/`street`/
+  `address`) + neues optionales Feld `SearchLocation.locationType` -
+  Dienste, die es (noch) nicht befüllen, verhalten sich unverändert
+  (`null` = generisches Pin-Icon wie zuvor).
+- `PhotonSearchService._parseFeature()` befüllt es jetzt aus Photons
+  eigenem `osm_key`/`osm_value`-Paar (ein neuer privater
+  `_locationTypeFromOsmTag()`-Mapper, bewusst grob statt die volle
+  OSM-Tag-Vielfalt abzubilden).
+- `location_search_screen.dart`: das Trefferlisten-Icon zeigt jetzt
+  `directions_bus_rounded`/`storefront_rounded`/`add_road_rounded`/
+  `place_rounded` je nach `locationType`, statt wie bisher immer nur
+  Pin oder Verzweigungs-Icon.
+- Die App-seitige Befüllung für Nominatim (`PatchedNominatimSearchService`,
+  liest Nominatims `class`/`type`/`addresstype`-Felder) lebt bewusst
+  NICHT in diesem Fork, sondern direkt in der App (kein Upstream-Code
+  betroffen) - siehe Kapitel 3.37.
+- Neue Tests: `test/unit/photon_search_service_test.dart` (6 neue Fälle
+  für `locationType`), `test/widget/location_type_icons_test.dart` (neu,
+  prüft alle vier unterscheidbaren Icons in einer echten Trefferliste).
+
+Alle achtzehn Patches sind per `dart analyze` (keine neuen Fehler) und den
 bestehenden Testsuiten der jeweils betroffenen Pakete verifiziert
-(alle grün, inkl. neuer Tests für Patches 8/10/11/12/13/16/17).
+(alle grün, inkl. neuer Tests für Patches 8/10/11/12/13/16/17/18).
 
 ## Sync-Strategie: wie künftige Upstream-Änderungen reinkommen
 
