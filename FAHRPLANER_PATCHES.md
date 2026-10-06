@@ -4,9 +4,9 @@ Dieser Fork existiert ausschließlich, um Trufi-Core-Lücken zu
 schließen, für die es keinen Konfigurationspunkt gibt (siehe
 `architektur-konzept.md` im Hauptprojekt
 [jazzcrack/-PNV-Fahrplan-App](https://github.com/jazzcrack/-PNV-Fahrplan-App),
-Kapitel 3.13/14/18–3.39 für die vollständige Herleitung jedes einzelnen
-Patches). Keine anderen Änderungen gegenüber Upstream. Stand: zwanzig
-Patches (zuletzt aktualisiert 06.10.2026, Kapitel 3.39).
+Kapitel 3.13/14/18–3.40 für die vollständige Herleitung jedes einzelnen
+Patches). Keine anderen Änderungen gegenüber Upstream. Stand:
+einundzwanzig Patches (zuletzt aktualisiert 06.10.2026, Kapitel 3.40).
 
 ## Branch-Struktur
 
@@ -18,7 +18,7 @@ Patches (zuletzt aktualisiert 06.10.2026, Kapitel 3.39).
   `main`, wird nie direkt verändert. Dient nur als Referenz für
   `git rebase`.
 
-## Die zwanzig Patches
+## Die einundzwanzig Patches
 
 | # | Thema | Pakete | Risiko |
 |---|---|---|---|
@@ -42,6 +42,7 @@ Patches (zuletzt aktualisiert 06.10.2026, Kapitel 3.39).
 | 18 | `SearchLocationType`: optisch unterscheidbare Trefferliste | `trufi_core_search_locations` | niedrig (additives Enum-Feld + zwei neue Icon-Zuordnungen) |
 | 19 | `NavigationState.copyWith`: `distanceFromRoute`-Nullable-Bug behoben | `trufi_core_navigation` | niedrig (additiver Sentinel-Parameter, kein aktueller UI-Konsument betroffen) |
 | 20 | `Leg.tripId` + `NavigationStop.gtfsStopId` + `refreshCurrentLegDelay()` | `trufi_core_routing`, `trufi_core_navigation` | niedrig (additive Felder + neue Methode, keine bestehende Signatur geändert) |
+| 21 | iOS: Standort-Tracking laeuft auch bei gesperrtem Bildschirm weiter | `trufi_core_utils` | niedrig (iOS-Zweig in einer privaten Hilfsmethode, Android/Web unverändert) |
 
 Patches 1–5 sind in den commit-Historien der ersten Fork-Runden
 (Kapitel 3.18–3.19 im Hauptprojekt) im Detail dokumentiert, hier nur
@@ -472,9 +473,42 @@ in ein Modellfeld uebernommen.
   `trufi_core_routing/test/unit/trip_id_parsing_test.dart` (3 neue
   Faelle inkl. JSON-Rundreise).
 
-Alle zwanzig Patches sind per `dart analyze` (keine neuen Fehler) und den
-bestehenden Testsuiten der jeweils betroffenen Pakete verifiziert
-(alle grün, inkl. neuer Tests für Patches 8/10/11/12/13/16/17/18/19/20).
+### 21. iOS: Standort-Tracking läuft auch bei gesperrtem Bildschirm weiter
+
+Drei echte TestFlight-Rückmeldungen am selben Tag (06.10.2026, Hauptprojekt
+Kapitel 3.40), alle auf dieselbe Ursache zurückgeführt: eingefrorener
+Streckenfortschritt/nächste Haltestelle ("nur beim Wiederaufrufen des
+Sperrbildschirms sollte es eine Aktualisierung geben" - tat es aber
+nicht), ein verschwindender blauer GPS-Punkt, eingefrorene
+Verbindungsdetails während der Fahrt.
+
+- `LocationService.startTracking()` nutzte ein plattformneutrales
+  `LocationSettings`. Im nativen `PositionStreamHandler`
+  (`geolocator_apple`) kam dadurch nie ein
+  `allowBackgroundLocationUpdates`-Schlüssel an -
+  `NSNumber?.boolValue` bei `nil` ist in Objective-C `NO`. Trotz
+  `UIBackgroundModes: location` in der `Info.plist` wurde
+  GPS-Tracking beim Sperren des Bildschirms faktisch eingestellt.
+- Neue private `_buildTrackingSettings()`: auf iOS jetzt
+  `AppleSettings(allowBackgroundLocationUpdates: true,
+  pauseLocationUpdatesAutomatically: false)` statt des generischen
+  `LocationSettings`. `defaultTargetPlatform` statt `dart:io`s
+  `Platform.isIOS`, damit das plattformübergreifende Paket (inkl.
+  Web) kompilierbar bleibt - dieselbe Wahl wie Geolocators eigene
+  `Geolocator.getCurrentPosition()`-Fassade.
+- Erfordert weiterhin nur "When In Use"-Berechtigung, keine Änderung
+  an der bewussten Kapitel-11-Entscheidung gegen "Immer"-Zugriff - die
+  bereits laufende Live Activity erfüllt die von iOS geforderte
+  sichtbare Standortnutzung im Hintergrund.
+- Erster Fork-Patch an `trufi_core_utils` (bis dahin einziges noch nie
+  geforktes Paket).
+- Neue Tests: zwei neue Fälle in `test/location_service_test.dart`
+  (iOS nutzt `AppleSettings` mit den richtigen Flags, Android/Web
+  nutzt weiterhin das generische `LocationSettings`).
+
+Alle einundzwanzig Patches sind per `dart analyze` (keine neuen Fehler) und
+den bestehenden Testsuiten der jeweils betroffenen Pakete verifiziert
+(alle grün, inkl. neuer Tests für Patches 8/10/11/12/13/16/17/18/19/20/21).
 
 ## Sync-Strategie: wie künftige Upstream-Änderungen reinkommen
 
