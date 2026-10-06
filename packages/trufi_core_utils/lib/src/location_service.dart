@@ -235,7 +235,7 @@ class LocationService extends ChangeNotifier {
     }
 
     try {
-      final locationSettings = LocationSettings(
+      final locationSettings = _buildTrackingSettings(
         accuracy: accuracy,
         distanceFilter: distanceFilter,
       );
@@ -289,6 +289,42 @@ class LocationService extends ChangeNotifier {
       debugPrint('Failed to start location tracking: $e');
       return false;
     }
+  }
+
+  /// fahrplaner.de fork patch (06.10.2026, siehe FAHRPLANER_PATCHES.md):
+  /// auf iOS reicht ein plattformneutrales [LocationSettings] NICHT, um
+  /// Positions-Updates im Hintergrund/bei gesperrtem Bildschirm zu
+  /// erhalten - [AppleSettings.allowBackgroundLocationUpdates] muss
+  /// explizit gesetzt werden. Ohne diesen Patch landete im nativen
+  /// `PositionStreamHandler` (geolocator_apple) nie ein
+  /// "allowBackgroundLocationUpdates"-Schluessel, und `NSNumber?`s
+  /// `boolValue` bei `nil` ist in Objective-C `NO` - der Effekt war ein
+  /// GPS-Strom, der beim Sperren des Bildschirms stillschweigend
+  /// einschlief (drei echte TestFlight-Rueckmeldungen am selben Tag:
+  /// eingefrorener Streckenfortschritt, verschwindender Standortpunkt,
+  /// eingefrorene Verbindungsdetails - alle dieselbe Ursache). Erfordert
+  /// NUR "When In Use"-Berechtigung plus der bereits vorhandenen
+  /// `UIBackgroundModes: location`-Capability (Info.plist) UND einer fuer
+  /// den Nutzer sichtbaren Standortnutzung waehrend der Fahrt (hier durch
+  /// die Live Activity erfuellt) - keine "Immer"-Berechtigung noetig,
+  /// bleibt also im Rahmen der bewussten Kapitel-11-Entscheidung.
+  /// `defaultTargetPlatform` statt `dart:io`s `Platform.isIOS`, damit
+  /// dieses plattformuebergreifende Paket auch auf Web kompilierbar
+  /// bleibt (dieselbe Wahl wie Geolocators eigene Facade,
+  /// `Geolocator.getCurrentPosition()`).
+  LocationSettings _buildTrackingSettings({
+    required LocationAccuracy accuracy,
+    required int distanceFilter,
+  }) {
+    if (defaultTargetPlatform == TargetPlatform.iOS) {
+      return AppleSettings(
+        accuracy: accuracy,
+        distanceFilter: distanceFilter,
+        allowBackgroundLocationUpdates: true,
+        pauseLocationUpdatesAutomatically: false,
+      );
+    }
+    return LocationSettings(accuracy: accuracy, distanceFilter: distanceFilter);
   }
 
   /// Stops tracking the device location.

@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:mocktail/mocktail.dart';
@@ -347,6 +348,61 @@ void main() {
       expect(service.currentLocation?.longitude, 20);
     });
   });
+
+  group(
+    'startTracking platform-specific settings (06.10.2026, '
+    'siehe FAHRPLANER_PATCHES.md: Hintergrund-GPS-Fix)',
+    () {
+      setUp(() {
+        when(
+          () => mockPlatform.getCurrentPosition(
+            locationSettings: any(named: 'locationSettings'),
+          ),
+        ).thenAnswer((_) async => _fakePosition());
+      });
+
+      tearDown(() {
+        debugDefaultTargetPlatformOverride = null;
+      });
+
+      test(
+        'uses AppleSettings with background updates enabled on iOS',
+        () async {
+          debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+
+          await service.startTracking(distanceFilter: 25);
+
+          final captured = verify(
+            () => mockPlatform.getPositionStream(
+              locationSettings: captureAny(named: 'locationSettings'),
+            ),
+          ).captured.single as LocationSettings;
+          expect(captured, isA<AppleSettings>());
+          final apple = captured as AppleSettings;
+          expect(apple.allowBackgroundLocationUpdates, isTrue);
+          expect(apple.pauseLocationUpdatesAutomatically, isFalse);
+          expect(apple.distanceFilter, 25);
+        },
+      );
+
+      test(
+        'uses plain LocationSettings (not AppleSettings) on Android',
+        () async {
+          debugDefaultTargetPlatformOverride = TargetPlatform.android;
+
+          await service.startTracking(distanceFilter: 25);
+
+          final captured = verify(
+            () => mockPlatform.getPositionStream(
+              locationSettings: captureAny(named: 'locationSettings'),
+            ),
+          ).captured.single as LocationSettings;
+          expect(captured, isNot(isA<AppleSettings>()));
+          expect(captured.distanceFilter, 25);
+        },
+      );
+    },
+  );
 
   group('stopTracking', () {
     test('flips isTracking back to false', () async {
