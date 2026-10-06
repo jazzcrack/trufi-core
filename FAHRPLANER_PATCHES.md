@@ -4,9 +4,9 @@ Dieser Fork existiert ausschließlich, um Trufi-Core-Lücken zu
 schließen, für die es keinen Konfigurationspunkt gibt (siehe
 `architektur-konzept.md` im Hauptprojekt
 [jazzcrack/-PNV-Fahrplan-App](https://github.com/jazzcrack/-PNV-Fahrplan-App),
-Kapitel 3.13/14/18–3.38 für die vollständige Herleitung jedes einzelnen
-Patches). Keine anderen Änderungen gegenüber Upstream. Stand: neunzehn
-Patches (zuletzt aktualisiert 05.10.2026, Kapitel 3.38).
+Kapitel 3.13/14/18–3.39 für die vollständige Herleitung jedes einzelnen
+Patches). Keine anderen Änderungen gegenüber Upstream. Stand: zwanzig
+Patches (zuletzt aktualisiert 06.10.2026, Kapitel 3.39).
 
 ## Branch-Struktur
 
@@ -18,7 +18,7 @@ Patches (zuletzt aktualisiert 05.10.2026, Kapitel 3.38).
   `main`, wird nie direkt verändert. Dient nur als Referenz für
   `git rebase`.
 
-## Die neunzehn Patches
+## Die zwanzig Patches
 
 | # | Thema | Pakete | Risiko |
 |---|---|---|---|
@@ -41,6 +41,7 @@ Patches (zuletzt aktualisiert 05.10.2026, Kapitel 3.38).
 | 17 | "Fahrt merken"-Callback auf der Itinerary-Detailansicht | `trufi_core_home_screen` | niedrig (additiver Optional-Callback) |
 | 18 | `SearchLocationType`: optisch unterscheidbare Trefferliste | `trufi_core_search_locations` | niedrig (additives Enum-Feld + zwei neue Icon-Zuordnungen) |
 | 19 | `NavigationState.copyWith`: `distanceFromRoute`-Nullable-Bug behoben | `trufi_core_navigation` | niedrig (additiver Sentinel-Parameter, kein aktueller UI-Konsument betroffen) |
+| 20 | `Leg.tripId` + `NavigationStop.gtfsStopId` + `refreshCurrentLegDelay()` | `trufi_core_routing`, `trufi_core_navigation` | niedrig (additive Felder + neue Methode, keine bestehende Signatur geändert) |
 
 Patches 1–5 sind in den commit-Historien der ersten Fork-Runden
 (Kapitel 3.18–3.19 im Hauptprojekt) im Detail dokumentiert, hier nur
@@ -434,9 +435,46 @@ folgenlose Dateninkonsistenz (aktuell liest keine App-UI
 - Neue Tests: `test/navigation_state_copy_with_test.dart` (4 neue Fälle,
   inkl. Regressionstest für genau dieses Verhalten).
 
-Alle neunzehn Patches sind per `dart analyze` (keine neuen Fehler) und den
+### 20. `Leg.tripId` + `NavigationStop.gtfsStopId` + `refreshCurrentLegDelay()`
+
+Echter Nutzer-Fund (06.10.2026, Hauptprojekt Kapitel 3.39, waehrend
+einer tatsaechlichen Fahrt gemeldet): "Bus hat gerade 4 Minuten
+Verspaetung ... wird in meiner App nicht angezeigt". Ursache:
+`arrivalDelay` wird nur EINMALIG bei `ItineraryConverter
+.toNavigationRoute()` gesetzt (beim Start der Navigation), niemals
+danach vom Cubit aktualisiert - eine erst waehrend der Fahrt
+entstehende oder wachsende Verspaetung blieb dadurch fuer die gesamte
+Fahrtdauer unsichtbar (Live Activity UND das Abschnitt-Detail-Sheet
+lesen denselben statischen Wert). Zusaetzliches Problem: den fuer
+einen Live-Refresh noetigen GTFS-Trip-/Halt-IDs fehlten komplett -
+`trip.gtfsId` wurde in der Query zwar schon angefragt, aber nirgends
+in ein Modellfeld uebernommen.
+
+- `trufi_core_routing`: neues additives `Leg.tripId` (`String?`),
+  geparst aus OTP's `trip.gtfsId` (Feld war schon Teil der Query,
+  wurde nur nie gelesen). Inkl. `toJson()`/`fromJson()`/`copyWith()`.
+- `trufi_core_navigation`: `NavigationLeg.tripId` und
+  `NavigationStop.gtfsStopId` (beide additiv), von
+  `ItineraryConverter.toNavigationRoute()` aus den entsprechenden
+  `routing.Leg`/`routing.Place`-Feldern befuellt.
+- Neue `NavigationCubit.refreshCurrentLegDelay(Duration? arrivalDelay)`:
+  reiner Daten-Setter, ersetzt gezielt nur das Leg an
+  `state.currentLegIndex` (per direkter Neukonstruktion, nicht per
+  `copyWith`, um keinen weiteren Nullable-Bug wie bei Patch 19 zu
+  riskieren - der Parameter ist bewusst REQUIRED, nicht optional).
+  Das Paket selbst fragt nichts nach - das periodische Nachfragen (per
+  `IRoutingProvider.fetchLiveStopDelays()`) ist App-Ebene
+  (`navigation_map.dart`, alle 60 Sekunden waehrend aktiver
+  Navigation, siehe Hauptprojekt-Kommentar dort).
+- Neue Tests: `test/navigation_cubit_refresh_delay_test.dart` (3 neue
+  Faelle), `test/itinerary_converter_delay_test.dart` (1 neuer Fall
+  fuer tripId/gtfsStopId-Weitergabe),
+  `trufi_core_routing/test/unit/trip_id_parsing_test.dart` (3 neue
+  Faelle inkl. JSON-Rundreise).
+
+Alle zwanzig Patches sind per `dart analyze` (keine neuen Fehler) und den
 bestehenden Testsuiten der jeweils betroffenen Pakete verifiziert
-(alle grün, inkl. neuer Tests für Patches 8/10/11/12/13/16/17/18/19).
+(alle grün, inkl. neuer Tests für Patches 8/10/11/12/13/16/17/18/19/20).
 
 ## Sync-Strategie: wie künftige Upstream-Änderungen reinkommen
 
