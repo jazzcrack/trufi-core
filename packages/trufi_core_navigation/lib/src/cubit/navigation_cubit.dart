@@ -160,6 +160,62 @@ class NavigationCubit extends Cubit<NavigationState> {
     _advanceToStop(stopIndex);
   }
 
+  /// Aktualisiert die Verspaetung des GERADE AKTIVEN Transit-Abschnitts,
+  /// ohne die Navigation neu zu starten (06.10.2026, echter Nutzer-Fund:
+  /// eine Verspaetung, die erst WAEHREND der Fahrt entsteht, blieb in der
+  /// Live Activity/im Abschnitt-Detail dauerhaft auf "puenktlich" stehen -
+  /// arrivalDelay wird sonst nur einmalig von ItineraryConverter
+  /// .toNavigationRoute() gesetzt, nie vom Cubit selbst aktualisiert).
+  /// Reiner Daten-Setter: das periodische Nachfragen (z. B. via
+  /// IRoutingProvider.fetchLiveStopDelays()) ist Aufgabe des Aufrufers
+  /// (App-Ebene) - dieses Paket hat keinen eigenen Netzwerkzugriff.
+  /// `arrivalDelay: null` ist ein gueltiger, bewusster Wert (Verspaetung
+  /// aufgeholt/keine Live-Daten mehr), deshalb REQUIRED statt optional -
+  /// vermeidet denselben copyWith-Nullable-Bug wie bei distanceFromRoute.
+  void refreshCurrentLegDelay(Duration? arrivalDelay) {
+    final route = state.route;
+    if (route == null) return;
+    final index = state.currentLegIndex;
+    if (index < 0 || index >= route.legs.length) return;
+
+    final old = route.legs[index];
+    if (old.arrivalDelay == arrivalDelay) return;
+
+    final updatedLegs = List<NavigationLeg>.from(route.legs);
+    updatedLegs[index] = NavigationLeg(
+      id: old.id,
+      points: old.points,
+      isTransit: old.isTransit,
+      isWalking: old.isWalking,
+      isBicycle: old.isBicycle,
+      color: old.color,
+      routeName: old.routeName,
+      modeName: old.modeName,
+      duration: old.duration,
+      arrivalDelay: arrivalDelay,
+      tripId: old.tripId,
+    );
+
+    emit(
+      state.copyWith(
+        route: NavigationRoute(
+          id: route.id,
+          code: route.code,
+          name: route.name,
+          shortName: route.shortName,
+          longName: route.longName,
+          backgroundColor: route.backgroundColor,
+          textColor: route.textColor,
+          geometry: route.geometry,
+          stops: route.stops,
+          legs: updatedLegs,
+          modeName: route.modeName,
+          duration: route.duration,
+        ),
+      ),
+    );
+  }
+
   // Private methods
 
   void _onLocationUpdate() {

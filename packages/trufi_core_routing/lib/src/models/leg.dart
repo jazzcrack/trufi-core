@@ -38,6 +38,7 @@ class Leg extends Equatable {
     this.serviceHours,
     this.departureDelay,
     this.arrivalDelay,
+    this.tripId,
   });
 
   final String mode;
@@ -80,6 +81,14 @@ class Leg extends Equatable {
   /// Real-time offset from the scheduled arrival at this leg's alighting
   /// stop. See [departureDelay].
   final Duration? arrivalDelay;
+
+  /// GTFS-Trip-ID (`trip.gtfsId`), fahrplaner.de fork patch (06.10.2026,
+  /// siehe FAHRPLANER_PATCHES.md). Noetig, um eine spaetere, per
+  /// IRoutingProvider.fetchLiveStopDelays() abgefragte, nach Trip-ID
+  /// geschluesselte Verspaetungs-Map dieser Fahrt zuzuordnen (siehe
+  /// NavigationCubit.refreshCurrentLegDelay() im trufi_core_navigation-
+  /// Paket). Null fuer Fussweg-/Fahrrad-Abschnitte ohne Trip.
+  final String? tripId;
 
   /// Returns the transport mode enum.
   TransportMode get transportMode =>
@@ -143,6 +152,7 @@ class Leg extends Equatable {
           _parseDelayFromLegTime(json['start']) ?? json.getDuration('departureDelay'),
       arrivalDelay:
           _parseDelayFromLegTime(json['end']) ?? json.getDuration('arrivalDelay'),
+      tripId: json['tripId'] as String?,
     );
   }
 
@@ -208,6 +218,7 @@ class Leg extends Equatable {
       'serviceHours': serviceHours?.toJson(),
       'departureDelay': departureDelay?.inSeconds,
       'arrivalDelay': arrivalDelay?.inSeconds,
+      'tripId': tripId,
     };
   }
 
@@ -237,6 +248,7 @@ class Leg extends Equatable {
     ServiceHours? serviceHours,
     Duration? departureDelay,
     Duration? arrivalDelay,
+    String? tripId,
   }) {
     return Leg(
       mode: mode ?? this.mode,
@@ -264,6 +276,7 @@ class Leg extends Equatable {
       serviceHours: serviceHours ?? this.serviceHours,
       departureDelay: departureDelay ?? this.departureDelay,
       arrivalDelay: arrivalDelay ?? this.arrivalDelay,
+      tripId: tripId ?? this.tripId,
     );
   }
 
@@ -300,6 +313,7 @@ class Leg extends Equatable {
     routeLongName,
     headsign,
     tripPatternId,
+    tripId,
   ];
 }
 

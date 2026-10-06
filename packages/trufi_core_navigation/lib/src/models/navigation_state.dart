@@ -75,14 +75,23 @@ class NavigationStop extends Equatable {
   final String name;
   final LatLng position;
 
+  /// GTFS-Halt-ID (`stop.gtfsId`), fahrplaner.de fork patch (06.10.2026,
+  /// siehe FAHRPLANER_PATCHES.md). Carried over from routing.Place.stopId
+  /// by ItineraryConverter.toNavigationRoute() - Voraussetzung dafuer, eine
+  /// Live-Verspaetung fuer einen bestimmten Halt waehrend der Navigation
+  /// nachzufragen (IRoutingProvider.fetchLiveStopDelays()). Null, wenn die
+  /// Quelle (z. B. ein Fussweg-Transferpunkt ohne echten Halt) keine hat.
+  final String? gtfsStopId;
+
   const NavigationStop({
     required this.id,
     required this.name,
     required this.position,
+    this.gtfsStopId,
   });
 
   @override
-  List<Object?> get props => [id, name, position];
+  List<Object?> get props => [id, name, position, gtfsStopId];
 }
 
 /// Represents a leg segment for rendering in navigation.
@@ -101,8 +110,17 @@ class NavigationLeg extends Equatable {
   /// point (positive = late, negative = early), fahrplaner.de fork patch
   /// (see FAHRPLANER_PATCHES.md). Null when no real-time data is available
   /// for this leg. Carried over from routing.Leg.arrivalDelay by
-  /// ItineraryConverter.toNavigationRoute().
+  /// ItineraryConverter.toNavigationRoute(). Set once at conversion time -
+  /// NavigationCubit.refreshCurrentLegDelay() is the only way to update it
+  /// afterwards (see FAHRPLANER_PATCHES.md, 06.10.2026).
   final Duration? arrivalDelay;
+
+  /// GTFS-Trip-ID (`trip.gtfsId`), fahrplaner.de fork patch (06.10.2026,
+  /// siehe FAHRPLANER_PATCHES.md). Carried over from routing.Leg.tripId -
+  /// Voraussetzung dafuer, eine per fetchLiveStopDelays() zurueckgegebene
+  /// Verspaetungs-Map (dort nach Trip-ID geschluesselt) der richtigen Fahrt
+  /// zuzuordnen. Null fuer Fussweg-/Fahrrad-Abschnitte ohne Trip.
+  final String? tripId;
 
   const NavigationLeg({
     required this.id,
@@ -115,6 +133,7 @@ class NavigationLeg extends Equatable {
     this.modeName,
     this.duration = Duration.zero,
     this.arrivalDelay,
+    this.tripId,
   });
 
   @override
@@ -129,6 +148,7 @@ class NavigationLeg extends Equatable {
     modeName,
     duration,
     arrivalDelay,
+    tripId,
   ];
 }
 

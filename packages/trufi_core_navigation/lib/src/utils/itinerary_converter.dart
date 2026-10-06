@@ -59,6 +59,7 @@ class ItineraryConverter {
           duration: leg.duration,
           // fahrplaner.de fork patch (see FAHRPLANER_PATCHES.md).
           arrivalDelay: leg.arrivalDelay,
+          tripId: leg.tripId,
         ),
       );
     }
@@ -87,6 +88,7 @@ class ItineraryConverter {
             id: 'stop-$stopIndex',
             name: fromPlace.name.isNotEmpty ? fromPlace.name : originLabel,
             position: LatLng(fromPlace.lat, fromPlace.lon),
+            gtfsStopId: fromPlace.stopId,
           ),
         );
         stopIndex++;
@@ -114,6 +116,7 @@ class ItineraryConverter {
               id: 'stop-$stopIndex',
               name: place.name,
               position: LatLng(place.lat, place.lon),
+              gtfsStopId: place.stopId,
             ),
           );
           stopIndex++;
@@ -130,6 +133,7 @@ class ItineraryConverter {
               id: 'stop-$stopIndex',
               name: toPlace.name.isNotEmpty ? toPlace.name : transferLabel,
               position: LatLng(toPlace.lat, toPlace.lon),
+              gtfsStopId: toPlace.stopId,
             ),
           );
           stopIndex++;
@@ -156,6 +160,7 @@ class ItineraryConverter {
             id: 'stop-$stopIndex',
             name: toPlace.name.isNotEmpty ? toPlace.name : destinationLabel,
             position: LatLng(toPlace.lat, toPlace.lon),
+            gtfsStopId: toPlace.stopId,
           ),
         );
       } else if (lastLeg.decodedPoints.isNotEmpty) {

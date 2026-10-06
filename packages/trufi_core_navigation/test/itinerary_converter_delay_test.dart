@@ -35,6 +35,37 @@ void main() {
     expect(route.legs.first.arrivalDelay, const Duration(minutes: 4));
   });
 
+  test('toNavigationRoute carries tripId and stop gtfsIds over (06.10.2026)', () {
+    final fromPlace = routing.Place(name: 'Start', lat: 53.0, lon: 8.8, stopId: 'vbn:stop-1');
+    final toPlace = routing.Place(name: 'Ziel', lat: 53.1, lon: 8.9, stopId: 'vbn:stop-2');
+    final leg = routing.Leg(
+      mode: 'BUS',
+      startTime: DateTime(2026, 1, 1, 10),
+      endTime: DateTime(2026, 1, 1, 10, 10),
+      duration: const Duration(minutes: 10),
+      distance: 2000,
+      transitLeg: true,
+      decodedPoints: const [],
+      fromPlace: fromPlace,
+      toPlace: toPlace,
+      tripId: 'vbn:trip-42',
+    );
+    final itinerary = routing.Itinerary(
+      legs: [leg],
+      startTime: DateTime(2026, 1, 1, 10),
+      endTime: DateTime(2026, 1, 1, 10, 10),
+      duration: const Duration(minutes: 10),
+      walkDistance: 0,
+      walkTime: Duration.zero,
+    );
+
+    final route = ItineraryConverter.toNavigationRoute(itinerary);
+
+    expect(route.legs.first.tripId, 'vbn:trip-42');
+    expect(route.stops.first.gtfsStopId, 'vbn:stop-1');
+    expect(route.stops.last.gtfsStopId, 'vbn:stop-2');
+  });
+
   test('toNavigationRoute leaves arrivalDelay null when the routing leg has none', () {
     final leg = routing.Leg(
       mode: 'WALK',

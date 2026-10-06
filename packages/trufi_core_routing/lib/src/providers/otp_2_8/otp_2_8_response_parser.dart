@@ -125,6 +125,8 @@ class Otp28ResponseParser {
       // fahrplaner.de fork patch (see FAHRPLANER_PATCHES.md).
       departureDelay: _parseDelay(json['start']),
       arrivalDelay: _parseDelay(json['end']),
+      // fahrplaner.de fork patch (06.10.2026, siehe FAHRPLANER_PATCHES.md).
+      tripId: tripData?['gtfsId'] as String?,
     );
   }
 
