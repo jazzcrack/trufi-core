@@ -7,6 +7,7 @@ import 'package:trufi_core_routing_ui/trufi_core_routing_ui.dart';
 import 'package:trufi_core_utils/trufi_core_utils.dart';
 
 import '../../l10n/home_screen_localizations.dart';
+import 'realtime_chip.dart';
 import 'segmented_route_chip.dart';
 
 /// Card displaying a single itinerary option with modern design.
@@ -259,11 +260,7 @@ class ItineraryCard extends StatelessWidget {
           _CancellationBadge(theme: theme, l10n: l10n),
           const SizedBox(width: 8),
         ] else if (itinerary.overallArrivalDelay != null) ...[
-          _DelayBadge(
-            delay: itinerary.overallArrivalDelay!,
-            theme: theme,
-            l10n: l10n,
-          ),
+          RealtimeChip.fromDelay(itinerary.overallArrivalDelay),
           const SizedBox(width: 8),
         ],
         // Distance
@@ -538,59 +535,6 @@ class _CancellationBadge extends StatelessWidget {
 }
 
 /// Small info chip for footer
-/// Real-time delay indicator (fahrplaner.de fork patch, see
-/// FAHRPLANER_PATCHES.md). Thresholds informed by a real measurement of
-/// this project's own VBN GTFS-RT feed (architektur-konzept.md, Kapitel
-/// 5.2a: median delay ~23s, only ~4.5% of stop updates reach 5+ minutes) -
-/// small/negative offsets read as "on time" rather than alarming the rider
-/// over noise-level timing differences.
-class _DelayBadge extends StatelessWidget {
-  final Duration delay;
-  final ThemeData theme;
-  final HomeScreenLocalizations l10n;
-
-  const _DelayBadge({
-    required this.delay,
-    required this.theme,
-    required this.l10n,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final seconds = delay.inSeconds;
-    final IconData icon;
-    final Color color;
-    final String label;
-    if (seconds <= 60) {
-      icon = Icons.check_circle_rounded;
-      color = const Color(0xFF2E7D32); // green
-      label = l10n.delayOnTime;
-    } else if (seconds <= 300) {
-      icon = Icons.schedule_rounded;
-      color = const Color(0xFFB5790A); // amber
-      label = l10n.delayLateMinutes((seconds / 60).ceil());
-    } else {
-      icon = Icons.error_rounded;
-      color = const Color(0xFFC62828); // red
-      label = l10n.delayLateMinutes((seconds / 60).ceil());
-    }
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: 14, color: color),
-        const SizedBox(width: 4),
-        Text(
-          label,
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: color,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
 class _InfoChip extends StatelessWidget {
   final IconData icon;
   final String label;

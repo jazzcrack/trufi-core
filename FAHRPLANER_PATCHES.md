@@ -4,9 +4,9 @@ Dieser Fork existiert ausschließlich, um Trufi-Core-Lücken zu
 schließen, für die es keinen Konfigurationspunkt gibt (siehe
 `architektur-konzept.md` im Hauptprojekt
 [jazzcrack/-PNV-Fahrplan-App](https://github.com/jazzcrack/-PNV-Fahrplan-App),
-Kapitel 3.13/14/18–3.41 für die vollständige Herleitung jedes einzelnen
+Kapitel 3.13/14/18–3.45 für die vollständige Herleitung jedes einzelnen
 Patches). Keine anderen Änderungen gegenüber Upstream. Stand:
-zweiundzwanzig Patches (zuletzt aktualisiert 07.10.2026, Kapitel 3.41).
+dreiundzwanzig Patches (zuletzt aktualisiert 08.10.2026, Kapitel 3.44/3.45).
 
 ## Branch-Struktur
 
@@ -18,7 +18,7 @@ zweiundzwanzig Patches (zuletzt aktualisiert 07.10.2026, Kapitel 3.41).
   `main`, wird nie direkt verändert. Dient nur als Referenz für
   `git rebase`.
 
-## Die zweiundzwanzig Patches
+## Die dreiundzwanzig Patches
 
 | # | Thema | Pakete | Risiko |
 |---|---|---|---|
@@ -44,6 +44,7 @@ zweiundzwanzig Patches (zuletzt aktualisiert 07.10.2026, Kapitel 3.41).
 | 20 | `Leg.tripId` + `NavigationStop.gtfsStopId` + `refreshCurrentLegDelay()` | `trufi_core_routing`, `trufi_core_navigation` | niedrig (additive Felder + neue Methode, keine bestehende Signatur geändert) |
 | 21 | iOS: Standort-Tracking laeuft auch bei gesperrtem Bildschirm weiter | `trufi_core_utils` | niedrig (iOS-Zweig in einer privaten Hilfsmethode, Android/Web unverändert) |
 | 22 | Ausfall-Erkennung: `Itinerary.hasCanceledLeg` + `NavigationLeg.isCanceled` | `trufi_core_routing`, `trufi_core_navigation`, `trufi_core_home_screen` | niedrig (additiver Getter/Feld + neues Badge, keine bestehende Signatur geändert) |
+| 23 | Redesign Phase A Teil 2: `_DelayBadge` durch `RealtimeChip` ersetzt | `trufi_core_home_screen` | niedrig (1:1-Ersatz eines privaten Widgets, keine Signaturaenderung an `ItineraryCard`) |
 
 Patches 1–5 sind in den commit-Historien der ersten Fork-Runden
 (Kapitel 3.18–3.19 im Hauptprojekt) im Detail dokumentiert, hier nur
@@ -531,7 +532,45 @@ bis in die Navigation/UI, nicht das Parsen selbst.
   (`realtimeState`/`isCanceled` werden von `toNavigationRoute()`
   durchgereicht).
 
-Alle zweiundzwanzig Patches sind per `dart analyze` (keine neuen Fehler) und
+### 23. Redesign Phase A Teil 2: `_DelayBadge` durch `RealtimeChip` ersetzt
+
+Hauptprojekt Kapitel 3.44/3.45 (08.10.2026), Fortsetzung von Patch 22:
+`_DelayBadge` auf `ItineraryCard` war die letzte der drei ursprünglich
+duplizierten Verspätungs-Anzeigen (neben `_LiveDelayLabel` in
+`departures_screen.dart` und `_DelayDetailRow` in `navigation_map.dart`,
+beide bereits in Phase A durch `RealtimeChip` ersetzt, siehe
+`docs/design/HANDOFF.md` Abschnitt 1 im Hauptprojekt-Repo).
+
+- Der Fork kann `app/lib/design/fahrplaner_theme.dart` (Hauptprojekt-Repo,
+  eigenes Repo/Package) nicht importieren - stattdessen neue Datei
+  `trufi_core_home_screen/lib/src/widgets/realtime_chip.dart`: eine
+  **manuelle, bewusst unveränderte Kopie** von `RealtimeStatus`,
+  `realtimeStatusFor`, `FpStatusColors` (nur die von `RealtimeChip`
+  benötigten, bereits aufgelösten Farbwerte, nicht die volle `FpPalette`)
+  und `RealtimeChip`. Kopfkommentar der Datei vermerkt ausdrücklich, dass
+  beide Kopien manuell synchron gehalten werden müssen - es gibt keinen
+  automatisierten Abgleich.
+- Bewusst **nicht** an dieses Pakets de/en/es-l10n angebunden (anders als
+  der bestehende Code dieses Screens) - die Kopie übernimmt dieselben
+  deutschen Festtexte wie das Original, damit beide Dateien diff-
+  vergleichbar bleiben. Bekannte, akzeptierte Abweichung: englische/
+  spanische Nutzer sehen bei diesem einen Chip vorerst deutschen Text.
+- `arrivalDelay == null` (bzw. `overallArrivalDelay == null`) zeigt jetzt
+  "Fahrplan" (`RealtimeStatus.scheduleOnly`) statt wie bei `_DelayBadge`
+  zuvor fälschlich "Pünktlich" - derselbe Fund wie bei `delayBucket()` in
+  Phase A (Hauptprojekt, `live_activities_bridge.dart`).
+- `_DelayBadge` und die davon verwendeten l10n-Schlüssel `delayOnTime`/
+  `delayLateMinutes` wurden NICHT aus den `.arb`-Dateien entfernt (bewusst
+  außerhalb des Scopes dieses Patches) - nur der Dart-Widget-Code ist
+  jetzt tot, die Zeichenketten bleiben ungenutzt liegen.
+- `_CancellationBadge` (Patch 22) bewusst UNVERÄNDERT gelassen - der
+  Nutzer-Auftrag nannte explizit nur `_DelayBadge`, eine Vereinheitlichung
+  mit `RealtimeChip.cancelled` ist eine spätere, eigene Entscheidung.
+- Keine neuen Tests (reiner Widget-Austausch, keine neue Logik - die
+  Schwellenwert-Logik selbst ist 1:1 aus dem bereits unveränderten
+  Original übernommen).
+
+Alle dreiundzwanzig Patches sind per `dart analyze` (keine neuen Fehler) und
 den bestehenden Testsuiten der jeweils betroffenen Pakete verifiziert
 (alle grün, inkl. neuer Tests für Patches 8/10/11/12/13/16/17/18/19/20/21/22).
 
