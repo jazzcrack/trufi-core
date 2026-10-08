@@ -4,9 +4,9 @@ Dieser Fork existiert ausschließlich, um Trufi-Core-Lücken zu
 schließen, für die es keinen Konfigurationspunkt gibt (siehe
 `architektur-konzept.md` im Hauptprojekt
 [jazzcrack/-PNV-Fahrplan-App](https://github.com/jazzcrack/-PNV-Fahrplan-App),
-Kapitel 3.13/14/18–3.40 für die vollständige Herleitung jedes einzelnen
+Kapitel 3.13/14/18–3.41 für die vollständige Herleitung jedes einzelnen
 Patches). Keine anderen Änderungen gegenüber Upstream. Stand:
-einundzwanzig Patches (zuletzt aktualisiert 06.10.2026, Kapitel 3.40).
+zweiundzwanzig Patches (zuletzt aktualisiert 07.10.2026, Kapitel 3.41).
 
 ## Branch-Struktur
 
@@ -18,7 +18,7 @@ einundzwanzig Patches (zuletzt aktualisiert 06.10.2026, Kapitel 3.40).
   `main`, wird nie direkt verändert. Dient nur als Referenz für
   `git rebase`.
 
-## Die einundzwanzig Patches
+## Die zweiundzwanzig Patches
 
 | # | Thema | Pakete | Risiko |
 |---|---|---|---|
@@ -43,6 +43,7 @@ einundzwanzig Patches (zuletzt aktualisiert 06.10.2026, Kapitel 3.40).
 | 19 | `NavigationState.copyWith`: `distanceFromRoute`-Nullable-Bug behoben | `trufi_core_navigation` | niedrig (additiver Sentinel-Parameter, kein aktueller UI-Konsument betroffen) |
 | 20 | `Leg.tripId` + `NavigationStop.gtfsStopId` + `refreshCurrentLegDelay()` | `trufi_core_routing`, `trufi_core_navigation` | niedrig (additive Felder + neue Methode, keine bestehende Signatur geändert) |
 | 21 | iOS: Standort-Tracking laeuft auch bei gesperrtem Bildschirm weiter | `trufi_core_utils` | niedrig (iOS-Zweig in einer privaten Hilfsmethode, Android/Web unverändert) |
+| 22 | Ausfall-Erkennung: `Itinerary.hasCanceledLeg` + `NavigationLeg.isCanceled` | `trufi_core_routing`, `trufi_core_navigation`, `trufi_core_home_screen` | niedrig (additiver Getter/Feld + neues Badge, keine bestehende Signatur geändert) |
 
 Patches 1–5 sind in den commit-Historien der ersten Fork-Runden
 (Kapitel 3.18–3.19 im Hauptprojekt) im Detail dokumentiert, hier nur
@@ -506,9 +507,33 @@ Verbindungsdetails während der Fahrt.
   (iOS nutzt `AppleSettings` mit den richtigen Flags, Android/Web
   nutzt weiterhin das generische `LocationSettings`).
 
-Alle einundzwanzig Patches sind per `dart analyze` (keine neuen Fehler) und
+### 22. Ausfall-Erkennung: `Itinerary.hasCanceledLeg` + `NavigationLeg.isCanceled`
+
+Hauptprojekt Kapitel 3.41 (07.10.2026): korrigiert eine falsche frühere
+Annahme - `routing.Leg.realtimeState` (inkl. `RealtimeState.canceled`) wird
+seit Längerem vollständig von OTP geparst, es fehlte nur die Weiterleitung
+bis in die Navigation/UI, nicht das Parsen selbst.
+
+- `trufi_core_routing`: neuer `Itinerary.hasCanceledLeg`-Getter (additiv,
+  analog zu `overallArrivalDelay`) - `true`, sobald irgendein Bein
+  `realtimeState == RealtimeState.canceled` ist.
+- `trufi_core_navigation`: `NavigationLeg` bekommt ein neues
+  `realtimeState`-Feld + `isCanceled`-Getter (additiv), von
+  `ItineraryConverter.toNavigationRoute()` aus `routing.Leg.realtimeState`
+  befüllt.
+- `trufi_core_home_screen`: neuer `_CancellationBadge` auf `ItineraryCard`
+  - verdrängt den bestehenden `_DelayBadge`, statt daneben zu stehen (eine
+    ausgefallene Fahrt hat meist keine sinnvolle Verspätungsangabe mehr).
+    Neue lokalisierte Zeichenkette `tripCanceled` (de/en/es).
+- Neue Tests: 3 neue Fälle in `trufi_core_routing/test/unit/cancellation_test.dart`
+  (`hasCanceledLeg` true/false/null-realtimeState), 1 neuer Fall in
+  `trufi_core_navigation/test/itinerary_converter_delay_test.dart`
+  (`realtimeState`/`isCanceled` werden von `toNavigationRoute()`
+  durchgereicht).
+
+Alle zweiundzwanzig Patches sind per `dart analyze` (keine neuen Fehler) und
 den bestehenden Testsuiten der jeweils betroffenen Pakete verifiziert
-(alle grün, inkl. neuer Tests für Patches 8/10/11/12/13/16/17/18/19/20/21).
+(alle grün, inkl. neuer Tests für Patches 8/10/11/12/13/16/17/18/19/20/21/22).
 
 ## Sync-Strategie: wie künftige Upstream-Änderungen reinkommen
 
