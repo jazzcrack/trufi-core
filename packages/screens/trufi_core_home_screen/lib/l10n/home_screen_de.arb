@@ -141,5 +141,6 @@
   "loadLaterConnections": "Spätere Verbindungen anzeigen",
   "delayOnTime": "Pünktlich",
   "delayLateMinutes": "+{minutes} Min",
+  "tripCanceled": "Fällt aus",
   "networkErrorMessage": "Keine Verbindung zum Routing-Server. Bitte Internetverbindung prüfen und erneut versuchen."
 }

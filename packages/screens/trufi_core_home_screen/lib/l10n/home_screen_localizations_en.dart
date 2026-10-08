@@ -492,6 +492,9 @@ class HomeScreenLocalizationsEn extends HomeScreenLocalizations {
   }
 
   @override
+  String get tripCanceled => 'Cancelled';
+
+  @override
   String get networkErrorMessage =>
       'No connection to the routing server. Please check your internet connection and try again.';
 }

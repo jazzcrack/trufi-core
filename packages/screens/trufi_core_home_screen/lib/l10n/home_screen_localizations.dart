@@ -913,6 +913,12 @@ abstract class HomeScreenLocalizations {
   /// **'+{minutes} min'**
   String delayLateMinutes(int minutes);
 
+  /// Shown on an itinerary card when real-time data marks a leg of this trip as canceled - fahrplaner.de fork patch, see FAHRPLANER_PATCHES.md
+  ///
+  /// In en, this message translates to:
+  /// **'Cancelled'**
+  String get tripCanceled;
+
   /// Shown instead of a raw exception message when fetchPlan() fails for a connectivity reason (no internet, server unreachable, timeout) - fahrplaner.de fork patch, see FAHRPLANER_PATCHES.md
   ///
   /// In en, this message translates to:

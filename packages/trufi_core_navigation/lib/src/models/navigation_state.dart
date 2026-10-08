@@ -1,5 +1,6 @@
 import 'package:equatable/equatable.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:trufi_core_routing/trufi_core_routing.dart' as routing;
 import 'package:trufi_core_utils/trufi_core_utils.dart';
 
 import '../../l10n/navigation_localizations.dart';
@@ -122,6 +123,20 @@ class NavigationLeg extends Equatable {
   /// zuzuordnen. Null fuer Fussweg-/Fahrrad-Abschnitte ohne Trip.
   final String? tripId;
 
+  /// Echtzeit-Status dieses Abschnitts, fahrplaner.de fork patch
+  /// (07.10.2026, siehe FAHRPLANER_PATCHES.md). Carried over from
+  /// routing.Leg.realtimeState durch ItineraryConverter
+  /// .toNavigationRoute() - Voraussetzung dafuer, "fällt aus" ueberhaupt
+  /// von "hat Verspätung" unterscheiden zu koennen (zwei unterschiedliche
+  /// Dinge, siehe [isCanceled]).
+  final routing.RealtimeState? realtimeState;
+
+  /// Ob dieser Abschnitt in Echtzeit als ausgefallen gemeldet wurde -
+  /// bewusst eine eigene Prüfung statt sich auf [arrivalDelay] zu
+  /// verlassen (ein ausgefallener Abschnitt hat typischerweise GAR keine
+  /// Verspätungsangabe mehr, keine "unendliche" Verspätung).
+  bool get isCanceled => realtimeState == routing.RealtimeState.canceled;
+
   const NavigationLeg({
     required this.id,
     required this.points,
@@ -134,6 +149,7 @@ class NavigationLeg extends Equatable {
     this.duration = Duration.zero,
     this.arrivalDelay,
     this.tripId,
+    this.realtimeState,
   });
 
   @override
@@ -146,6 +162,7 @@ class NavigationLeg extends Equatable {
     color,
     routeName,
     modeName,
+    realtimeState,
     duration,
     arrivalDelay,
     tripId,

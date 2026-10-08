@@ -250,13 +250,20 @@ class ItineraryCard extends StatelessWidget {
 
     return Row(
       children: [
-        // fahrplaner.de fork patch (see FAHRPLANER_PATCHES.md): real-time
-        // delay at the final destination, when any leg carries GTFS-RT
-        // data. Color AND icon AND text together - never color alone
-        // (accessibility requirement, see architektur-konzept.md Kapitel
-        // 10.8).
-        if (itinerary.overallArrivalDelay != null) ...[
-          _DelayBadge(delay: itinerary.overallArrivalDelay!, theme: theme, l10n: l10n),
+        // fahrplaner.de fork patch (07.10.2026, siehe FAHRPLANER_PATCHES
+        // .md): "fällt aus" ist dringlicher als "hat Verspätung" und
+        // verdrängt daher den Verspätungs-Badge, statt daneben zu stehen -
+        // beide gleichzeitig anzuzeigen wäre verwirrend (eine ausgefallene
+        // Fahrt hat ohnehin meist keine sinnvolle Verspätungsangabe mehr).
+        if (itinerary.hasCanceledLeg) ...[
+          _CancellationBadge(theme: theme, l10n: l10n),
+          const SizedBox(width: 8),
+        ] else if (itinerary.overallArrivalDelay != null) ...[
+          _DelayBadge(
+            delay: itinerary.overallArrivalDelay!,
+            theme: theme,
+            l10n: l10n,
+          ),
           const SizedBox(width: 8),
         ],
         // Distance
@@ -498,6 +505,38 @@ class _LegChip extends StatelessWidget {
   }
 }
 
+/// Real-time cancellation indicator (fahrplaner.de fork patch, 07.10.2026,
+/// siehe FAHRPLANER_PATCHES.md). Bewusst ein eigenes Icon/Farbe statt nur
+/// eine Textvariante von [_DelayBadge] - "fällt aus" ist kategorisch
+/// anders als "hat Verspätung", nicht nur eine extremere Verspätung.
+class _CancellationBadge extends StatelessWidget {
+  final ThemeData theme;
+  final HomeScreenLocalizations l10n;
+
+  const _CancellationBadge({required this.theme, required this.l10n});
+
+  @override
+  Widget build(BuildContext context) {
+    const color = Color(
+      0xFFC62828,
+    ); // red - dasselbe Rot wie die starke Delay-Stufe
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const Icon(Icons.cancel_rounded, size: 14, color: color),
+        const SizedBox(width: 4),
+        Text(
+          l10n.tripCanceled,
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: color,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 /// Small info chip for footer
 /// Real-time delay indicator (fahrplaner.de fork patch, see
 /// FAHRPLANER_PATCHES.md). Thresholds informed by a real measurement of
@@ -510,7 +549,11 @@ class _DelayBadge extends StatelessWidget {
   final ThemeData theme;
   final HomeScreenLocalizations l10n;
 
-  const _DelayBadge({required this.delay, required this.theme, required this.l10n});
+  const _DelayBadge({
+    required this.delay,
+    required this.theme,
+    required this.l10n,
+  });
 
   @override
   Widget build(BuildContext context) {

@@ -2,6 +2,7 @@ import 'package:equatable/equatable.dart';
 
 import '../utils/json_utils.dart';
 import 'leg.dart';
+import 'realtime_state.dart';
 import 'route.dart';
 import 'transport_mode.dart';
 
@@ -174,6 +175,14 @@ class Itinerary extends Equatable {
     }
     return null;
   }
+
+  /// Whether any transit leg of this itinerary has been canceled in
+  /// real-time. fahrplaner.de fork patch (07.10.2026, siehe
+  /// FAHRPLANER_PATCHES.md) - "fällt aus" ist etwas anderes als
+  /// "hat Verspätung" und braucht eine eigene Prüfung statt sich auf
+  /// [overallArrivalDelay] zu verlassen.
+  bool get hasCanceledLeg =>
+      legs.any((leg) => leg.realtimeState == RealtimeState.canceled);
 
   /// Returns the number of transfers (from JSON or calculated).
   int get numberOfTransfers {

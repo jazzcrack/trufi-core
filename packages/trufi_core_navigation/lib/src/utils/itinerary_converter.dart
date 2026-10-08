@@ -60,6 +60,7 @@ class ItineraryConverter {
           // fahrplaner.de fork patch (see FAHRPLANER_PATCHES.md).
           arrivalDelay: leg.arrivalDelay,
           tripId: leg.tripId,
+          realtimeState: leg.realtimeState,
         ),
       );
     }

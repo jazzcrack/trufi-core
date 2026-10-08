@@ -141,5 +141,6 @@
   "loadLaterConnections": "Mostrar conexiones posteriores",
   "delayOnTime": "A tiempo",
   "delayLateMinutes": "+{minutes} min",
+  "tripCanceled": "Cancelado",
   "networkErrorMessage": "Sin conexión con el servidor de rutas. Comprueba tu conexión a internet e inténtalo de nuevo."
 }

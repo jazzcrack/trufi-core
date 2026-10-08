@@ -493,6 +493,9 @@ class HomeScreenLocalizationsEs extends HomeScreenLocalizations {
   }
 
   @override
+  String get tripCanceled => 'Cancelado';
+
+  @override
   String get networkErrorMessage =>
       'Sin conexión con el servidor de rutas. Comprueba tu conexión a internet e inténtalo de nuevo.';
 }

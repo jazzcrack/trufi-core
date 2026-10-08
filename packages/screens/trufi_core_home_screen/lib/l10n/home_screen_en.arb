@@ -673,6 +673,10 @@
       }
     }
   },
+  "tripCanceled": "Cancelled",
+  "@tripCanceled": {
+    "description": "Shown on an itinerary card when real-time data marks a leg of this trip as canceled - fahrplaner.de fork patch, see FAHRPLANER_PATCHES.md"
+  },
   "networkErrorMessage": "No connection to the routing server. Please check your internet connection and try again.",
   "@networkErrorMessage": {
     "description": "Shown instead of a raw exception message when fetchPlan() fails for a connectivity reason (no internet, server unreachable, timeout) - fahrplaner.de fork patch, see FAHRPLANER_PATCHES.md"
