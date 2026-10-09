@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:trufi_core_interfaces/trufi_core_interfaces.dart'
+    hide ITrufiMapEngine;
 import 'package:trufi_core_routing/trufi_core_routing.dart' as routing;
 import 'package:trufi_core_utils/trufi_core_utils.dart';
 
@@ -9,6 +11,51 @@ import '../models/route_planner_state.dart';
 import '../../l10n/home_screen_localizations.dart';
 import 'itinerary_card.dart';
 import 'itinerary_detail_screen.dart';
+
+/// "Weniger Umstiege"-Chip (Redesign Oktober 2026, docs/design/HANDOFF.md
+/// Abschnitt 3.2): sortiert nach Umstiegszahl, dann Dauer, dann
+/// Abfahrtszeit - dieselbe Kaskade wie `rankAlternatives()` im
+/// Hauptprojekt-Repo (`alternative_routes.dart`), hier als eigene, kleine
+/// Kopie statt eines Imports (der Fork kann das Hauptprojekt nicht
+/// importieren, siehe Patch 23). Rein eine Anzeige-Umsortierung der
+/// bereits geladenen Antwort, kein erneuter Server-Aufruf.
+List<routing.Itinerary>? _rankedByFewerTransfers(
+  List<routing.Itinerary>? itineraries,
+) {
+  if (itineraries == null) return null;
+  final ranked = List<routing.Itinerary>.of(itineraries);
+  ranked.sort((a, b) {
+    final transfers = a.numberOfTransfers.compareTo(b.numberOfTransfers);
+    if (transfers != 0) return transfers;
+    final duration = a.duration.compareTo(b.duration);
+    if (duration != 0) return duration;
+    return a.startTime.compareTo(b.startTime);
+  });
+  return ranked;
+}
+
+/// Gleiche Kaskade wie [_rankedByFewerTransfers], angewendet auf die
+/// REPRAESENTATIVEN Itineraries der Gruppen (#737) statt auf einzelne
+/// Itineraries - die Gruppen selbst (ihre `alternatives`) bleiben
+/// unangetastet, nur ihre Reihenfolge in der Liste aendert sich.
+List<routing.ItineraryGroup>? _groupsRankedByFewerTransfers(
+  List<routing.ItineraryGroup>? groups,
+) {
+  if (groups == null) return null;
+  final ranked = List<routing.ItineraryGroup>.of(groups);
+  ranked.sort((a, b) {
+    final transfers = a.representative.numberOfTransfers.compareTo(
+      b.representative.numberOfTransfers,
+    );
+    if (transfers != 0) return transfers;
+    final duration = a.representative.duration.compareTo(
+      b.representative.duration,
+    );
+    if (duration != 0) return duration;
+    return a.representative.startTime.compareTo(b.representative.startTime);
+  });
+  return ranked;
+}
 
 /// List of itinerary options with inline detail view.
 /// When an itinerary is tapped, shows details inline replacing the list.
@@ -71,6 +118,34 @@ class _ItineraryListState extends State<ItineraryList> {
   routing.Itinerary? _detailItinerary;
   bool _hasAutoShownDetail = false;
 
+  // "Fahrplan heißt..."-Hinweis (Redesign Oktober 2026, docs/design/
+  // HANDOFF.md Abschnitt 3.2): einmalig erklären, danach dauerhaft
+  // wegklickbar. `null` waehrend des (sehr kurzen) asynchronen Ladens
+  // haelt den Hinweis zunaechst verborgen statt kurz einzublenden und
+  // sofort wieder zu verschwinden, falls er schon dismissed war.
+  static const _scheduleBannerStorageKey = 'fp_schedule_banner_dismissed';
+  final StorageService _scheduleBannerStorage = SharedPreferencesStorage();
+  bool? _scheduleBannerDismissed;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadScheduleBannerDismissed();
+  }
+
+  Future<void> _loadScheduleBannerDismissed() async {
+    await _scheduleBannerStorage.initialize();
+    final dismissed =
+        await _scheduleBannerStorage.readBool(_scheduleBannerStorageKey) ??
+        false;
+    if (mounted) setState(() => _scheduleBannerDismissed = dismissed);
+  }
+
+  void _dismissScheduleBanner() {
+    setState(() => _scheduleBannerDismissed = true);
+    _scheduleBannerStorage.writeBool(_scheduleBannerStorageKey, true);
+  }
+
   void _showDetails(routing.Itinerary itinerary) {
     HapticFeedback.selectionClick();
     setState(() {
@@ -114,7 +189,9 @@ class _ItineraryListState extends State<ItineraryList> {
           return _buildErrorState(context, state, l10n, theme);
         }
 
-        final itineraries = state.plan?.itineraries;
+        final itineraries = state.preferFewerTransfers
+            ? _rankedByFewerTransfers(state.plan?.itineraries)
+            : state.plan?.itineraries;
         if (itineraries == null || itineraries.isEmpty) {
           if (!state.isPlacesDefined) {
             return _buildEmptyState(
@@ -165,19 +242,38 @@ class _ItineraryListState extends State<ItineraryList> {
         }
 
         // Use grouped itineraries if available, otherwise fall back to regular list
-        final groupedItineraries = state.plan?.groupedItineraries;
+        final groupedItineraries = state.preferFewerTransfers
+            ? _groupsRankedByFewerTransfers(state.plan?.groupedItineraries)
+            : state.plan?.groupedItineraries;
         if (groupedItineraries != null && groupedItineraries.isNotEmpty) {
-          return _buildGroupedListView(
-            context,
-            groupedItineraries,
-            state,
-            cubit,
+          return _withScheduleBanner(
+            _buildGroupedListView(context, groupedItineraries, state, cubit),
           );
         }
 
         // Fallback to non-grouped list view
-        return _buildListView(context, itineraries, state, cubit);
+        return _withScheduleBanner(
+          _buildListView(context, itineraries, state, cubit),
+        );
       },
+    );
+  }
+
+  /// "Fahrplan heißt..."-Hinweis oberhalb der Liste, solange noch nicht
+  /// dismissed (Abschnitt 3.2). `null` (noch am Laden) oder `true`
+  /// (bereits dismissed) zeigen nichts zusaetzlich - [list] bleibt
+  /// unveraendert. `Expanded` nur, wenn [list] selbst nicht `shrinkWrap`
+  /// ist (sonst steckt dieser Baum oft schon in einer aeusseren
+  /// Scrollansicht mit unbegrenzter Hoehe - `Expanded` wuerde dort einen
+  /// RenderFlex-Fehler werfen).
+  Widget _withScheduleBanner(Widget list) {
+    if (_scheduleBannerDismissed != false) return list;
+    final banner = _ScheduleExplainerBanner(onDismiss: _dismissScheduleBanner);
+    return Column(
+      mainAxisSize: widget.shrinkWrap ? MainAxisSize.min : MainAxisSize.max,
+      children: widget.shrinkWrap
+          ? [banner, list]
+          : [banner, Expanded(child: list)],
     );
   }
 
@@ -625,6 +721,71 @@ class _ShimmerCardState extends State<_ShimmerCard>
 }
 
 /// Banner shown above route results to indicate times are estimated.
+/// "Fahrplan heißt..."-Hinweis (Redesign Oktober 2026, docs/design/
+/// HANDOFF.md Abschnitt 3.2, Referenz `Verbindungen.dc.html`): einmalig
+/// erklaert, was der "Fahrplan"-Status eines `RealtimeChip` bedeutet
+/// (siehe FpStatusColors/RealtimeStatus.scheduleOnly im Hauptprojekt) -
+/// bewusst deutscher Festtext ohne l10n-Anbindung, analog zu Patch 23/25.
+class _ScheduleExplainerBanner extends StatelessWidget {
+  final VoidCallback onDismiss;
+
+  const _ScheduleExplainerBanner({required this.onDismiss});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 4, 4, 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            Icons.info_outline_rounded,
+            size: 16,
+            color: colorScheme.onSurfaceVariant,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Text.rich(
+                TextSpan(
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                  children: [
+                    TextSpan(
+                      text: 'Fahrplan',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: colorScheme.onSurface,
+                      ),
+                    ),
+                    const TextSpan(
+                      text:
+                          ' heißt: Für diesen Abschnitt gibt es keine '
+                          'Live-Daten. Wir zeigen das offen, statt '
+                          'Pünktlichkeit vorzutäuschen.',
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.close_rounded, size: 18),
+            onPressed: onDismiss,
+            tooltip: 'Verstanden',
+            visualDensity: VisualDensity.compact,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _EstimatedTimesBanner extends StatelessWidget {
   final HomeScreenLocalizations l10n;
 
@@ -681,13 +842,17 @@ class _LoadMoreButton extends StatelessWidget {
   Widget build(BuildContext context) {
     if (cursor == null) return const SizedBox.shrink();
     final l10n = HomeScreenLocalizations.of(context);
-    final label = earlier ? l10n.loadEarlierConnections : l10n.loadLaterConnections;
+    final label = earlier
+        ? l10n.loadEarlierConnections
+        : l10n.loadLaterConnections;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       child: Center(
         child: TextButton.icon(
           onPressed: isLoading ? null : onTap,
-          icon: Icon(earlier ? Icons.expand_less_rounded : Icons.expand_more_rounded),
+          icon: Icon(
+            earlier ? Icons.expand_less_rounded : Icons.expand_more_rounded,
+          ),
           label: Text(label),
         ),
       ),

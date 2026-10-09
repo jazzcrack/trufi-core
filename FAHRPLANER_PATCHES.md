@@ -670,9 +670,46 @@ hätte nachgebaut werden müssen.
   Abschnitt 3.2 (beide in `ItineraryList`, nicht `ItineraryCard`) -
   eigener, kleinerer Folge-Patch.
 
-Alle fünfundzwanzig Patches sind per `dart analyze` (keine neuen Fehler) und
+### 26. `ItineraryList`: "Weniger Umstiege"-Sortierung + "Fahrplan heißt…"-Hinweis
+
+Hauptprojekt Kapitel E1-Rest (09.10.2026, Redesign, docs/design/HANDOFF.md
+Abschnitt 3.2, Referenz `Verbindungen.dc.html`) - die beiden in Patch 25
+bewusst ausgelassenen Elemente, da sie in `ItineraryList`/`home_screen.dart`
+statt `ItineraryCard` liegen.
+
+- **`RoutePlannerState.preferFewerTransfers`** (neues additives `bool`-
+  Feld, Default `false`) + **`RoutePlannerCubit.toggleSortPreference()`**:
+  reine Anzeige-Praeferenz, kein Replan. `ItineraryList.build()` sortiert
+  bei `true` die bereits geladenen `itineraries`/`groupedItineraries`
+  (bzw. deren `representative`) nach Umstiegszahl, dann Dauer, dann
+  Abfahrtszeit um - dieselbe Kaskade wie `rankAlternatives()` im
+  Hauptprojekt (`alternative_routes.dart`), hier als eigene, kleine Kopie
+  statt eines Imports (siehe Patch 23/25).
+- **Neue `_FewerTransfersChip`** in `home_screen.dart`, an beiden
+  bestehenden Stellen eingehaengt, an denen schon der Abfahrtszeit-Chip
+  sitzt (schmale UND breite Ansicht) - `BlocBuilder`-gestuetzter Toggle,
+  derselbe Material-Pill-Stil wie `_DepartureTimeChip`. Nur sichtbar,
+  wenn bereits ein Plan mit Ergebnissen vorliegt (`state.plan
+  ?.hasItineraries == true`) - vorher gibt es nichts umzusortieren.
+  Bewusst deutscher Festtext ohne l10n-Anbindung (Patch 23/25-Muster).
+- **Neue `_ScheduleExplainerBanner`** in `itinerary_list.dart`, ueber der
+  eigentlichen Liste eingehaengt (per neuem `_withScheduleBanner()`-
+  Wrapper, der bei `widget.shrinkWrap` bewusst OHNE `Expanded` arbeitet -
+  sonst ein RenderFlex-Fehler in der Bottom-Sheet-Einbettung, wo die
+  Hoehe von aussen unbegrenzt ist). Persistenz ueber `StorageService`/
+  `SharedPreferencesStorage` (dasselbe Muster wie
+  `HomeScreen._liveVehiclesStorage`), Schluessel
+  `fp_schedule_banner_dismissed` - einmalig angezeigt, danach dauerhaft
+  verborgen.
+- Neue Tests: `test/itinerary_list_redesign_test.dart` (2 Faelle - Chip
+  sortiert tatsaechlich um, auch wenn die umstiegsaermere Verbindung
+  LANGSAMER ist, damit ein Zufallstreffer durch reine Dauersortierung
+  ausgeschlossen ist; Hinweis erscheint einmalig und bleibt nach
+  Wegklicken auch nach einem simulierten Neustart verborgen).
+
+Alle sechsundzwanzig Patches sind per `dart analyze` (keine neuen Fehler) und
 den bestehenden Testsuiten der jeweils betroffenen Pakete verifiziert
-(alle grün, inkl. neuer Tests für Patches 8/10/11/12/13/16/17/18/19/20/21/22/24/25).
+(alle grün, inkl. neuer Tests für Patches 8/10/11/12/13/16/17/18/19/20/21/22/24/25/26).
 
 ## Sync-Strategie: wie künftige Upstream-Änderungen reinkommen
 

@@ -236,6 +236,14 @@ class RoutePlannerCubit extends Cubit<RoutePlannerState> {
     emit(state.copyWithNullable(dateTime: Optional(dateTime)));
   }
 
+  /// "Weniger Umstiege"-Chip (Redesign Oktober 2026, docs/design/
+  /// HANDOFF.md Abschnitt 3.2): reine Anzeige-Praeferenz, kein Replan -
+  /// `ItineraryList` liest [RoutePlannerState.preferFewerTransfers] und
+  /// sortiert die bereits geladenen Itineraries/Gruppen entsprechend um.
+  void toggleSortPreference() {
+    emit(state.copyWith(preferFewerTransfers: !state.preferFewerTransfers));
+  }
+
   /// Fetch route plan.
   Future<void> fetchPlan({int? selectedItineraryIndex}) async {
     if (state.fromPlace == null || state.toPlace == null) return;

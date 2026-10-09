@@ -16,6 +16,14 @@ class RoutePlannerState extends Equatable {
   final TimeMode timeMode;
   final DateTime? dateTime;
 
+  /// "Weniger Umstiege"-Chip (Redesign Oktober 2026, docs/design/
+  /// HANDOFF.md Abschnitt 3.2, fahrplaner.de fork patch). Rein eine
+  /// Anzeige-Praeferenz, kein Server-Parameter - `ItineraryList` sortiert
+  /// die bereits geladenen Itineraries/Gruppen bei `true` nach
+  /// Umstiegszahl statt nach der OTP-Kostenfunktion um, ohne neu zu
+  /// planen.
+  final bool preferFewerTransfers;
+
   const RoutePlannerState({
     this.fromPlace,
     this.toPlace,
@@ -25,6 +33,7 @@ class RoutePlannerState extends Equatable {
     this.error,
     this.timeMode = TimeMode.leaveNow,
     this.dateTime,
+    this.preferFewerTransfers = false,
   });
 
   RoutePlannerState copyWith({
@@ -36,6 +45,7 @@ class RoutePlannerState extends Equatable {
     String? error,
     TimeMode? timeMode,
     DateTime? dateTime,
+    bool? preferFewerTransfers,
   }) {
     return RoutePlannerState(
       fromPlace: fromPlace ?? this.fromPlace,
@@ -46,6 +56,7 @@ class RoutePlannerState extends Equatable {
       error: error ?? this.error,
       timeMode: timeMode ?? this.timeMode,
       dateTime: dateTime ?? this.dateTime,
+      preferFewerTransfers: preferFewerTransfers ?? this.preferFewerTransfers,
     );
   }
 
@@ -123,6 +134,7 @@ class RoutePlannerState extends Equatable {
     error,
     timeMode,
     dateTime,
+    preferFewerTransfers,
   ];
 }
 

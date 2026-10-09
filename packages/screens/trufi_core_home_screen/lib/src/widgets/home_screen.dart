@@ -1806,6 +1806,15 @@ class _HomeScreenState extends State<HomeScreen>
                                       onTimeChanged: _fetchPlanIfReady,
                                     ),
                                   ),
+                                // "Weniger Umstiege" (Redesign Oktober
+                                // 2026, Abschnitt 3.2) - nur sinnvoll,
+                                // sobald ein Plan vorliegt (sonst gibt es
+                                // nichts umzusortieren).
+                                if (state.plan?.hasItineraries == true)
+                                  const Padding(
+                                    padding: EdgeInsets.only(top: 8),
+                                    child: _FewerTransfersChip(),
+                                  ),
                                 // GBFS sharing quick filter (Kapitel 3.23):
                                 // same visibility condition as the
                                 // departure-time chip above - only once a
@@ -2229,6 +2238,13 @@ class _HomeScreenState extends State<HomeScreen>
                           onTimeChanged: _fetchPlanIfReady,
                         ),
                       ),
+                    // "Weniger Umstiege" (Redesign Oktober 2026, Abschnitt
+                    // 3.2) - sonst gleich wie in der schmalen Ansicht.
+                    if (state.plan?.hasItineraries == true)
+                      const Padding(
+                        padding: EdgeInsets.only(top: 8),
+                        child: _FewerTransfersChip(),
+                      ),
                     // GBFS sharing quick filter (Kapitel 3.23): same
                     // visibility condition as the departure-time chip
                     // above.
@@ -2253,9 +2269,11 @@ class _HomeScreenState extends State<HomeScreen>
                         }
                       },
                       onItineraryDetails: widget.onItineraryDetails,
-                      onShare: (itinerary) => _shareItinerary(context, itinerary),
+                      onShare: (itinerary) =>
+                          _shareItinerary(context, itinerary),
                       onSaveTrip: widget.onSaveTrip != null
-                          ? (itinerary) => widget.onSaveTrip!(context, itinerary)
+                          ? (itinerary) =>
+                                widget.onSaveTrip!(context, itinerary)
                           : null,
                       onRouteTap: widget.onRouteTap != null
                           ? (routeCode) =>
@@ -2286,9 +2304,11 @@ class _HomeScreenState extends State<HomeScreen>
                         }
                       },
                       onItineraryDetails: widget.onItineraryDetails,
-                      onShare: (itinerary) => _shareItinerary(context, itinerary),
+                      onShare: (itinerary) =>
+                          _shareItinerary(context, itinerary),
                       onSaveTrip: widget.onSaveTrip != null
-                          ? (itinerary) => widget.onSaveTrip!(context, itinerary)
+                          ? (itinerary) =>
+                                widget.onSaveTrip!(context, itinerary)
                           : null,
                       onRouteTap: widget.onRouteTap != null
                           ? (routeCode) =>
@@ -2958,6 +2978,76 @@ class _MyLocationAccuracyCircle extends StatelessWidget {
           width: 1,
         ),
       ),
+    );
+  }
+}
+
+/// "Weniger Umstiege"-Chip (Redesign Oktober 2026, docs/design/HANDOFF.md
+/// Abschnitt 3.2, Referenz `Verbindungen.dc.html`) - togglet
+/// `RoutePlannerState.preferFewerTransfers`, wonach `ItineraryList` die
+/// bereits geladene Antwort nach Umstiegszahl statt nach der OTP-
+/// Kostenfunktion sortiert (kein erneuter Server-Aufruf, siehe
+/// RoutePlannerCubit.toggleSortPreference()).
+class _FewerTransfersChip extends StatelessWidget {
+  const _FewerTransfersChip();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return BlocBuilder<RoutePlannerCubit, RoutePlannerState>(
+      builder: (context, state) {
+        final active = state.preferFewerTransfers;
+        return Align(
+          alignment: Alignment.centerLeft,
+          child: Material(
+            color: active ? colorScheme.primaryContainer : colorScheme.surface,
+            borderRadius: BorderRadius.circular(20),
+            elevation: 2,
+            shadowColor: Colors.black.withValues(alpha: 0.15),
+            child: InkWell(
+              onTap: () {
+                HapticFeedback.selectionClick();
+                context.read<RoutePlannerCubit>().toggleSortPreference();
+              },
+              borderRadius: BorderRadius.circular(20),
+              child: Semantics(
+                button: true,
+                toggled: active,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (active) ...[
+                        Icon(
+                          Icons.check_rounded,
+                          size: 18,
+                          color: colorScheme.onPrimaryContainer,
+                        ),
+                        const SizedBox(width: 6),
+                      ],
+                      Text(
+                        'Weniger Umstiege',
+                        style: theme.textTheme.labelLarge?.copyWith(
+                          color: active
+                              ? colorScheme.onPrimaryContainer
+                              : colorScheme.onSurface,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }
