@@ -1792,6 +1792,21 @@ class _HomeScreenState extends State<HomeScreen>
                                   onRoutingSettings: _onRoutingSettings,
                                   onMenuPressed: widget.onMenuPressed,
                                 ),
+                                // Redesign Oktober 2026 (docs/design/
+                                // HANDOFF.md Abschnitt 3.1): Inhalte
+                                // unterhalb der Suchleiste auf dem LEEREN
+                                // Home-Screen - verschwindet, sobald eine
+                                // Suche beginnt (Departure-Time-Chip etc.
+                                // uebernehmen den Platz dann).
+                                if (state.fromPlace == null &&
+                                    state.toPlace == null &&
+                                    widget.config.belowSearchBuilder != null)
+                                  Padding(
+                                    padding: const EdgeInsets.only(top: 8),
+                                    child: widget.config.belowSearchBuilder!(
+                                      context,
+                                    ),
+                                  ),
                                 // Departure time chip (visible when
                                 // locations are set, and only when no
                                 // app-level `routingTimeOverride` is
@@ -2233,6 +2248,15 @@ class _HomeScreenState extends State<HomeScreen>
                       onRoutingSettings: _onRoutingSettings,
                       onMenuPressed: widget.onMenuPressed,
                     ),
+                    // Redesign Oktober 2026 (Abschnitt 3.1) - sonst
+                    // gleich wie in der schmalen Ansicht.
+                    if (state.fromPlace == null &&
+                        state.toPlace == null &&
+                        widget.config.belowSearchBuilder != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: widget.config.belowSearchBuilder!(context),
+                      ),
                     // Departure time chip — same guard as the mobile
                     // layout above: hidden when an app-level
                     // `routingTimeOverride` is set, since every plan

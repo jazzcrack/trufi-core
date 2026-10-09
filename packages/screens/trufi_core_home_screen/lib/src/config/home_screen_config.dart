@@ -63,6 +63,16 @@ class HomeScreenConfig {
   /// presenting a control that doesn't actually work.
   final bool showMapTypeButton;
 
+  /// Optional content shown below the search bar on the EMPTY home screen
+  /// (no origin/destination chosen yet, no plan loaded) - e.g. quick
+  /// shortcuts, an offline-readiness pill, or a nearby-stop preview.
+  /// Hidden as soon as the rider picks a place, since the departure-time/
+  /// filter chips take over that space then.
+  ///
+  /// fahrplaner.de fork patch (see FAHRPLANER_PATCHES.md, Patch 28) -
+  /// additive hook, `null` (the default) changes nothing.
+  final Widget Function(BuildContext context)? belowSearchBuilder;
+
   const HomeScreenConfig({
     this.chooseLocationZoom = 16.0,
     this.searchService,
@@ -75,5 +85,6 @@ class HomeScreenConfig {
     this.extraMapLayerSettings,
     this.liveVehiclesInitiallyEnabled = false,
     this.showMapTypeButton = true,
+    this.belowSearchBuilder,
   });
 }

@@ -55,5 +55,17 @@ void main() {
 
       expect(config.chooseLocationZoom, equals(18.0));
     });
+
+    // Redesign Oktober 2026 (docs/design/HANDOFF.md Abschnitt 3.1,
+    // Patch 28): additiver Hook, `null` per Default - der eigentliche
+    // Render-Zweig (sichtbar nur auf dem leeren Home-Screen) sitzt in
+    // HomeScreen, dessen volle Pumpbarkeit ein schweres Map-/Routing-
+    // Setup braucht (siehe restored_plan_map_test.dart) - fuer diesen
+    // additiven Konfigurationspunkt reicht wie bei showMapTypeButton/
+    // extraMapLayerSettings oben die Feld-Ebene.
+    test('belowSearchBuilder ist standardmaessig null', () {
+      const config = HomeScreenConfig();
+      expect(config.belowSearchBuilder, isNull);
+    });
   });
 }

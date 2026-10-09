@@ -759,7 +759,29 @@ patchen statt Builder-Override (dieselbe Nutzer-Entscheidung wie Patch
   dass `ItineraryDetailScreen.show()`s `onStartNavigation` jetzt
   tatsaechlich aufgerufen wird).
 
-Alle siebenundzwanzig Patches sind per `dart analyze` (keine neuen Fehler) und
+### 28. `HomeScreenConfig.belowSearchBuilder`
+
+Hauptprojekt Kapitel E3 (09.10.2026, Redesign, docs/design/HANDOFF.md
+Abschnitt 3.1 "Start · Planen") - genau der additive Hook, den HANDOFF.md
+selbst vorschlug ("ein neuer Einhängepunkt... z. B.
+`HomeScreenConfig.belowSearchBuilder`, also ein kleiner, additiver
+Fork-Patch statt eines Umbaus"), bereits beim Lesen des Forks in E0
+bestätigt.
+
+- Neues optionales Feld `Widget Function(BuildContext)? belowSearchBuilder`
+  auf `HomeScreenConfig`. In `home_screen.dart` (beide Layouts, schmal UND
+  breit) direkt unter der `SearchLocationBar` eingehängt, aber NUR auf dem
+  LEEREN Home-Screen sichtbar (`state.fromPlace == null && state.toPlace
+  == null`) - sobald eine Suche beginnt, übernehmen Abfahrtszeit-/Filter-
+  Chips denselben Platz.
+- Test: nur auf Feld-Ebene (`belowSearchBuilder` ist `null` per Default),
+  analog zu `showMapTypeButton`/`extraMapLayerSettings` oben im selben
+  Testfile - keiner von beiden hat einen vollen `HomeScreen`-Widget-Test
+  (brauchte ein schweres Map-/Routing-Setup, siehe
+  `restored_plan_map_test.dart`), der Render-Zweig selbst ist eine
+  einzige, triviale Bedingung.
+
+Alle achtundzwanzig Patches sind per `dart analyze` (keine neuen Fehler) und
 den bestehenden Testsuiten der jeweils betroffenen Pakete verifiziert
 (alle grün, inkl. neuer Tests für Patches 8/10/11/12/13/16/17/18/19/20/21/22/24/25/26/27).
 
