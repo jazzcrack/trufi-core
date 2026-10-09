@@ -1772,99 +1772,159 @@ class _HomeScreenState extends State<HomeScreen>
                       ),
 
                     // Narrow screens: SearchBar floats on top of map
-                    if (!isWideScreen)
-                      Positioned(
-                        top: 0,
-                        left: 0,
-                        right: 0,
+                    //
+                    // fahrplaner.de fork patch (09.10.2026, Patch 32, echter
+                    // Nutzer-Fund: "Startseite passt gar nicht zum Mock").
+                    // VORHER: dieser Block war content-sized (nur "top"
+                    // gesetzt), lag als einzelnes schwebendes Element direkt
+                    // ueber der transparenten Karte - jedes Kind (Zuhause/
+                    // Arbeit/Ort-Kacheln, "Gemerkte Fahrt", Haltestellen-
+                    // Vorschau) zeichnete sich nur seinen EIGENEN kleinen
+                    // Hintergrund, es gab keine verbindende Flaeche. Der
+                    // Redesign-Mock (Main.dc.html) zeigt stattdessen eine
+                    // durchgehende weisse Sheet-Flaeche, die von kurz unter
+                    // der Karte bis zur unteren NavigationBar reicht.
+                    //
+                    // NUR aktiv, solange "!hasResults" (Leer-/Planungsphase,
+                    // noch keine Ergebnisliste) - die bestehende Ergebnis-
+                    // Darstellung (_buildBottomSheet()/_buildErrorPanel(),
+                    // beide weiter unten in diesem Stack) bleibt dadurch
+                    // unveraendert und unberuehrt von diesem Patch.
+                    if (!isWideScreen && !hasResults)
+                      Positioned.fill(
                         child: SafeArea(
                           bottom: false,
-                          child: Padding(
-                            padding: const EdgeInsets.all(8.0),
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                SearchLocationBar(
-                                  state: locationState,
-                                  configuration: SearchLocationBarConfiguration(
-                                    originHintText: l10n.searchOrigin,
-                                    destinationHintText: l10n.searchDestination,
+                          child: Column(
+                            children: [
+                              // Hoehe, in der die Karte sichtbar bleibt
+                              // (analog zum festen 250px-Kartenbereich im
+                              // Mock) - bewusst ein fester Wert statt eines
+                              // Anteils der Bildschirmhoehe, damit er auf
+                              // kleinen UND grossen Geraeten gleich viel
+                              // Kartenausschnitt zeigt.
+                              const SizedBox(height: 188),
+                              Expanded(
+                                child: DecoratedBox(
+                                  decoration: BoxDecoration(
+                                    color: theme.colorScheme.surface,
+                                    borderRadius: const BorderRadius.vertical(
+                                      top: Radius.circular(24),
+                                    ),
                                   ),
-                                  onSearch: _showSearchScreen,
-                                  onOriginSelected: _onOriginSelected,
-                                  onDestinationSelected: _onDestinationSelected,
-                                  onSwap: _onSwapLocations,
-                                  onReset: _onReset,
-                                  onClearLocation: _onClearLocation,
-                                  onRoutingSettings: _onRoutingSettings,
-                                  onMenuPressed: widget.onMenuPressed,
+                                  child: SingleChildScrollView(
+                                    padding: const EdgeInsets.all(8.0),
+                                    child: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Container(
+                                          width: 36,
+                                          height: 4,
+                                          margin: const EdgeInsets.only(
+                                            bottom: 10,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: theme
+                                                .colorScheme
+                                                .outlineVariant,
+                                            borderRadius: BorderRadius.circular(
+                                              2,
+                                            ),
+                                          ),
+                                        ),
+                                        SearchLocationBar(
+                                          state: locationState,
+                                          configuration:
+                                              SearchLocationBarConfiguration(
+                                                originHintText:
+                                                    l10n.searchOrigin,
+                                                destinationHintText:
+                                                    l10n.searchDestination,
+                                              ),
+                                          onSearch: _showSearchScreen,
+                                          onOriginSelected: _onOriginSelected,
+                                          onDestinationSelected:
+                                              _onDestinationSelected,
+                                          onSwap: _onSwapLocations,
+                                          onReset: _onReset,
+                                          onClearLocation: _onClearLocation,
+                                          onRoutingSettings: _onRoutingSettings,
+                                          onMenuPressed: widget.onMenuPressed,
+                                        ),
+                                        // Redesign Oktober 2026 (docs/design/
+                                        // HANDOFF.md Abschnitt 3.1): Inhalte
+                                        // unterhalb der Suchleiste auf dem LEEREN
+                                        // Home-Screen - verschwindet, sobald eine
+                                        // Suche beginnt (Departure-Time-Chip etc.
+                                        // uebernehmen den Platz dann).
+                                        //
+                                        // fahrplaner.de fork patch (09.10.2026,
+                                        // Patch 31, echter Simulator-Fund): NUR auf
+                                        // toPlace geprueft, nicht zusaetzlich auf
+                                        // fromPlace - fromPlace bleibt nach dem
+                                        // allerersten Start DAUERHAFT ueber
+                                        // HomeScreenRepository/SharedPreferences
+                                        // gesetzt (haeufig der aktuelle Standort),
+                                        // waehrend toPlace der eigentliche Signal-
+                                        // Wert fuer "aktiv am Planen" ist. Mit der
+                                        // alten fromPlace==null-Bedingung blieb
+                                        // dieser Block nach dem ersten je
+                                        // durchgefuehrten Suchlauf PERMANENT
+                                        // verborgen, siehe architektur-konzept.md
+                                        // (Hauptprojekt) Kapitel 3.60.
+                                        if (state.toPlace == null &&
+                                            widget.config.belowSearchBuilder !=
+                                                null)
+                                          Padding(
+                                            padding: const EdgeInsets.only(
+                                              top: 8,
+                                            ),
+                                            child: widget
+                                                .config
+                                                .belowSearchBuilder!(context),
+                                          ),
+                                        // Departure time chip (visible when
+                                        // locations are set, and only when no
+                                        // app-level `routingTimeOverride` is
+                                        // configured — when set, every request
+                                        // resolves against a fixed time of day
+                                        // and the picker would mislead).
+                                        if (context
+                                                    .read<AppConfiguration?>()
+                                                    ?.routingTimeOverride ==
+                                                null &&
+                                            (state.fromPlace != null ||
+                                                state.toPlace != null))
+                                          Padding(
+                                            padding: const EdgeInsets.only(
+                                              top: 8,
+                                            ),
+                                            child: _DepartureTimeChip(
+                                              onTimeChanged: _fetchPlanIfReady,
+                                            ),
+                                          ),
+                                        // "Weniger Umstiege" (Redesign Oktober
+                                        // 2026, Abschnitt 3.2) - nur sinnvoll,
+                                        // sobald ein Plan vorliegt (sonst gibt es
+                                        // nichts umzusortieren).
+                                        if (state.plan?.hasItineraries == true)
+                                          const Padding(
+                                            padding: EdgeInsets.only(top: 8),
+                                            child: _FewerTransfersChip(),
+                                          ),
+                                        // GBFS sharing quick filter (Kapitel 3.23):
+                                        // same visibility condition as the
+                                        // departure-time chip above - only once a
+                                        // search is actually active, not on the
+                                        // empty home screen.
+                                        if (state.fromPlace != null ||
+                                            state.toPlace != null)
+                                          _buildQuickFilterChips(),
+                                      ],
+                                    ),
+                                  ),
                                 ),
-                                // Redesign Oktober 2026 (docs/design/
-                                // HANDOFF.md Abschnitt 3.1): Inhalte
-                                // unterhalb der Suchleiste auf dem LEEREN
-                                // Home-Screen - verschwindet, sobald eine
-                                // Suche beginnt (Departure-Time-Chip etc.
-                                // uebernehmen den Platz dann).
-                                //
-                                // fahrplaner.de fork patch (09.10.2026,
-                                // Patch 31, echter Simulator-Fund): NUR auf
-                                // toPlace geprueft, nicht zusaetzlich auf
-                                // fromPlace - fromPlace bleibt nach dem
-                                // allerersten Start DAUERHAFT ueber
-                                // HomeScreenRepository/SharedPreferences
-                                // gesetzt (haeufig der aktuelle Standort),
-                                // waehrend toPlace der eigentliche Signal-
-                                // Wert fuer "aktiv am Planen" ist. Mit der
-                                // alten fromPlace==null-Bedingung blieb
-                                // dieser Block nach dem ersten je
-                                // durchgefuehrten Suchlauf PERMANENT
-                                // verborgen, siehe architektur-konzept.md
-                                // (Hauptprojekt) Kapitel 3.60.
-                                if (state.toPlace == null &&
-                                    widget.config.belowSearchBuilder != null)
-                                  Padding(
-                                    padding: const EdgeInsets.only(top: 8),
-                                    child: widget.config.belowSearchBuilder!(
-                                      context,
-                                    ),
-                                  ),
-                                // Departure time chip (visible when
-                                // locations are set, and only when no
-                                // app-level `routingTimeOverride` is
-                                // configured — when set, every request
-                                // resolves against a fixed time of day
-                                // and the picker would mislead).
-                                if (context
-                                            .read<AppConfiguration?>()
-                                            ?.routingTimeOverride ==
-                                        null &&
-                                    (state.fromPlace != null ||
-                                        state.toPlace != null))
-                                  Padding(
-                                    padding: const EdgeInsets.only(top: 8),
-                                    child: _DepartureTimeChip(
-                                      onTimeChanged: _fetchPlanIfReady,
-                                    ),
-                                  ),
-                                // "Weniger Umstiege" (Redesign Oktober
-                                // 2026, Abschnitt 3.2) - nur sinnvoll,
-                                // sobald ein Plan vorliegt (sonst gibt es
-                                // nichts umzusortieren).
-                                if (state.plan?.hasItineraries == true)
-                                  const Padding(
-                                    padding: EdgeInsets.only(top: 8),
-                                    child: _FewerTransfersChip(),
-                                  ),
-                                // GBFS sharing quick filter (Kapitel 3.23):
-                                // same visibility condition as the
-                                // departure-time chip above - only once a
-                                // search is actually active, not on the
-                                // empty home screen.
-                                if (state.fromPlace != null ||
-                                    state.toPlace != null)
-                                  _buildQuickFilterChips(),
-                              ],
-                            ),
+                              ),
+                            ],
                           ),
                         ),
                       ),
