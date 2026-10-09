@@ -43,8 +43,11 @@ void main() {
   }
 
   AppRouter twoTabRouter() {
+    // Die erste Branch-Wurzel braucht Pfad "/" - AppRouter() ohne
+    // initialRoute (wie im echten main.dart, siehe trufi_app.dart) geht
+    // sonst ins Leere (ErrorScreen statt NavigationBar).
     final screens = [
-      _StubScreen('a', '/a', 'Planen', const Text('Planen-Inhalt')),
+      _StubScreen('a', '/', 'Planen', const Text('Planen-Inhalt')),
       _StubScreen('b', '/b', 'Gemerkt', const Text('Gemerkt-Inhalt')),
     ];
     return AppRouter(
@@ -84,14 +87,20 @@ void main() {
 
   testWidgets('a second screen in the same branch is reachable by pushing, '
       'without leaving the tab bar', (tester) async {
+    // Zwei Tabs, weil Flutters eigenes NavigationBar-Widget mindestens
+    // zwei Destinations verlangt (destinations.length >= 2) - der zweite
+    // Tab ("b") ist hier nur ein Fuellwert, der eigentliche Testfall
+    // (Push innerhalb EINES Branches) betrifft nur Tab "a".
     final screens = [
-      _StubScreen('a', '/a', 'Planen', const Text('Planen-Inhalt')),
+      _StubScreen('a', '/', 'Planen', const Text('Planen-Inhalt')),
       _StubScreen('a-detail', '/a-detail', 'Detail', const Text('Detail')),
+      _StubScreen('b', '/b', 'Gemerkt', const Text('Gemerkt-Inhalt')),
     ];
     final router = AppRouter(
       screens: screens,
       bottomNavTabs: const [
         BottomNavTab(icon: Icons.home, screenIds: ['a', 'a-detail']),
+        BottomNavTab(icon: Icons.bookmark, screenIds: ['b']),
       ],
     );
     await tester.pumpWidget(appWithTabs(router));
