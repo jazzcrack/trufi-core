@@ -19,6 +19,10 @@ class AppRouter {
   final Widget? drawerFooterExtra;
   final Widget? logo;
 
+  /// Optional bottom `NavigationBar` tabs. See
+  /// [AppConfiguration.bottomNavTabs] for the full contract.
+  final List<BottomNavTab>? bottomNavTabs;
+
   /// Initial route to navigate to (for web deep linking)
   final String? initialRoute;
 
@@ -32,6 +36,7 @@ class AppRouter {
     this.appTagline,
     this.drawerFooterExtra,
     this.logo,
+    this.bottomNavTabs,
     GlobalKey<NavigatorState>? rootNavigatorKey,
     GlobalKey<NavigatorState>? shellNavigatorKey,
   }) : rootNavigatorKey = rootNavigatorKey ?? GlobalKey<NavigatorState>(),
@@ -43,37 +48,76 @@ class AppRouter {
     return _router!;
   }
 
+  /// Converts one screen (and its sub-routes) into a [GoRoute]. Shared by
+  /// both the classic drawer shell and the per-tab branches below.
+  GoRoute _screenToRoute(TrufiScreen s) {
+    final subRoutes = s.subRoutes
+        .map(
+          (sub) => GoRoute(
+            path: sub.path,
+            builder: (context, state) {
+              // Merge path parameters and query parameters
+              final params = <String, String>{
+                ...state.pathParameters,
+                ...state.uri.queryParameters,
+              };
+              return sub.builder(context, params);
+            },
+          ),
+        )
+        .toList();
+
+    return GoRoute(
+      path: s.path,
+      name: s.id,
+      builder: (context, state) => s.builder(context),
+      routes: subRoutes,
+    );
+  }
+
+  /// The `/route` deep-link handler: parses a shared route from the query
+  /// parameters (if any) and always redirects to the app's root.
+  GoRoute _sharedRouteDeepLinkRoute() {
+    return GoRoute(
+      path: '/route',
+      name: 'shared_route',
+      redirect: (context, state) {
+        // Parse and store the shared route
+        if (state.uri.queryParameters.isNotEmpty) {
+          final route = SharedRoute.fromUri(state.uri);
+          if (route != null) {
+            final notifier = Provider.of<SharedRouteNotifier>(
+              context,
+              listen: false,
+            );
+            notifier.setPendingRoute(route);
+          }
+        }
+        // Always redirect to home
+        return '/';
+      },
+    );
+  }
+
   GoRouter _createRouter() {
     // Enable URL updates for imperative navigation (push/pop) on web
     // Without this, push() won't update the browser URL (GoRouter 8.0+ behavior)
     GoRouter.optionURLReflectsImperativeAPIs = true;
 
-    // Convert screens to GoRoutes with sub-routes support
-    final routes = screens.map((s) {
-      // Create sub-routes if any
-      final subRoutes = s.subRoutes
-          .map(
-            (sub) => GoRoute(
-              path: sub.path,
-              builder: (context, state) {
-                // Merge path parameters and query parameters
-                final params = <String, String>{
-                  ...state.pathParameters,
-                  ...state.uri.queryParameters,
-                };
-                return sub.builder(context, params);
-              },
-            ),
-          )
-          .toList();
+    final tabs = bottomNavTabs;
+    return GoRouter(
+      navigatorKey: rootNavigatorKey,
+      initialLocation: initialRoute ?? '/',
+      routes: tabs != null && tabs.isNotEmpty
+          ? _buildBottomNavRoutes(tabs)
+          : _buildDrawerShellRoutes(),
+      errorBuilder: (context, state) => ErrorScreen(error: state.error),
+    );
+  }
 
-      return GoRoute(
-        path: s.path,
-        name: s.id,
-        builder: (context, state) => s.builder(context),
-        routes: subRoutes,
-      );
-    }).toList();
+  /// Classic single-shell, drawer-based navigation (unchanged behavior).
+  List<RouteBase> _buildDrawerShellRoutes() {
+    final routes = screens.map(_screenToRoute).toList();
 
     // Add the /route deep link handler to the routes list. The fallback
     // home is keyed on the screen-derived routes: the deep-link handler
@@ -82,51 +126,58 @@ class AppRouter {
     final allRoutes = [
       if (routes.isEmpty) _defaultHomeRoute(),
       ...routes,
-      // Special route for web deep linking (shared routes)
-      GoRoute(
-        path: '/route',
-        name: 'shared_route',
-        redirect: (context, state) {
-          // Parse and store the shared route
-          if (state.uri.queryParameters.isNotEmpty) {
-            final route = SharedRoute.fromUri(state.uri);
-            if (route != null) {
-              final notifier = Provider.of<SharedRouteNotifier>(
-                context,
-                listen: false,
-              );
-              notifier.setPendingRoute(route);
-            }
-          }
-          // Always redirect to home
-          return '/';
-        },
-      ),
+      _sharedRouteDeepLinkRoute(),
     ];
 
-    return GoRouter(
-      navigatorKey: rootNavigatorKey,
-      initialLocation: initialRoute ?? '/',
-      routes: [
-        ShellRoute(
-          navigatorKey: shellNavigatorKey,
-          builder: (context, state, child) {
-            return AppShell(
-              currentPath: state.uri.path,
-              screens: screens,
-              socialMediaLinks: socialMediaLinks,
-              appName: appName,
-              appTagline: appTagline,
-              drawerFooterExtra: drawerFooterExtra,
-              logo: logo,
-              child: child,
-            );
-          },
-          routes: allRoutes,
-        ),
-      ],
-      errorBuilder: (context, state) => ErrorScreen(error: state.error),
-    );
+    return [
+      ShellRoute(
+        navigatorKey: shellNavigatorKey,
+        builder: (context, state, child) {
+          return AppShell(
+            currentPath: state.uri.path,
+            screens: screens,
+            socialMediaLinks: socialMediaLinks,
+            appName: appName,
+            appTagline: appTagline,
+            drawerFooterExtra: drawerFooterExtra,
+            logo: logo,
+            child: child,
+          );
+        },
+        routes: allRoutes,
+      ),
+    ];
+  }
+
+  /// Bottom-`NavigationBar` navigation: one [StatefulShellBranch] per tab,
+  /// each holding the [GoRoute]s for its [BottomNavTab.screenIds] in order.
+  /// No drawer is built in this mode — every screen must be reachable
+  /// through exactly one tab.
+  List<RouteBase> _buildBottomNavRoutes(List<BottomNavTab> tabs) {
+    GoRoute routeForId(String id) =>
+        _screenToRoute(screens.firstWhere((s) => s.id == id));
+
+    final branches = tabs
+        .map(
+          (tab) => StatefulShellBranch(
+            routes: tab.screenIds.map(routeForId).toList(),
+          ),
+        )
+        .toList();
+
+    return [
+      StatefulShellRoute.indexedStack(
+        builder: (context, state, navigationShell) {
+          return AppShellWithBottomNav(
+            navigationShell: navigationShell,
+            tabs: tabs,
+            screens: screens,
+          );
+        },
+        branches: branches,
+      ),
+      _sharedRouteDeepLinkRoute(),
+    ];
   }
 
   /// Default home route if no screens registered
@@ -224,6 +275,47 @@ class AppShell extends StatelessWidget {
       }
     }
     return appName;
+  }
+}
+
+/// Shell for bottom-`NavigationBar` navigation (see
+/// [AppConfiguration.bottomNavTabs]). No drawer — each [BottomNavTab]'s
+/// label/title comes from its root screen's own `getLocalizedTitle`.
+class AppShellWithBottomNav extends StatelessWidget {
+  final StatefulNavigationShell navigationShell;
+  final List<BottomNavTab> tabs;
+  final List<TrufiScreen> screens;
+
+  const AppShellWithBottomNav({
+    super.key,
+    required this.navigationShell,
+    required this.tabs,
+    required this.screens,
+  });
+
+  TrufiScreen _rootScreen(BottomNavTab tab) =>
+      screens.firstWhere((s) => s.id == tab.screenIds.first);
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: navigationShell,
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: navigationShell.currentIndex,
+        onDestinationSelected: (index) => navigationShell.goBranch(
+          index,
+          initialLocation: index == navigationShell.currentIndex,
+        ),
+        destinations: [
+          for (final tab in tabs)
+            NavigationDestination(
+              icon: Icon(tab.icon),
+              selectedIcon: Icon(tab.activeIcon ?? tab.icon),
+              label: _rootScreen(tab).getLocalizedTitle(context),
+            ),
+        ],
+      ),
+    );
   }
 }
 

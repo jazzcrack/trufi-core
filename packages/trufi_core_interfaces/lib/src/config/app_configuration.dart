@@ -3,6 +3,7 @@ import 'package:flutter/widgets.dart';
 import 'package:provider/single_child_widget.dart';
 
 import '../overlay/overlay_service.dart';
+import 'bottom_nav_tab.dart';
 import 'trufi_screen.dart';
 import 'trufi_theme_config.dart';
 import 'trufi_locale_config.dart';
@@ -157,6 +158,17 @@ class AppConfiguration {
   /// `DateTime.now()`, and time labels render normally.
   final TimeOfDay? routingTimeOverride;
 
+  /// Optional bottom `NavigationBar` tabs. When set (and non-empty),
+  /// [AppRouter] replaces the classic drawer-based shell with a
+  /// `StatefulShellRoute` holding one independent navigation branch per
+  /// tab, and the navigation drawer is not built at all — every
+  /// registered screen must then be reachable through exactly one tab's
+  /// [BottomNavTab.screenIds].
+  ///
+  /// Default: null → the classic single-shell, drawer-based navigation
+  /// (unchanged, fully backward compatible).
+  final List<BottomNavTab>? bottomNavTabs;
+
   const AppConfiguration({
     required this.appName,
     this.appTagline,
@@ -174,5 +186,6 @@ class AppConfiguration {
     this.logo,
     this.minSplashDuration = Duration.zero,
     this.routingTimeOverride,
+    this.bottomNavTabs,
   });
 }

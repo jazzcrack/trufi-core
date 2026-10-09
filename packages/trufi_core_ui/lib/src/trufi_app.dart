@@ -17,6 +17,7 @@ export 'package:trufi_core_interfaces/trufi_core_interfaces.dart'
     show
         AppConfiguration,
         AppOverlayManager,
+        BottomNavTab,
         TrufiScreen,
         ScreenMenuItem,
         ScreenThemeData,
@@ -91,6 +92,7 @@ class _TrufiAppState extends State<TrufiApp> {
       appTagline: widget.config.appTagline,
       drawerFooterExtra: widget.config.drawerFooterExtra,
       logo: widget.config.logo,
+      bottomNavTabs: widget.config.bottomNavTabs,
     );
     _sharedRouteNotifier = SharedRouteNotifier();
 
