@@ -105,10 +105,15 @@ class HomeScreenTrufiScreen extends TrufiScreen {
 
   @override
   Widget Function(BuildContext context) get builder => (context) {
+    // fahrplaner.de fork patch (see FAHRPLANER_PATCHES.md, Patch 31): only
+    // wire a menu button when a Drawer actually exists above this screen -
+    // a bottom-NavigationBar host (AppConfiguration.bottomNavTabs) has none,
+    // and an always-visible but non-functional hamburger icon would be
+    // misleading. Same `Scaffold.maybeOf(context)?.hasDrawer` guard already
+    // used by every other screen in that app.
+    final hasDrawer = Scaffold.maybeOf(context)?.hasDrawer ?? false;
     return HomeScreen(
-      onMenuPressed: () {
-        Scaffold.of(context).openDrawer();
-      },
+      onMenuPressed: hasDrawer ? () => Scaffold.of(context).openDrawer() : null,
       config: config,
       onItineraryDetails: onItineraryDetails,
       onStartNavigation: onStartNavigation,

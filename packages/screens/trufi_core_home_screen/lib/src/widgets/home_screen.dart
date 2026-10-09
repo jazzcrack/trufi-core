@@ -31,8 +31,15 @@ import 'routing_settings_sheet.dart';
 
 /// Main home screen widget with route planning functionality.
 class HomeScreen extends StatefulWidget {
-  /// Callback when menu button is pressed.
-  final VoidCallback onMenuPressed;
+  /// Callback when menu button is pressed. `null` hides the menu button
+  /// entirely (passed through to [SearchLocationBar.onMenuPressed], which
+  /// already has this null-hides-the-button contract) - fahrplaner.de fork
+  /// patch (see FAHRPLANER_PATCHES.md, Patch 31): widened from required
+  /// `VoidCallback` so a host with no reachable `Drawer` (e.g. a bottom-
+  /// `NavigationBar` app, see `AppConfiguration.bottomNavTabs`) can omit the
+  /// button instead of wiring a callback that would open a non-existent
+  /// drawer.
+  final VoidCallback? onMenuPressed;
 
   /// Configuration for the home screen.
   final HomeScreenConfig config;
@@ -64,7 +71,7 @@ class HomeScreen extends StatefulWidget {
 
   const HomeScreen({
     super.key,
-    required this.onMenuPressed,
+    this.onMenuPressed,
     required this.config,
     this.onItineraryDetails,
     this.onStartNavigation,
@@ -1798,8 +1805,22 @@ class _HomeScreenState extends State<HomeScreen>
                                 // Home-Screen - verschwindet, sobald eine
                                 // Suche beginnt (Departure-Time-Chip etc.
                                 // uebernehmen den Platz dann).
-                                if (state.fromPlace == null &&
-                                    state.toPlace == null &&
+                                //
+                                // fahrplaner.de fork patch (09.10.2026,
+                                // Patch 31, echter Simulator-Fund): NUR auf
+                                // toPlace geprueft, nicht zusaetzlich auf
+                                // fromPlace - fromPlace bleibt nach dem
+                                // allerersten Start DAUERHAFT ueber
+                                // HomeScreenRepository/SharedPreferences
+                                // gesetzt (haeufig der aktuelle Standort),
+                                // waehrend toPlace der eigentliche Signal-
+                                // Wert fuer "aktiv am Planen" ist. Mit der
+                                // alten fromPlace==null-Bedingung blieb
+                                // dieser Block nach dem ersten je
+                                // durchgefuehrten Suchlauf PERMANENT
+                                // verborgen, siehe architektur-konzept.md
+                                // (Hauptprojekt) Kapitel 3.60.
+                                if (state.toPlace == null &&
                                     widget.config.belowSearchBuilder != null)
                                   Padding(
                                     padding: const EdgeInsets.only(top: 8),
@@ -2249,9 +2270,10 @@ class _HomeScreenState extends State<HomeScreen>
                       onMenuPressed: widget.onMenuPressed,
                     ),
                     // Redesign Oktober 2026 (Abschnitt 3.1) - sonst
-                    // gleich wie in der schmalen Ansicht.
-                    if (state.fromPlace == null &&
-                        state.toPlace == null &&
+                    // gleich wie in der schmalen Ansicht, inkl. des
+                    // Patch-31-Fixes (nur toPlace, siehe dortiger
+                    // Kommentar).
+                    if (state.toPlace == null &&
                         widget.config.belowSearchBuilder != null)
                       Padding(
                         padding: const EdgeInsets.only(top: 8),
