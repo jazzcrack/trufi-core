@@ -31,11 +31,15 @@ class HomeScreenTrufiScreen extends TrufiScreen {
   /// Callback when navigation is started for an itinerary.
   /// Receives the BuildContext, itinerary, and LocationService so the caller
   /// can show the navigation screen using the same location service.
+  ///
+  /// fahrplaner.de fork patch (see FAHRPLANER_PATCHES.md, Patch 27):
+  /// `wakeAtDestination` added as an optional named param (additive).
   final void Function(
     BuildContext context,
     routing.Itinerary itinerary,
-    LocationService locationService,
-  )?
+    LocationService locationService, {
+    bool wakeAtDestination,
+  })?
   onStartNavigation;
 
   /// Callback when a transit route badge is tapped in itinerary details.

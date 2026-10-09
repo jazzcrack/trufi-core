@@ -61,11 +61,17 @@ List<routing.ItineraryGroup>? _groupsRankedByFewerTransfers(
 /// When an itinerary is tapped, shows details inline replacing the list.
 class ItineraryList extends StatefulWidget {
   final void Function(routing.Itinerary itinerary)? onItineraryDetails;
+  // fahrplaner.de fork patch (see FAHRPLANER_PATCHES.md, Patch 27):
+  // `wakeAtDestination` added as an optional named param (additive -
+  // every existing caller keeps working unchanged) so the detail
+  // screen's "Vor dem Aussteigen wecken" switch can reach the host app's
+  // navigation start.
   final void Function(
     BuildContext context,
     routing.Itinerary itinerary,
-    LocationService locationService,
-  )?
+    LocationService locationService, {
+    bool wakeAtDestination,
+  })?
   onStartNavigation;
   final LocationService? locationService;
 
@@ -295,12 +301,16 @@ class _ItineraryListState extends State<ItineraryList> {
         cubit.selectItinerary(alternative);
         _showDetails(alternative);
       },
+      // Patch 27: der Wert kommt jetzt aus dem Aufruf selbst (die
+      // Detailansicht uebergibt ihren eigenen Wecken-Schalter-Zustand),
+      // nicht aus einem hier gehaltenen Feld.
       onStartNavigation:
           widget.onStartNavigation != null && widget.locationService != null
-          ? () => widget.onStartNavigation!(
+          ? (wakeAtDestination) => widget.onStartNavigation!(
               context,
               itinerary,
               widget.locationService!,
+              wakeAtDestination: wakeAtDestination,
             )
           : null,
       onShare: widget.onShare != null ? () => widget.onShare!(itinerary) : null,

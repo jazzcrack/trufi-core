@@ -707,9 +707,61 @@ statt `ItineraryCard` liegen.
   ausgeschlossen ist; Hinweis erscheint einmalig und bleibt nach
   Wegklicken auch nach einem simulierten Neustart verborgen).
 
-Alle sechsundzwanzig Patches sind per `dart analyze` (keine neuen Fehler) und
+### 27. `ItineraryDetailContent`/`-Screen`: Echtzeit, Verspätung, Umstieg, Wecken
+
+Hauptprojekt Kapitel E2 (09.10.2026, Redesign, docs/design/HANDOFF.md
+Abschnitt 3.3 "Verbindungsdetail", Referenz `Verbindung.dc.html`) - direkt
+patchen statt Builder-Override (dieselbe Nutzer-Entscheidung wie Patch
+25/26).
+
+- **Neue Echtzeit-Zeile** (`_buildRealtimeSummaryRow`): "Echtzeit:" + ein
+  `RealtimeChip` je Transit-Bein, identisches Muster zu `ItineraryCard`
+  (Patch 25).
+- **"Durchgestrichene Zeit + neue Zeit bei Verspätung"**: `_PlaceItem`
+  bekommt ein neues `delay`-Feld - nur bei `delay.inSeconds > 60`
+  (derselbe Schwellenwert wie `realtimeStatusFor()`) wird die Zeit als
+  durchgestrichenes Soll + fette, orange Ist-Zeit gezeigt, sonst
+  unveraendert wie bisher. Bewusst nur am ANKUNFTS-/Umstiegspunkt
+  (`legs[i].arrivalDelay`), nicht beim Einstieg.
+- **Neue `_TransferPill`** zwischen zwei Transit-Beinen: "Umstieg N Min"
+  (grau) bzw. "Umstieg nur noch N Min" (orange) unter 5 Minuten Puffer -
+  dieselbe Formel/Schwelle wie `transferBufferWarning` im Hauptprojekt
+  (Patch 25), hier als kleine Eigenkopie. Echter Test-Fund bei 320dp-
+  Breite: der Pillen-Text brauchte `Flexible`+Ellipsis statt eines
+  intrinsisch breiten `Container`, sonst RenderFlex-Overflow bei langen
+  Haltestellen-/Steig-Namen.
+- **Neue `_StartNavigationBar`** (eigenes StatefulWidget, haelt den
+  "Vor dem Aussteigen wecken"-Schalter-Zustand selbst) ersetzt den
+  bisherigen kompakten Go-Button im Header durch eine volle-Breite
+  "Fahrt starten"-Leiste + Schalter. `onStartNavigation` wechselt dafuer
+  von `VoidCallback?` zu `void Function(bool wakeAtDestination)?` - eine
+  Signaturaenderung, die additiv bis zu `HomeScreenTrufiScreen`
+  durchgereicht werden musste (`ItineraryDetailContent` →
+  `ItineraryList` → `HomeScreen` → `HomeScreenTrufiScreen`, jeweils ein
+  neuer optionaler `{bool wakeAtDestination}`-Parameter auf einer schon
+  bestehenden 3-Positionsargumente-Funktion - bleibt dadurch
+  zuweisungskompatibel zu bestehenden Aufrufern, siehe Dart-
+  Funktionssubtyping-Hinweis bei Patch 24).
+- **Fund + Fix nebenbei:** `ItineraryDetailScreen` (die Standalone-
+  Variante, von `saved_trips_screen.dart openSavedTrip()` im
+  Hauptprojekt genutzt) hatte bisher eine KOMPLETT EIGENE, zu
+  `ItineraryDetailContent` parallele AppBar+Zeitstrahl-Implementierung,
+  in der `onStartNavigation` entgegengenommen, aber nirgends tatsaechlich
+  aufgerufen wurde - ein bestehender, unbemerkter Funktionsluecke.
+  Jetzt delegiert `ItineraryDetailScreen` an `ItineraryDetailContent`
+  (duenner Scaffold-Wrapper) statt eine zweite Implementierung zu
+  pflegen - behebt die Luecke und bringt alle neuen Redesign-Inhalte
+  (Echtzeit-Zeile, Zeitstrahl, Wecken-Schalter) der Standalone-Variante
+  kostenlos mit.
+- Neue Tests: `test/itinerary_detail_redesign_test.dart` (8 Fälle -
+  Echtzeit-Zeile, durchgestrichene Zeit ja/nein, Umstieg-Pille orange/
+  grau, Wecken-Schalter aus/ein, UND ein Regressionstest, der bestaetigt,
+  dass `ItineraryDetailScreen.show()`s `onStartNavigation` jetzt
+  tatsaechlich aufgerufen wird).
+
+Alle siebenundzwanzig Patches sind per `dart analyze` (keine neuen Fehler) und
 den bestehenden Testsuiten der jeweils betroffenen Pakete verifiziert
-(alle grün, inkl. neuer Tests für Patches 8/10/11/12/13/16/17/18/19/20/21/22/24/25/26).
+(alle grün, inkl. neuer Tests für Patches 8/10/11/12/13/16/17/18/19/20/21/22/24/25/26/27).
 
 ## Sync-Strategie: wie künftige Upstream-Änderungen reinkommen
 

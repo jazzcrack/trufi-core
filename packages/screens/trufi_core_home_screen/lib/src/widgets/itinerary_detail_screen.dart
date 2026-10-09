@@ -7,6 +7,7 @@ import 'package:trufi_core_routing_ui/trufi_core_routing_ui.dart';
 import 'package:trufi_core_utils/trufi_core_utils.dart';
 
 import '../../l10n/home_screen_localizations.dart';
+import 'realtime_chip.dart';
 import 'segmented_route_chip.dart';
 
 /// Returns a darkened version of [color] if it's too light for text on white.
@@ -23,7 +24,12 @@ Color _legibleColor(Color color) {
 class ItineraryDetailContent extends StatelessWidget {
   final routing.Itinerary itinerary;
   final VoidCallback? onBack;
-  final VoidCallback? onStartNavigation;
+
+  /// fahrplaner.de fork patch (see FAHRPLANER_PATCHES.md, Patch 27):
+  /// receives the "Vor dem Aussteigen wecken" switch's CURRENT value
+  /// (owned internally by [_StartNavigationBar], see below) at the
+  /// moment "Fahrt starten" is tapped.
+  final void Function(bool wakeAtDestination)? onStartNavigation;
 
   /// Callback when a transit route badge is tapped.
   /// Provides the route code to allow navigation to route details.
@@ -80,6 +86,9 @@ class ItineraryDetailContent extends StatelessWidget {
         // Interchangeable options of the itinerary's group (#737)
         ..._buildAlternativeSwitcher(context, theme, colorScheme),
         const SizedBox(height: 8),
+        // Echtzeit-Zeile (Redesign Oktober 2026, docs/design/HANDOFF.md
+        // Abschnitt 3.3): Zusammenfassung aller Transit-Abschnitte.
+        _buildRealtimeSummaryRow(context, theme),
         // Subtle separator
         Container(
           height: 1,
@@ -106,13 +115,69 @@ class ItineraryDetailContent extends StatelessWidget {
       ],
     );
 
+    // "Vor dem Aussteigen wecken"-Schalter + volle "Fahrt starten"-Breite
+    // (Redesign Oktober 2026, Abschnitt 3.3) - ersetzt den bisherigen
+    // kompakten Go-Button im Header (siehe _buildHeader). Eigenes
+    // StatefulWidget (haelt den Schalter-Zustand selbst), damit
+    // ItineraryDetailContent selbst ein StatelessWidget bleiben kann.
+    final startBar = onStartNavigation != null
+        ? _StartNavigationBar(
+            itinerary: itinerary,
+            onStartNavigation: onStartNavigation!,
+          )
+        : null;
+
     if (shrinkWrap) {
-      return content;
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [content, ?startBar],
+      );
     }
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.only(bottom: 16),
-      child: content,
+    return Column(
+      children: [
+        Expanded(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.only(bottom: 16),
+            child: content,
+          ),
+        ),
+        ?startBar,
+      ],
+    );
+  }
+
+  /// "Echtzeit: [Chip] [Chip] [Chip]" - ein `RealtimeChip` je Transit-
+  /// Bein (Abschnitt 3.3). `Wrap` statt `Row`/`Expanded`, da mehrere
+  /// Umstiege mehr Chips erzeugen koennen, als in eine Telefonbreite
+  /// passen (derselbe Fund wie bei ItineraryCard, Patch 25).
+  Widget _buildRealtimeSummaryRow(BuildContext context, ThemeData theme) {
+    final transitLegs = itinerary.legs.where((leg) => leg.transitLeg);
+    if (transitLegs.isEmpty) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+      child: Wrap(
+        crossAxisAlignment: WrapCrossAlignment.center,
+        spacing: 6,
+        runSpacing: 4,
+        children: [
+          Text(
+            'Echtzeit:',
+            style: theme.textTheme.bodySmall?.copyWith(
+              fontWeight: FontWeight.bold,
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+          for (final leg in transitLegs)
+            RealtimeChip.fromDelay(
+              leg.arrivalDelay,
+              cancelled: leg.realtimeState == routing.RealtimeState.canceled,
+              prefix: leg.shortName ?? leg.route?.shortName,
+            ),
+        ],
+      ),
     );
   }
 
@@ -401,7 +466,10 @@ class ItineraryDetailContent extends StatelessWidget {
                   },
                   visualDensity: VisualDensity.compact,
                   padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+                  constraints: const BoxConstraints(
+                    minWidth: 40,
+                    minHeight: 40,
+                  ),
                 ),
               // fahrplaner.de fork patch (05.10.2026, siehe
               // FAHRPLANER_PATCHES.md): "Fahrt merken" lebt aus demselben
@@ -415,7 +483,10 @@ class ItineraryDetailContent extends StatelessWidget {
                   },
                   visualDensity: VisualDensity.compact,
                   padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+                  constraints: const BoxConstraints(
+                    minWidth: 40,
+                    minHeight: 40,
+                  ),
                 ),
               const SizedBox(width: 4),
               // Duration chip
@@ -478,27 +549,11 @@ class ItineraryDetailContent extends StatelessWidget {
                 )
               else
                 const Spacer(),
-              // Go button
-              if (onStartNavigation != null)
-                FilledButton.icon(
-                  onPressed: () {
-                    HapticFeedback.lightImpact();
-                    onStartNavigation!();
-                  },
-                  icon: const Icon(Icons.navigation_rounded, size: 16),
-                  label: Text(l10n.buttonGo),
-                  style: FilledButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 4,
-                    ),
-                    visualDensity: VisualDensity.compact,
-                    textStyle: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
+              // Redesign Oktober 2026 (docs/design/HANDOFF.md Abschnitt
+              // 3.3): das bisherige, kompakte Go-Icon-Button hier entfaellt
+              // - ersetzt durch die neue, prominentere _StartNavigationBar
+              // (Wecken-Schalter + volle "Fahrt starten"-Breite) am
+              // unteren Bildschirmrand, siehe build().
             ],
           ),
           const SizedBox(height: 8),
@@ -585,6 +640,131 @@ class ItineraryDetailContent extends StatelessWidget {
 }
 
 /// Vertical timeline showing all legs with icons on the left.
+/// "Vor dem Aussteigen wecken"-Schalter + "Fahrt starten"-Knopf (Redesign
+/// Oktober 2026, docs/design/HANDOFF.md Abschnitt 3.3, Referenz
+/// `Verbindung.dc.html`). Eigenes StatefulWidget: haelt den Schalter-
+/// Zustand selbst, damit [ItineraryDetailContent] ein StatelessWidget
+/// bleiben kann - beim Tippen auf "Fahrt starten" wird der AKTUELLE
+/// Zustand direkt an [onStartNavigation] uebergeben, keine Rueckfrage
+/// beim Elternwidget noetig. Bewusst deutsche Festtexte ohne l10n-
+/// Anbindung (Patch 23/25/26-Muster).
+class _StartNavigationBar extends StatefulWidget {
+  final routing.Itinerary itinerary;
+  final void Function(bool wakeAtDestination) onStartNavigation;
+
+  const _StartNavigationBar({
+    required this.itinerary,
+    required this.onStartNavigation,
+  });
+
+  @override
+  State<_StartNavigationBar> createState() => _StartNavigationBarState();
+}
+
+class _StartNavigationBarState extends State<_StartNavigationBar> {
+  bool _wakeAtDestination = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final destinationName = widget.itinerary.legs.last.toPlace?.name ?? '';
+
+    return SafeArea(
+      top: false,
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+        decoration: BoxDecoration(
+          color: colorScheme.surface,
+          border: Border(top: BorderSide(color: theme.dividerColor)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            InkWell(
+              onTap: () =>
+                  setState(() => _wakeAtDestination = !_wakeAtDestination),
+              borderRadius: BorderRadius.circular(12),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: colorScheme.primaryContainer,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(
+                        Icons.notifications_active_rounded,
+                        size: 20,
+                        color: colorScheme.onPrimaryContainer,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Vor dem Aussteigen wecken',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          Text(
+                            destinationName.isNotEmpty
+                                ? 'Kurz vor $destinationName. Braucht nur '
+                                      'für diese Fahrt den Standort '
+                                      '„Immer".'
+                                : 'Braucht nur für diese Fahrt den '
+                                      'Standort „Immer".',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Switch(
+                      value: _wakeAtDestination,
+                      onChanged: (value) =>
+                          setState(() => _wakeAtDestination = value),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              height: 54,
+              child: FilledButton.icon(
+                onPressed: () {
+                  HapticFeedback.lightImpact();
+                  widget.onStartNavigation(_wakeAtDestination);
+                },
+                icon: const Icon(Icons.navigation_rounded),
+                label: const Text(
+                  'Fahrt starten',
+                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800),
+                ),
+                style: FilledButton.styleFrom(
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _VerticalTimeline extends StatelessWidget {
   final routing.Itinerary itinerary;
   final HomeScreenLocalizations l10n;
@@ -637,7 +817,27 @@ class _VerticalTimeline extends StatelessWidget {
                   ? _getLegColor(legs[i + 1], colorScheme)
                   : null,
               time: legs[i].toPlace?.arrivalTime,
+              // Redesign Oktober 2026 (docs/design/HANDOFF.md Abschnitt
+              // 3.3): "durchgestrichene Zeit + neue Zeit bei Verspätung" -
+              // nur am ANKUNFTS-/Umstiegspunkt, nicht beim Einstieg (siehe
+              // Referenz Verbindung.dc.html, die Abfahrtszeiten bleiben
+              // dort unveraendert einfach dargestellt).
+              delay: legs[i].arrivalDelay,
             ),
+
+            // "Umstieg knapp" (Abschnitt 3.2/3.3/3.4-Formel) - nur
+            // zwischen zwei TRANSIT-Beinen, dieselbe kleine Eigenkopie der
+            // Formel wie in ItineraryCard (Patch 25), da der Fork das
+            // Hauptprojekt nicht importieren kann.
+            if (i < legs.length - 1 &&
+                legs[i].transitLeg &&
+                legs[i + 1].transitLeg)
+              _TransferPill(
+                buffer: legs[i + 1].startTime.difference(
+                  legs[i].endTime.add(legs[i].arrivalDelay ?? Duration.zero),
+                ),
+                platformCode: legs[i + 1].fromPlace?.platformCode,
+              ),
           ],
         ],
       ),
@@ -683,6 +883,13 @@ class _PlaceItem extends StatelessWidget {
   final Color? lineColorBelow;
   final DateTime? time;
 
+  /// Redesign Oktober 2026 (docs/design/HANDOFF.md Abschnitt 3.3):
+  /// "durchgestrichene Zeit + neue Zeit bei Verspätung". Nur bei
+  /// `delay.inSeconds > 60` wird ueberhaupt umgestellt (derselbe
+  /// Schwellenwert wie `realtimeStatusFor()` im Hauptprojekt) - bei
+  /// `null`/kleiner Verspaetung bleibt die Anzeige wie bisher.
+  final Duration? delay;
+
   const _PlaceItem({
     required this.place,
     required this.dotColor,
@@ -691,6 +898,7 @@ class _PlaceItem extends StatelessWidget {
     this.lineColorAbove,
     this.lineColorBelow,
     this.time,
+    this.delay,
   });
 
   @override
@@ -764,15 +972,120 @@ class _PlaceItem extends StatelessWidget {
         // the value would be from a synthetic "midday" plan.
         if (time != null &&
             context.watch<AppConfiguration?>()?.routingTimeOverride == null)
-          Text(
-            formatClockTime(context, time!),
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: colorScheme.onSurfaceVariant,
-              fontWeight: FontWeight.w500,
-            ),
+          Builder(
+            builder: (context) {
+              final isLate = delay != null && delay!.inSeconds > 60;
+              if (!isLate) {
+                return Text(
+                  formatClockTime(context, time!),
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                    fontWeight: FontWeight.w500,
+                  ),
+                );
+              }
+              const lateColor = Color(0xFF9A4A00); // --late
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    formatClockTime(context, time!),
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
+                      decoration: TextDecoration.lineThrough,
+                    ),
+                  ),
+                  Text(
+                    formatClockTime(context, time!.add(delay!)),
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: lateColor,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              );
+            },
           ),
         const SizedBox(width: 8),
       ],
+    );
+  }
+}
+
+/// "Umstieg N Min · Steig X" Pille (Redesign Oktober 2026, docs/design/
+/// HANDOFF.md Abschnitt 3.3, Referenz `Verbindung.dc.html`) - grau im
+/// Normalfall, orange/"knapp" unter 5 Minuten (dieselbe Formel/Schwelle
+/// wie `transferBufferWarning` im Hauptprojekt, hier als kleine Eigenkopie
+/// ohne Import, siehe Patch 25). Fuehrende Einrueckung (32+20+12 = 64)
+/// entspricht exakt der von [_PlaceItem], damit die Pille optisch unter
+/// dem Haltestellennamen beginnt.
+class _TransferPill extends StatelessWidget {
+  final Duration buffer;
+  final String? platformCode;
+
+  const _TransferPill({required this.buffer, this.platformCode});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isTight = buffer < const Duration(minutes: 5);
+    final minutes = buffer.inMinutes < 0 ? 0 : buffer.inMinutes;
+    const lateColor = Color(0xFF9A4A00); // --late
+    const lateBg = Color(0xFFFDEBD8); // --lateBg
+    final color = isTight ? lateColor : theme.colorScheme.onSurfaceVariant;
+    final background = isTight
+        ? lateBg
+        : theme.colorScheme.surfaceContainerHighest;
+
+    final label = isTight
+        ? 'Umstieg nur noch $minutes Min'
+              '${platformCode != null ? ' · Steig $platformCode' : ''}'
+        : 'Umstieg $minutes Min'
+              '${platformCode != null ? ' · zu Steig $platformCode' : ''}';
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        children: [
+          const SizedBox(width: 64),
+          // Flexible statt eines intrinsisch breiten Containers: ein
+          // langer Haltestellen-/Steig-Name darf schrumpfen (Ellipsis)
+          // statt zu ueberlaufen - echter Test-Fund bei 320dp-Breite.
+          Flexible(
+            child: Container(
+              height: 28,
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+              decoration: BoxDecoration(
+                color: background,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    isTight ? Icons.warning_rounded : Icons.sync_alt_rounded,
+                    size: 14,
+                    color: color,
+                  ),
+                  const SizedBox(width: 6),
+                  Flexible(
+                    child: Text(
+                      label,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: color,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -1334,9 +1647,20 @@ class _LegItemState extends State<_LegItem> {
 }
 
 /// Screen showing detailed information about an itinerary (full screen).
+///
+/// Redesign Oktober 2026 (docs/design/HANDOFF.md Abschnitt 3.3): delegiert
+/// jetzt an [ItineraryDetailContent] statt einer eigenen, parallelen
+/// AppBar+Zeitstrahl-Implementierung - behebt dabei nebenbei einen
+/// bestehenden Fund: [onStartNavigation] wurde hier zuvor entgegengenommen,
+/// aber nirgends im eigenen `build()` tatsächlich aufgerufen (kein Knopf
+/// nutzte es). Über [ItineraryDetailContent] bekommt diese Standalone-
+/// Variante jetzt auch die Echtzeit-Zeile, den neu gezeichneten Zeitstrahl
+/// (durchgestrichene Zeit bei Verspätung, Umstiegs-Pille) und den Wecken-
+/// Schalter "kostenlos" - dieselbe Darstellung wie die inline-in-Sheet-
+/// Variante aus `ItineraryList`.
 class ItineraryDetailScreen extends StatelessWidget {
   final routing.Itinerary itinerary;
-  final VoidCallback? onStartNavigation;
+  final void Function(bool wakeAtDestination)? onStartNavigation;
   final void Function(String routeCode)? onRouteTap;
 
   /// fahrplaner.de fork patch (see ItineraryDetailContent.onSaveTrip).
@@ -1354,7 +1678,7 @@ class ItineraryDetailScreen extends StatelessWidget {
   static Future<void> show(
     BuildContext context, {
     required routing.Itinerary itinerary,
-    VoidCallback? onStartNavigation,
+    void Function(bool wakeAtDestination)? onStartNavigation,
     void Function(String routeCode)? onRouteTap,
     VoidCallback? onSaveTrip,
   }) {
@@ -1386,113 +1710,17 @@ class ItineraryDetailScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-    final l10n = HomeScreenLocalizations.of(context);
-
-    final duration = itinerary.duration;
-    final durationText = duration.inHours > 0
-        ? l10n.durationHoursMinutes(
-            duration.inHours,
-            duration.inMinutes.remainder(60),
-          )
-        : l10n.durationMinutes(duration.inMinutes);
-
-    // Calculate total walking
-    final walkingLegs = itinerary.legs.where(
-      (leg) => leg.transportMode == routing.TransportMode.walk,
-    );
-    final totalWalkingMinutes = walkingLegs.fold<int>(
-      0,
-      (sum, leg) => sum + leg.duration.inMinutes,
-    );
-    final totalWalkingMeters = walkingLegs.fold<int>(
-      0,
-      (sum, leg) => sum + leg.distance.toInt(),
-    );
-
     return Scaffold(
-      backgroundColor: colorScheme.surface,
-      appBar: AppBar(
-        backgroundColor: colorScheme.surface,
-        surfaceTintColor: Colors.transparent,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_rounded),
-          onPressed: () {
-            HapticFeedback.lightImpact();
-            Navigator.pop(context);
-          },
-        ),
-        title: Row(
-          children: [
-            Icon(
-              Icons.schedule_rounded,
-              size: 20,
-              color: colorScheme.onSurface,
-            ),
-            const SizedBox(width: 4),
-            Text(
-              durationText,
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          // fahrplaner.de fork patch (05.10.2026, siehe FAHRPLANER_PATCHES.md).
-          if (onSaveTrip != null)
-            IconButton(
-              icon: const Icon(Icons.bookmark_add_outlined),
-              onPressed: () {
-                HapticFeedback.lightImpact();
-                onSaveTrip!();
-              },
-            ),
-          Padding(
-            padding: const EdgeInsets.only(right: 16),
-            child: Row(
-              children: [
-                Icon(
-                  Icons.directions_walk_rounded,
-                  size: 18,
-                  color: colorScheme.onSurfaceVariant,
-                ),
-                const SizedBox(width: 2),
-                Text(
-                  l10n.durationMinutes(totalWalkingMinutes),
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: colorScheme.onSurfaceVariant,
-                  ),
-                ),
-                const SizedBox(width: 4),
-                Text(
-                  _formatDistance(totalWalkingMeters, l10n),
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.only(top: 8, bottom: 24),
-        child: _VerticalTimeline(
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      body: SafeArea(
+        child: ItineraryDetailContent(
           itinerary: itinerary,
-          l10n: l10n,
+          onBack: () => Navigator.pop(context),
+          onStartNavigation: onStartNavigation,
           onRouteTap: onRouteTap,
+          onSaveTrip: onSaveTrip,
         ),
       ),
     );
-  }
-
-  String _formatDistance(int meters, HomeScreenLocalizations l10n) {
-    if (meters < 1000) {
-      return l10n.distanceMeters(meters);
-    }
-    final km = (meters / 1000).toStringAsFixed(1);
-    return l10n.distanceKilometers(km);
   }
 }

@@ -43,11 +43,15 @@ class HomeScreen extends StatefulWidget {
   /// Callback when navigation is started for an itinerary.
   /// Receives the BuildContext, itinerary, and LocationService so the caller
   /// can show the navigation screen using the same location service.
+  ///
+  /// fahrplaner.de fork patch (see FAHRPLANER_PATCHES.md, Patch 27):
+  /// `wakeAtDestination` added as an optional named param (additive).
   final void Function(
     BuildContext context,
     routing.Itinerary itinerary,
-    LocationService locationService,
-  )?
+    LocationService locationService, {
+    bool wakeAtDestination,
+  })?
   onStartNavigation;
 
   /// Callback when a transit route badge is tapped in itinerary details.
@@ -1958,7 +1962,12 @@ class _HomeScreenState extends State<HomeScreen>
               ? (routeCode) => widget.onRouteTap!(context, routeCode)
               : null,
           onStartNavigation: widget.onStartNavigation != null
-              ? (context, itinerary, locationService) {
+              ? (
+                  context,
+                  itinerary,
+                  locationService, {
+                  wakeAtDestination = false,
+                }) {
                   // Clear the home screen's location marker before starting navigation
                   // to avoid duplicate markers on the navigation screen
                   setState(() {
@@ -1968,6 +1977,7 @@ class _HomeScreenState extends State<HomeScreen>
                     context,
                     itinerary,
                     locationService,
+                    wakeAtDestination: wakeAtDestination,
                   );
                 }
               : null,
@@ -2280,7 +2290,12 @@ class _HomeScreenState extends State<HomeScreen>
                                 widget.onRouteTap!(context, routeCode)
                           : null,
                       onStartNavigation: widget.onStartNavigation != null
-                          ? (context, itinerary, locationService) {
+                          ? (
+                              context,
+                              itinerary,
+                              locationService, {
+                              wakeAtDestination = false,
+                            }) {
                               setState(() {
                                 _myLocationMarkers = const [];
                               });
@@ -2288,6 +2303,7 @@ class _HomeScreenState extends State<HomeScreen>
                                 context,
                                 itinerary,
                                 locationService,
+                                wakeAtDestination: wakeAtDestination,
                               );
                             }
                           : null,
@@ -2315,7 +2331,12 @@ class _HomeScreenState extends State<HomeScreen>
                                 widget.onRouteTap!(context, routeCode)
                           : null,
                       onStartNavigation: widget.onStartNavigation != null
-                          ? (context, itinerary, locationService) {
+                          ? (
+                              context,
+                              itinerary,
+                              locationService, {
+                              wakeAtDestination = false,
+                            }) {
                               setState(() {
                                 _myLocationMarkers = const [];
                               });
@@ -2323,6 +2344,7 @@ class _HomeScreenState extends State<HomeScreen>
                                 context,
                                 itinerary,
                                 locationService,
+                                wakeAtDestination: wakeAtDestination,
                               );
                             }
                           : null,
