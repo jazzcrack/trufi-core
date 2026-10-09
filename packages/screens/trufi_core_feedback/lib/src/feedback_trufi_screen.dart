@@ -79,7 +79,9 @@ class _FeedbackScreenWidget extends StatelessWidget {
             // Modern header
             _FeedbackHeader(
               title: localization.menuFeedback,
-              onMenuPressed: () => _tryOpenDrawer(context),
+              onMenuPressed: (Scaffold.maybeOf(context)?.hasDrawer ?? false)
+                  ? () => _tryOpenDrawer(context)
+                  : null,
             ),
             // Content
             Expanded(child: _FeedbackContent(config: config)),
@@ -93,9 +95,13 @@ class _FeedbackScreenWidget extends StatelessWidget {
 /// Modern header for feedback screen
 class _FeedbackHeader extends StatelessWidget {
   final String title;
-  final VoidCallback onMenuPressed;
 
-  const _FeedbackHeader({required this.title, required this.onMenuPressed});
+  /// fahrplaner.de fork patch (09.10.2026, Patch 33, echter Nutzer-Fund):
+  /// `null` blendet den Hamburger-Knopf komplett aus, siehe gleicher
+  /// Kommentar an _SettingsHeader.onMenuPressed.
+  final VoidCallback? onMenuPressed;
+
+  const _FeedbackHeader({required this.title, this.onMenuPressed});
 
   @override
   Widget build(BuildContext context) {
@@ -107,25 +113,27 @@ class _FeedbackHeader extends StatelessWidget {
       child: Row(
         children: [
           // Menu button
-          Material(
-            color: colorScheme.surfaceContainerHighest,
-            borderRadius: BorderRadius.circular(14),
-            child: InkWell(
-              onTap: onMenuPressed,
+          if (onMenuPressed != null) ...[
+            Material(
+              color: colorScheme.surfaceContainerHighest,
               borderRadius: BorderRadius.circular(14),
-              child: Container(
-                width: 48,
-                height: 48,
-                alignment: Alignment.center,
-                child: Icon(
-                  Icons.menu_rounded,
-                  color: colorScheme.onSurfaceVariant,
-                  size: 24,
+              child: InkWell(
+                onTap: onMenuPressed,
+                borderRadius: BorderRadius.circular(14),
+                child: Container(
+                  width: 48,
+                  height: 48,
+                  alignment: Alignment.center,
+                  child: Icon(
+                    Icons.menu_rounded,
+                    color: colorScheme.onSurfaceVariant,
+                    size: 24,
+                  ),
                 ),
               ),
             ),
-          ),
-          const SizedBox(width: 16),
+            const SizedBox(width: 16),
+          ],
           // Title
           Expanded(
             child: Text(

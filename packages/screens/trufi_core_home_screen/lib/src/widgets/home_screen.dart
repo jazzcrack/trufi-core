@@ -152,6 +152,47 @@ class _HomeScreenState extends State<HomeScreen>
     _liveVehiclesEnabled.value = widget.config.liveVehiclesInitiallyEnabled;
     _liveVehiclesEnabled.addListener(_onLiveVehiclesEnabledChanged);
     _restoreLiveVehiclesToggle();
+    unawaited(_maybeAutofillOriginWithCurrentLocation());
+  }
+
+  /// "Von: Mein Standort" (fahrplaner.de fork patch, 09.10.2026, Patch 33,
+  /// echter Nutzer-Fund: Redesign-Mock zeigt den Startort standardmaessig
+  /// als "Mein Standort", die App liess ihn bisher leer). EINMALIG beim
+  /// ersten Erzeugen dieser Screen (initState, nicht reaktiv auf jede
+  /// State-Aenderung) - sonst wuerde ein bewusstes Leeren des Feldes durch
+  /// den Nutzer (die "X"-Schaltflaeche) sofort wieder ueberschrieben werden.
+  /// Nur bereits ERTEILTE Berechtigung genutzt (checkPermission(), nie
+  /// requestPermission()) - derselbe passive Ablauf wie an anderen Stellen
+  /// dieser Codebasis (z. B. _resolveInitialCenter() im Hauptprojekt): ein
+  /// aktiver Berechtigungsdialog vor dem ersten sichtbaren Pixel waere
+  /// aufdringlich. `fromPlace` bleibt einfach leer, wenn keine Berechtigung
+  /// vorliegt oder keine Position ermittelt werden kann - fetchPlan()
+  /// verlangt es zwar, aber das Feld ist dann ohnehin leer antippbar wie
+  /// bisher.
+  Future<void> _maybeAutofillOriginWithCurrentLocation() async {
+    if (!mounted) return;
+    final cubit = context.read<RoutePlannerCubit>();
+    if (cubit.state.fromPlace != null) return;
+
+    try {
+      final status = await _locationService.checkPermission();
+      if (status != LocationPermissionStatus.granted) return;
+
+      final location = await _locationService.getLastKnownLocation();
+      if (location == null || !mounted) return;
+      if (cubit.state.fromPlace != null) return; // Raced with a user pick.
+
+      await cubit.setFromPlace(
+        TrufiLocation(
+          description: 'Mein Standort',
+          latitude: location.latitude,
+          longitude: location.longitude,
+        ),
+      );
+    } catch (_) {
+      // Best-effort, wie _restoreLiveVehiclesToggle() oben - das Feld
+      // bleibt dann einfach leer.
+    }
   }
 
   Future<void> _restoreLiveVehiclesToggle() async {
@@ -1925,6 +1966,25 @@ class _HomeScreenState extends State<HomeScreen>
                                 ),
                               ),
                             ],
+                          ),
+                        ),
+                      ),
+
+                    // Top-left map overlay (status pill etc.) - fahrplaner.de
+                    // fork patch, Patch 33. Always shown (not gated on
+                    // !hasResults like the search/quick-start sheet) so it
+                    // survives into the results phase too, matching the
+                    // always-visible "my location" button on the right.
+                    if (!isWideScreen &&
+                        widget.config.mapOverlayBuilder != null)
+                      Positioned(
+                        top: 0,
+                        left: 0,
+                        child: SafeArea(
+                          bottom: false,
+                          child: Padding(
+                            padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                            child: widget.config.mapOverlayBuilder!(context),
                           ),
                         ),
                       ),

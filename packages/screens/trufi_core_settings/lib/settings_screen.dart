@@ -39,8 +39,8 @@ class SettingsTrufiScreen extends TrufiScreen {
   String get path => '/settings';
 
   @override
-  Widget Function(BuildContext context) get builder => (_) =>
-      _SettingsScreenWidget(
+  Widget Function(BuildContext context) get builder =>
+      (_) => _SettingsScreenWidget(
         showMapSettings: showMapSettings,
         extraSections: extraSections,
       );
@@ -97,7 +97,9 @@ class _SettingsScreenWidget extends StatelessWidget {
             // Modern header
             _SettingsHeader(
               title: settingsL10n.settingsTitle,
-              onMenuPressed: () => _tryOpenDrawer(context),
+              onMenuPressed: (Scaffold.maybeOf(context)?.hasDrawer ?? false)
+                  ? () => _tryOpenDrawer(context)
+                  : null,
             ),
             // Content
             Expanded(
@@ -116,9 +118,14 @@ class _SettingsScreenWidget extends StatelessWidget {
 /// Modern header for settings screen
 class _SettingsHeader extends StatelessWidget {
   final String title;
-  final VoidCallback onMenuPressed;
 
-  const _SettingsHeader({required this.title, required this.onMenuPressed});
+  /// fahrplaner.de fork patch (09.10.2026, Patch 33, echter Nutzer-Fund):
+  /// `null` blendet den Hamburger-Knopf komplett aus - fuer einen Host ohne
+  /// erreichbaren Drawer (z. B. AppConfiguration.bottomNavTabs) waere ein
+  /// immer sichtbarer, aber wirkungsloser Knopf irrefuehrend.
+  final VoidCallback? onMenuPressed;
+
+  const _SettingsHeader({required this.title, this.onMenuPressed});
 
   @override
   Widget build(BuildContext context) {
@@ -130,25 +137,27 @@ class _SettingsHeader extends StatelessWidget {
       child: Row(
         children: [
           // Menu button
-          Material(
-            color: colorScheme.surfaceContainerHighest,
-            borderRadius: BorderRadius.circular(14),
-            child: InkWell(
-              onTap: onMenuPressed,
+          if (onMenuPressed != null) ...[
+            Material(
+              color: colorScheme.surfaceContainerHighest,
               borderRadius: BorderRadius.circular(14),
-              child: Container(
-                width: 48,
-                height: 48,
-                alignment: Alignment.center,
-                child: Icon(
-                  Icons.menu_rounded,
-                  color: colorScheme.onSurfaceVariant,
-                  size: 24,
+              child: InkWell(
+                onTap: onMenuPressed,
+                borderRadius: BorderRadius.circular(14),
+                child: Container(
+                  width: 48,
+                  height: 48,
+                  alignment: Alignment.center,
+                  child: Icon(
+                    Icons.menu_rounded,
+                    color: colorScheme.onSurfaceVariant,
+                    size: 24,
+                  ),
                 ),
               ),
             ),
-          ),
-          const SizedBox(width: 16),
+            const SizedBox(width: 16),
+          ],
           // Title
           Expanded(
             child: Text(
@@ -294,7 +303,8 @@ class _LanguageSettingsCard extends StatelessWidget {
             _LanguageOption(
               languageCode: locales[i].languageCode,
               languageName: localeManager.displayName(locales[i].languageCode),
-              isSelected: localeManager.currentLocale.languageCode ==
+              isSelected:
+                  localeManager.currentLocale.languageCode ==
                   locales[i].languageCode,
               onSelect: () {
                 HapticFeedback.selectionClick();

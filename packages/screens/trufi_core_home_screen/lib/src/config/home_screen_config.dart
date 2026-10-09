@@ -73,6 +73,17 @@ class HomeScreenConfig {
   /// additive hook, `null` (the default) changes nothing.
   final Widget Function(BuildContext context)? belowSearchBuilder;
 
+  /// Optional content positioned top-left ON THE MAP itself - for a status
+  /// pill (e.g. "offline ready"/"no network"), shown ABOVE everything else
+  /// so it survives even when the search sheet covers most of the screen.
+  /// Unlike [belowSearchBuilder] this is NOT limited to the empty-search
+  /// state - it stays visible the whole time the rider is on this screen,
+  /// matching the always-visible "my location" map button beside it.
+  ///
+  /// fahrplaner.de fork patch (see FAHRPLANER_PATCHES.md, Patch 33) -
+  /// additive hook, `null` (the default) changes nothing.
+  final Widget Function(BuildContext context)? mapOverlayBuilder;
+
   const HomeScreenConfig({
     this.chooseLocationZoom = 16.0,
     this.searchService,
@@ -86,5 +97,6 @@ class HomeScreenConfig {
     this.liveVehiclesInitiallyEnabled = false,
     this.showMapTypeButton = true,
     this.belowSearchBuilder,
+    this.mapOverlayBuilder,
   });
 }

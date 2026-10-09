@@ -102,7 +102,9 @@ class _AboutContent extends StatelessWidget {
             // Modern header
             _AboutHeader(
               title: localization.menuAbout,
-              onMenuPressed: () => _tryOpenDrawer(context),
+              onMenuPressed: (Scaffold.maybeOf(context)?.hasDrawer ?? false)
+                  ? () => _tryOpenDrawer(context)
+                  : null,
             ),
             // Content
             Expanded(child: _AboutScrollContent(config: config)),
@@ -116,9 +118,13 @@ class _AboutContent extends StatelessWidget {
 /// Modern header for about screen
 class _AboutHeader extends StatelessWidget {
   final String title;
-  final VoidCallback onMenuPressed;
 
-  const _AboutHeader({required this.title, required this.onMenuPressed});
+  /// fahrplaner.de fork patch (09.10.2026, Patch 33, echter Nutzer-Fund):
+  /// `null` blendet den Hamburger-Knopf komplett aus, siehe gleicher
+  /// Kommentar an _SettingsHeader.onMenuPressed.
+  final VoidCallback? onMenuPressed;
+
+  const _AboutHeader({required this.title, this.onMenuPressed});
 
   @override
   Widget build(BuildContext context) {
@@ -130,25 +136,27 @@ class _AboutHeader extends StatelessWidget {
       child: Row(
         children: [
           // Menu button
-          Material(
-            color: colorScheme.surfaceContainerHighest,
-            borderRadius: BorderRadius.circular(14),
-            child: InkWell(
-              onTap: onMenuPressed,
+          if (onMenuPressed != null) ...[
+            Material(
+              color: colorScheme.surfaceContainerHighest,
               borderRadius: BorderRadius.circular(14),
-              child: Container(
-                width: 48,
-                height: 48,
-                alignment: Alignment.center,
-                child: Icon(
-                  Icons.menu_rounded,
-                  color: colorScheme.onSurfaceVariant,
-                  size: 24,
+              child: InkWell(
+                onTap: onMenuPressed,
+                borderRadius: BorderRadius.circular(14),
+                child: Container(
+                  width: 48,
+                  height: 48,
+                  alignment: Alignment.center,
+                  child: Icon(
+                    Icons.menu_rounded,
+                    color: colorScheme.onSurfaceVariant,
+                    size: 24,
+                  ),
                 ),
               ),
             ),
-          ),
-          const SizedBox(width: 16),
+            const SizedBox(width: 16),
+          ],
           // Title
           Expanded(
             child: Text(
@@ -327,9 +335,8 @@ class _AboutScrollContentState extends State<_AboutScrollContent>
               iconColor: Colors.deepPurple,
               title: 'GitHub',
               subtitle: 'trufi-association/trufi-core',
-              onTap: () => _openUrl(
-                'https://github.com/trufi-association/trufi-core',
-              ),
+              onTap: () =>
+                  _openUrl('https://github.com/trufi-association/trufi-core'),
             ),
           ],
         ),
@@ -460,18 +467,18 @@ class _AboutHeroCard extends StatelessWidget {
             child: config.logoWidget != null
                 ? config.logoWidget!
                 : config.logoAssetPath != null
-                    ? ClipRRect(
-                        borderRadius: BorderRadius.circular(22),
-                        child: Image.asset(
-                          config.logoAssetPath!,
-                          fit: BoxFit.cover,
-                        ),
-                      )
-                    : Icon(
-                        Icons.directions_bus_rounded,
-                        size: 44,
-                        color: colorScheme.onPrimaryContainer,
-                      ),
+                ? ClipRRect(
+                    borderRadius: BorderRadius.circular(22),
+                    child: Image.asset(
+                      config.logoAssetPath!,
+                      fit: BoxFit.cover,
+                    ),
+                  )
+                : Icon(
+                    Icons.directions_bus_rounded,
+                    size: 44,
+                    color: colorScheme.onPrimaryContainer,
+                  ),
           ),
           const SizedBox(height: 20),
           // App name
