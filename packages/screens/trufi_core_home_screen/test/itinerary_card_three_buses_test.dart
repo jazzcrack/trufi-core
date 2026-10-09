@@ -5,9 +5,14 @@ import 'package:trufi_core_home_screen/trufi_core_home_screen.dart';
 import 'package:trufi_core_routing/trufi_core_routing.dart' as routing;
 
 /// A three-bus itinerary (two transfers, #998) renders in the card: one
-/// chip per leg — walks included — and a transfer badge that says "2".
-/// Pinned at phone width so a wider summary strip that stopped scrolling
-/// would overflow and fail here.
+/// segment per leg — walks included — in the proportional duration bar
+/// (Redesign Oktober 2026, docs/design/HANDOFF.md Abschnitt 3.2, siehe
+/// ItineraryCard._buildSegmentBar), and a transfer count in the header
+/// row. Pinned at phone width so a layout that gives a short leg too
+/// little width would overflow and fail here (echter Test-Fund waehrend
+/// dieses Redesigns: proportionale Breite allein liess kurze Fusswege
+/// ueberlaufen, siehe die Fest-statt-proportional-Breite fuer Fusswege/
+/// Raeder in _buildSegmentBar/_LegChip).
 void main() {
   routing.Leg bus(String route, {String? from, String? to}) => routing.Leg(
     mode: 'BUS',
@@ -56,30 +61,28 @@ void main() {
     home: Scaffold(body: child),
   );
 
-  testWidgets('three transit chips, four walk chips and a "2" transfer badge', (
-    tester,
-  ) async {
-    tester.view.physicalSize = const Size(1080, 2424);
-    tester.view.devicePixelRatio = 2.625;
-    addTearDown(tester.view.reset);
+  testWidgets(
+    'three transit segments, four walk segments and a "2" transfer count',
+    (tester) async {
+      tester.view.physicalSize = const Size(1080, 2424);
+      tester.view.devicePixelRatio = 2.625;
+      addTearDown(tester.view.reset);
 
-    await tester.pumpWidget(
-      host(
-        ItineraryCard(itinerary: itinerary, isSelected: false, onTap: () {}),
-      ),
-    );
+      await tester.pumpWidget(
+        host(
+          ItineraryCard(itinerary: itinerary, isSelected: false, onTap: () {}),
+        ),
+      );
 
-    // One chip per leg: the route names appear once per transit leg.
-    expect(find.text('7'), findsOneWidget);
-    expect(find.text('14'), findsNWidgets(2));
-    // The summary strip is a horizontal scroller, so seven chips never
-    // overflow a phone; the chevrons between chips count the legs.
-    expect(find.byIcon(Icons.chevron_right_rounded), findsNWidgets(6));
-    // Footer: transfers = transit legs − 1.
-    expect(find.byIcon(Icons.sync_alt_rounded), findsOneWidget);
-    expect(find.text('2'), findsOneWidget);
-    expect(tester.takeException(), isNull);
-  });
+      // One segment per leg: the route names appear once per transit leg.
+      expect(find.text('7'), findsOneWidget);
+      expect(find.text('14'), findsNWidgets(2));
+      // Header: transfers = transit legs − 1.
+      expect(find.byIcon(Icons.sync_alt_rounded), findsOneWidget);
+      expect(find.text(' 2'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   testWidgets('a grouped three-slot card feeds the third slot its options', (
     tester,

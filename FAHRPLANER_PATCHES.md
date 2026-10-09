@@ -608,9 +608,71 @@ Patch als Vorschlag vor ("ein neuer Parameter `actionsBuilder` plus
   `AktiveFahrt.dc.html`) ist NICHT Teil dieses Patches - der Hauptprojekt-
   Auftrag für diese Phase war explizit nur der additive Fork-Patch selbst.
 
-Alle vierundzwanzig Patches sind per `dart analyze` (keine neuen Fehler) und
+### 25. `ItineraryCard`: proportionaler Balken, Echtzeit-Zeile, "Umstieg knapp"
+
+Hauptprojekt Kapitel E1 (09.10.2026, Redesign, docs/design/HANDOFF.md
+Abschnitt 3.2 "Verbindungen", Referenz `Verbindungen.dc.html`) - Nutzer-
+Entscheidung vorab: direkt patchen statt Builder-Override (siehe
+Hauptprojekt-Konversation), da die Wiederverwendung der bestehenden
+Auswahl-/Daten-Logik in `ItineraryCard`/`ItineraryList` sonst in main.dart
+hätte nachgebaut werden müssen.
+
+- **Kopfzeile neu:** "HH:MM – HH:MM" (mono-grosse Schrift) + Dauer +
+  Umstiegszahl (Icon+Zahl) in einer Zeile statt der bisherigen separaten
+  Dauer-Pille. Der bestehende Los-Button/Auswahl-Häkchen (Patch 16)
+  bleibt bewusst erhalten und steht jetzt rechts daneben - die Referenz
+  zeigt keinen Los-Button auf der Karte (volle Karte ist dort EIN
+  Tap-Ziel zur Detailansicht), dieses bereits vorhandene, vom Nutzer
+  gewünschte Feature wird aber nicht stillschweigend entfernt.
+- **Neuer `_buildSegmentBar()`:** proportionaler Balken, ein Segment je
+  Bein (`Expanded`/`flex` nach `leg.duration.inSeconds`), Wartezeit-
+  Lücken zwischen zwei Beinen mit echter Zeitdifferenz als duenner Balken
+  dazwischen. `_LegChip` (vorher nur fuer eine horizontal scrollende
+  Chip-Reihe gedacht) bekam dafür explizite Grössen (`width:
+  double.infinity, height: 28`) und behält dabei die komplette bisherige
+  Logik (Slot-Routen/`SegmentedRouteChip` fuer austauschbare Linien
+  #737, `LiveBusBadge`, Formkodierung rail=Pille/tram=3px/sonst=8px nach
+  dem gleichen Muster wie `lineBadgeShapeFor()` im Hauptprojekt) - keine
+  doppelte Implementierung.
+- **Echte Layout-Bugs waehrend des Redesigns gefunden, nicht nur
+  theoretisch:** `itinerary_card_three_buses_test.dart` (ein
+  realistischer Sieben-Bein-Fall mit zwei Umstiegen) deckte zwei
+  RenderFlex-Overflows auf. Behoben: Fusswege/Räder bekommen jetzt eine
+  FESTE 28px-Breite statt proportionaler `flex` (zu wenig Platz für
+  Icon+Text bei vielen kurzen Beinen), die einfache Transit-Variante von
+  `_LegChip` ist zusätzlich in ein `FittedBox(fit: scaleDown)` gepackt
+  (Sicherheitsnetz gegen schmale Zuteilungen bei vielen Transit-Beinen),
+  und die neue Echtzeit-Zeile (`_buildRealtimeRow`) nutzt `Wrap` statt
+  `Row`/`Expanded`, da mehrere Umstiege mehr Chips erzeugen können, als
+  in eine Zeile auf Telefonbreite passen.
+- **Neue `_buildRealtimeRow()`:** "in N Min ab X" (bzw. "Leihrad bis Y ·
+  Z km", wenn das erste Bein selbst schon eine Fahrt ist) + ein
+  `RealtimeChip` je Transit-Bein (mit Linien-Präfix). Bewusst deutsche
+  Festtexte ohne l10n-Anbindung, exakt wie Patch 23 begründet - vermeidet
+  zusätzliche l10n-Oberfläche für dieses bereits umfangreiche Redesign.
+- **Neue `_tightTransferWarning()`/`_buildTransferWarningRow()`:**
+  "Umstieg {Haltestelle} wird knapp (N Min)", Formel `nextLeg.start -
+  (leg.end + delay)` < 5 Minuten - bewusst eine eigene, winzige Kopie der
+  Formel statt eines Imports aus dem Hauptprojekt-Repo (kann der Fork
+  nicht importieren, siehe Patch 23); hier stecken ohnehin nur zwei
+  `routing.Leg`-Felder dahinter, keine echte Logik wert eines Imports.
+- **Footer bereinigt:** die alte "Umstiege"-`_InfoChip` entfernt (jetzt
+  in der Kopfzeile) - Distanz/Fussweg/Ausfall-Badge/Detail-Button
+  bleiben unverändert.
+- Neue Tests: `test/itinerary_card_redesign_test.dart` (4 Fälle -
+  Echtzeit-Zeile, "Umstieg knapp" ja/nein, Kopfzeile-Umstiegszahl).
+  `test/itinerary_card_three_buses_test.dart` angepasst (Chevron-
+  Erwartung entfernt, da die alte scrollende Chip-Reihe durch den
+  Balken ersetzt wurde - die Kernaussage "ein Segment je Bein, kein
+  Overflow" bleibt).
+- Bewusst außerhalb des Scopes (E1 ist nur die Karte): die "Weniger
+  Umstiege"-Sortier-Chip und der einmalige "Fahrplan heißt…"-Hinweis aus
+  Abschnitt 3.2 (beide in `ItineraryList`, nicht `ItineraryCard`) -
+  eigener, kleinerer Folge-Patch.
+
+Alle fünfundzwanzig Patches sind per `dart analyze` (keine neuen Fehler) und
 den bestehenden Testsuiten der jeweils betroffenen Pakete verifiziert
-(alle grün, inkl. neuer Tests für Patches 8/10/11/12/13/16/17/18/19/20/21/22/24).
+(alle grün, inkl. neuer Tests für Patches 8/10/11/12/13/16/17/18/19/20/21/22/24/25).
 
 ## Sync-Strategie: wie künftige Upstream-Änderungen reinkommen
 
