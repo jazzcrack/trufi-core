@@ -570,9 +570,47 @@ beide bereits in Phase A durch `RealtimeChip` ersetzt, siehe
   Schwellenwert-Logik selbst ist 1:1 aus dem bereits unveränderten
   Original übernommen).
 
-Alle dreiundzwanzig Patches sind per `dart analyze` (keine neuen Fehler) und
+### 24. `NavigationBottomPanel`/`NavigationScreen`: `actionsBuilder` + `compact`
+
+Hauptprojekt Kapitel 3.48/3.49 (09.10.2026, Redesign Phase D): die obere
+Karte im `mapBuilder`-Stack (`NextStepCard`, Phase D1) übernimmt jetzt
+Informationen, die bisher nur `NavigationInstructionCard` in diesem Panel
+zeigte - `docs/design/HANDOFF.md` Abschnitt 3.4 schlägt dafür genau diesen
+Patch als Vorschlag vor ("ein neuer Parameter `actionsBuilder` plus
+`compact`-Modus, statt das Panel neu zu schreiben"), bewusst rein additiv.
+
+- `NavigationBottomPanel`: zwei neue optionale Parameter.
+  `actionsBuilder: Widget Function(BuildContext, VoidCallback
+  onExitNavigation)?` ersetzt bei Angabe die bisherige einzelne
+  "Beenden"-Schaltfläche durch beliebigen eigenen Inhalt (z. B. eine
+  Mehr-Aktionen-Reihe) - `null` (Default) lässt das bisherige Verhalten
+  unverändert. Der an den Builder übergebene `onExitNavigation`-Callback
+  ist NICHT das rohe `onExitNavigation`-Feld, sondern ein Wrapper, der
+  weiterhin erst `_showExitConfirmation()` zeigt - ein eigener "Beenden"-
+  Knopf in einer Mehr-Aktionen-Reihe bekommt dadurch automatisch dieselbe
+  Rückfrage wie der bisherige Standard-Knopf. `compact: bool = false`
+  blendet bei `true` die `NavigationInstructionCard` komplett aus (die
+  Beenden-/Aktionsreihe bleibt in jedem Fall sichtbar).
+- `NavigationScreen`/`NavigationScreen.show()`: zwei neue, gleichnamige
+  optionale Parameter (`bottomPanelActionsBuilder`,
+  `compactBottomPanel = false`), 1:1 an `NavigationBottomPanel`
+  durchgereicht - ohne diese zweite Änderung wären die neuen
+  `NavigationBottomPanel`-Parameter von App-Code aus gar nicht erreichbar
+  gewesen, da `NavigationScreen._buildBottomPanel()` das Panel bisher
+  fest verdrahtet instanziiert.
+- Neue Tests: `trufi_core_navigation/test/navigation_bottom_panel_test.dart`
+  (5 Fälle - Default-Verhalten beider Parameter unverändert, `actionsBuilder`
+  ersetzt den Knopf UND bekommt ein funktionierendes `onExitNavigation`
+  inkl. Bestätigungsdialog, `compact` blendet nur die Karte aus, nicht die
+  Aktionsreihe).
+- Bewusst außerhalb des Scopes: die eigentliche App-seitige Nutzung (die
+  volle "Ganze Fahrt / Wecken an / Merken / Beenden"-Vierer-Reihe aus
+  `AktiveFahrt.dc.html`) ist NICHT Teil dieses Patches - der Hauptprojekt-
+  Auftrag für diese Phase war explizit nur der additive Fork-Patch selbst.
+
+Alle vierundzwanzig Patches sind per `dart analyze` (keine neuen Fehler) und
 den bestehenden Testsuiten der jeweils betroffenen Pakete verifiziert
-(alle grün, inkl. neuer Tests für Patches 8/10/11/12/13/16/17/18/19/20/21/22).
+(alle grün, inkl. neuer Tests für Patches 8/10/11/12/13/16/17/18/19/20/21/22/24).
 
 ## Sync-Strategie: wie künftige Upstream-Änderungen reinkommen
 

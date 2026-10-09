@@ -10,10 +10,28 @@ class NavigationBottomPanel extends StatelessWidget {
   final NavigationState state;
   final VoidCallback onExitNavigation;
 
+  /// fahrplaner.de fork patch (see FAHRPLANER_PATCHES.md, Patch 24):
+  /// replaces the default single "Exit navigation" button row with custom
+  /// content (e.g. a multi-action row) when provided. `null` (the default)
+  /// keeps the original single-button behaviour unchanged. Receives
+  /// [onExitNavigation] so a custom row can still offer its own "exit"
+  /// action without the host needing to pass it again separately.
+  final Widget Function(BuildContext context, VoidCallback onExitNavigation)?
+  actionsBuilder;
+
+  /// fahrplaner.de fork patch (see FAHRPLANER_PATCHES.md, Patch 24): when
+  /// `true`, omits [NavigationInstructionCard] entirely - for hosts that
+  /// already show equivalent "next step" information elsewhere (e.g. in
+  /// their own `mapBuilder` overlay) and only want this panel for its
+  /// actions row. Defaults to `false` (original behaviour unchanged).
+  final bool compact;
+
   const NavigationBottomPanel({
     super.key,
     required this.state,
     required this.onExitNavigation,
+    this.actionsBuilder,
+    this.compact = false,
   });
 
   @override
@@ -27,7 +45,7 @@ class NavigationBottomPanel extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           // Instruction card
-          if (state.currentInstruction != null)
+          if (!compact && state.currentInstruction != null)
             NavigationInstructionCard(
               instruction: state.currentInstruction!,
               nextInstruction: state.nextInstruction,
@@ -43,28 +61,34 @@ class NavigationBottomPanel extends StatelessWidget {
               totalDuration: state.etaToDestination,
             ),
 
-          // Exit navigation button
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-            child: SizedBox(
-              width: double.infinity,
-              child: FilledButton.icon(
-                onPressed: () {
-                  HapticFeedback.lightImpact();
-                  _showExitConfirmation(context);
-                },
-                icon: const Icon(Icons.close_rounded, size: 18),
-                label: Text(
-                  NavigationLocalizations.of(context).navExitNavigation,
-                ),
-                style: FilledButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  backgroundColor: colorScheme.error,
-                  foregroundColor: colorScheme.onError,
+          if (actionsBuilder != null)
+            // Wrapped (not the raw field) so a custom row gets the SAME
+            // "confirm, then exit" behaviour as the default button below,
+            // instead of exiting immediately without confirmation.
+            actionsBuilder!(context, () => _showExitConfirmation(context))
+          else
+            // Exit navigation button (original default)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              child: SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: () {
+                    HapticFeedback.lightImpact();
+                    _showExitConfirmation(context);
+                  },
+                  icon: const Icon(Icons.close_rounded, size: 18),
+                  label: Text(
+                    NavigationLocalizations.of(context).navExitNavigation,
+                  ),
+                  style: FilledButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    backgroundColor: colorScheme.error,
+                    foregroundColor: colorScheme.onError,
+                  ),
                 ),
               ),
             ),
-          ),
         ],
       ),
     );

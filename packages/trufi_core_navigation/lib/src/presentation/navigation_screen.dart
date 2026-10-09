@@ -40,6 +40,17 @@ class NavigationScreen extends StatefulWidget {
   /// Mode icon widget for the transport.
   final Widget? modeIcon;
 
+  /// fahrplaner.de fork patch (see FAHRPLANER_PATCHES.md, Patch 24):
+  /// forwarded 1:1 to [NavigationBottomPanel.actionsBuilder]. `null` (the
+  /// default) keeps the bottom panel's original single exit button.
+  final Widget Function(BuildContext context, VoidCallback onExitNavigation)?
+  bottomPanelActionsBuilder;
+
+  /// fahrplaner.de fork patch (see FAHRPLANER_PATCHES.md, Patch 24):
+  /// forwarded 1:1 to [NavigationBottomPanel.compact]. Defaults to `false`
+  /// (original behaviour unchanged).
+  final bool compactBottomPanel;
+
   const NavigationScreen({
     super.key,
     required this.route,
@@ -47,6 +58,8 @@ class NavigationScreen extends StatefulWidget {
     required this.locationService,
     this.config = const NavigationConfig(),
     this.modeIcon,
+    this.bottomPanelActionsBuilder,
+    this.compactBottomPanel = false,
   });
 
   /// Show the navigation screen.
@@ -62,6 +75,9 @@ class NavigationScreen extends StatefulWidget {
     required LocationService locationService,
     NavigationConfig config = const NavigationConfig(),
     Widget? modeIcon,
+    Widget Function(BuildContext context, VoidCallback onExitNavigation)?
+    bottomPanelActionsBuilder,
+    bool compactBottomPanel = false,
   }) {
     return Navigator.of(context).push(
       PageRouteBuilder(
@@ -72,6 +88,8 @@ class NavigationScreen extends StatefulWidget {
               locationService: locationService,
               config: config,
               modeIcon: modeIcon,
+              bottomPanelActionsBuilder: bottomPanelActionsBuilder,
+              compactBottomPanel: compactBottomPanel,
             ),
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
           return SlideTransition(
@@ -230,6 +248,8 @@ class _NavigationScreenState extends State<NavigationScreen>
         return NavigationBottomPanel(
           state: state,
           onExitNavigation: () => _exitNavigation(context),
+          actionsBuilder: widget.bottomPanelActionsBuilder,
+          compact: widget.compactBottomPanel,
         );
 
       case NavigationStatus.completed:
