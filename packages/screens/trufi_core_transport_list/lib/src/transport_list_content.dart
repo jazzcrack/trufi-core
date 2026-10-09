@@ -83,9 +83,9 @@ class _TransportListContentState extends State<TransportListContent>
     // debugging while users get the localized message only.
     debugPrint('TransportList: failed to load routes: $error');
     final localization = TransportListLocalizations.of(context);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(localization.errorLoadingRoutes)),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(localization.errorLoadingRoutes)));
   }
 
   @override
@@ -171,7 +171,14 @@ class _TransportListContentState extends State<TransportListContent>
                 _searchFocusNode.unfocus();
               },
               onRefresh: _refreshKeepingFilter,
-              onMenuPressed: widget.showMenuButton
+              // fahrplaner.de fork patch (09.10.2026, Patch 33, echter
+              // Nutzer-Fund): zusaetzlich zum bisherigen showMenuButton-
+              // Schalter jetzt auch ein Laufzeit-Check, ob ueberhaupt ein
+              // Drawer erreichbar ist - sonst war der Knopf im Bottom-Nav-
+              // Modus (kein Drawer) immer sichtbar, aber wirkungslos.
+              onMenuPressed:
+                  widget.showMenuButton &&
+                      (Scaffold.maybeOf(context)?.hasDrawer ?? false)
                   ? () {
                       HapticFeedback.lightImpact();
                       _tryOpenDrawer(context);
