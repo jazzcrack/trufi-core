@@ -296,6 +296,10 @@ class AppShellWithBottomNav extends StatelessWidget {
   TrufiScreen _rootScreen(BottomNavTab tab) =>
       screens.firstWhere((s) => s.id == tab.screenIds.first);
 
+  String _label(BuildContext context, BottomNavTab tab) =>
+      tab.labelBuilder?.call(context) ??
+      _rootScreen(tab).getLocalizedTitle(context);
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -311,7 +315,7 @@ class AppShellWithBottomNav extends StatelessWidget {
             NavigationDestination(
               icon: Icon(tab.icon),
               selectedIcon: Icon(tab.activeIcon ?? tab.icon),
-              label: _rootScreen(tab).getLocalizedTitle(context),
+              label: _label(context, tab),
             ),
         ],
       ),

@@ -127,4 +127,29 @@ void main() {
 
     expect(find.text('Planen-Inhalt'), findsOneWidget);
   });
+
+  testWidgets("a tab's labelBuilder overrides the root screen's own title", (
+    tester,
+  ) async {
+    final screens = [
+      _StubScreen('a', '/', 'Startseite', const Text('Planen-Inhalt')),
+      _StubScreen('b', '/b', 'Gemerkt', const Text('Gemerkt-Inhalt')),
+    ];
+    final router = AppRouter(
+      screens: screens,
+      bottomNavTabs: [
+        BottomNavTab(
+          icon: Icons.home,
+          screenIds: const ['a'],
+          labelBuilder: (context) => 'Planen',
+        ),
+        const BottomNavTab(icon: Icons.bookmark, screenIds: ['b']),
+      ],
+    );
+    await tester.pumpWidget(appWithTabs(router));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Planen'), findsOneWidget);
+    expect(find.text('Startseite'), findsNothing);
+  });
 }

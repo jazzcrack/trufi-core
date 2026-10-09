@@ -7,9 +7,11 @@ import 'package:flutter/widgets.dart';
 /// drawer-based `ShellRoute` — each tab keeps its own navigation stack
 /// (back-stack, scroll position) while switching tabs.
 ///
-/// The destination's label and app-bar title are taken from the root
-/// screen's own `getLocalizedTitle(context)` (the first entry of
-/// [screenIds]) rather than duplicated here.
+/// The destination's label and app-bar title default to the root screen's
+/// own `getLocalizedTitle(context)` (the first entry of [screenIds]) —
+/// override with [labelBuilder] when the tab needs different wording than
+/// that screen's own title (e.g. a title written for a drawer menu entry,
+/// not a short bottom-tab label).
 class BottomNavTab {
   /// Icon shown while this tab is inactive.
   final IconData icon;
@@ -25,9 +27,14 @@ class BottomNavTab {
   /// within the branch (e.g. a detail screen opened from the tab's root).
   final List<String> screenIds;
 
+  /// Overrides the destination's label. `null` (the default) falls back to
+  /// the root screen's own `getLocalizedTitle(context)`.
+  final String Function(BuildContext context)? labelBuilder;
+
   const BottomNavTab({
     required this.icon,
     this.activeIcon,
     required this.screenIds,
+    this.labelBuilder,
   });
 }
