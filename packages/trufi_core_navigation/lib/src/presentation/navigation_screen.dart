@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:latlong2/latlong.dart';
@@ -51,6 +53,18 @@ class NavigationScreen extends StatefulWidget {
   /// (original behaviour unchanged).
   final bool compactBottomPanel;
 
+  /// fahrplaner.de fork patch (10.10.2026, "Navigation minimieren" -
+  /// siehe FAHRPLANER_PATCHES.md): when provided, this [NavigationCubit]
+  /// is used instead of creating a new one in [State.initState] - and,
+  /// crucially, it is NOT closed in [State.dispose]. This lets a host app
+  /// retain the cubit (GPS tracking, timers, Live-Activity bridge) across
+  /// a pop/push cycle of this screen, e.g. to "minimize" navigation while
+  /// the rider browses other parts of the app and later re-open this
+  /// screen with the SAME, still-running session instead of restarting
+  /// it. `null` (the default) keeps the original behaviour unchanged: a
+  /// fresh cubit is created and owned/closed by this screen itself.
+  final NavigationCubit? externalCubit;
+
   const NavigationScreen({
     super.key,
     required this.route,
@@ -60,6 +74,7 @@ class NavigationScreen extends StatefulWidget {
     this.modeIcon,
     this.bottomPanelActionsBuilder,
     this.compactBottomPanel = false,
+    this.externalCubit,
   });
 
   /// Show the navigation screen.
@@ -78,6 +93,7 @@ class NavigationScreen extends StatefulWidget {
     Widget Function(BuildContext context, VoidCallback onExitNavigation)?
     bottomPanelActionsBuilder,
     bool compactBottomPanel = false,
+    NavigationCubit? externalCubit,
   }) {
     return Navigator.of(context).push(
       PageRouteBuilder(
@@ -90,6 +106,7 @@ class NavigationScreen extends StatefulWidget {
               modeIcon: modeIcon,
               bottomPanelActionsBuilder: bottomPanelActionsBuilder,
               compactBottomPanel: compactBottomPanel,
+              externalCubit: externalCubit,
             ),
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
           return SlideTransition(
@@ -161,6 +178,13 @@ class _NavigationScreenState extends State<NavigationScreen>
   late final NavigationCubit _cubit;
   late final nav.NavigationLayer _navLayerBuilder;
 
+  /// fahrplaner.de fork patch (10.10.2026, "Navigation minimieren"): true
+  /// only when THIS screen created [_cubit] itself (widget.externalCubit
+  /// was null) - only then is it also this screen's job to stop/close it
+  /// in [dispose]. An externally owned cubit outlives this screen on
+  /// purpose (that is the whole point of minimizing).
+  late final bool _ownsCubit;
+
   @override
   void initState() {
     super.initState();
@@ -170,21 +194,41 @@ class _NavigationScreenState extends State<NavigationScreen>
       WakelockPlus.enable();
     }
 
-    _cubit = NavigationCubit(
-      locationService: widget.locationService,
-      config: widget.config,
-    );
-
     _navLayerBuilder = nav.NavigationLayer();
-    _cubit.startNavigation(widget.route);
+
+    final external = widget.externalCubit;
+    if (external != null) {
+      _cubit = external;
+      _ownsCubit = false;
+      // No startNavigation() call here: an external cubit is either
+      // already navigating (re-opened after being minimized) or the host
+      // started it itself right before handing it over - starting it
+      // again here would reset progress.
+    } else {
+      _cubit = NavigationCubit(
+        locationService: widget.locationService,
+        config: widget.config,
+      );
+      _ownsCubit = true;
+      _cubit.startNavigation(widget.route);
+    }
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     WakelockPlus.disable();
-    _cubit.stopNavigation();
-    _cubit.close();
+    if (_ownsCubit) {
+      // fahrplaner.de fork patch (10.10.2026, echter Fund beim Schreiben
+      // des externalCubit-Tests): stopNavigation() ist async und emittiert
+      // NACH einem await - das vorherige "_cubit.stopNavigation();
+      // _cubit.close();" (ohne await) rief close() praktisch immer VOR
+      // diesem spaeten emit auf ("Bad state: Cannot emit new states after
+      // calling close"). whenComplete() stellt die Reihenfolge sicher,
+      // ohne dispose() selbst async machen zu muessen (State.dispose()
+      // darf das nicht).
+      unawaited(_cubit.stopNavigation().whenComplete(_cubit.close));
+    }
     super.dispose();
   }
 
