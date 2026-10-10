@@ -131,25 +131,35 @@ class _SettingsHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    // fahrplaner.de fork patch (10.10.2026, echter Nutzer-Fund): ist auch
+    // onMenuPressed null (Bottom-Nav-Modus, kein Drawer), aber die Seite
+    // wurde gepusht (z. B. von "Mehr"), zeigt der Header stattdessen einen
+    // Zurueck-Pfeil - sonst gibt es keinen Weg zurueck außer der OS-Geste.
+    final canPop = Navigator.of(context).canPop();
+    final leadingIcon = onMenuPressed != null
+        ? Icons.menu_rounded
+        : (canPop ? Icons.arrow_back_rounded : null);
+    final onLeadingTap =
+        onMenuPressed ?? (canPop ? () => Navigator.of(context).pop() : null);
 
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
       child: Row(
         children: [
-          // Menu button
-          if (onMenuPressed != null) ...[
+          // Menu/back button
+          if (leadingIcon != null) ...[
             Material(
               color: colorScheme.surfaceContainerHighest,
               borderRadius: BorderRadius.circular(14),
               child: InkWell(
-                onTap: onMenuPressed,
+                onTap: onLeadingTap,
                 borderRadius: BorderRadius.circular(14),
                 child: Container(
                   width: 48,
                   height: 48,
                   alignment: Alignment.center,
                   child: Icon(
-                    Icons.menu_rounded,
+                    leadingIcon,
                     color: colorScheme.onSurfaceVariant,
                     size: 24,
                   ),

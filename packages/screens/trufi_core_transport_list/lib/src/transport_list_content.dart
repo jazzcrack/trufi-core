@@ -502,14 +502,25 @@ class _SearchHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    // fahrplaner.de fork patch (10.10.2026, echter Nutzer-Fund): kein
+    // Drawer erreichbar, aber die Seite wurde gepusht (von "Abfahrten" >
+    // "Bundesweite Liniensuche") - dann einen Zurueck-Pfeil statt gar
+    // nichts zeigen.
+    final canPop = Navigator.of(context).canPop();
 
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
       child: Row(
         children: [
-          // Menu button
+          // Menu/back button
           if (onMenuPressed != null) ...[
             _MenuButton(onPressed: onMenuPressed!),
+            const SizedBox(width: 12),
+          ] else if (canPop) ...[
+            _MenuButton(
+              onPressed: () => Navigator.of(context).pop(),
+              icon: Icons.arrow_back_rounded,
+            ),
             const SizedBox(width: 12),
           ],
 
@@ -1025,7 +1036,12 @@ class _EmptyState extends StatelessWidget {
 class _MenuButton extends StatelessWidget {
   final VoidCallback onPressed;
 
-  const _MenuButton({required this.onPressed});
+  /// fahrplaner.de fork patch (10.10.2026, echter Nutzer-Fund): wird auch
+  /// als Zurueck-Pfeil wiederverwendet (siehe _SearchHeader), daher
+  /// konfigurierbar statt hartcodiert.
+  final IconData icon;
+
+  const _MenuButton({required this.onPressed, this.icon = Icons.menu_rounded});
 
   @override
   Widget build(BuildContext context) {
@@ -1042,11 +1058,7 @@ class _MenuButton extends StatelessWidget {
           width: 48,
           height: 48,
           alignment: Alignment.center,
-          child: Icon(
-            Icons.menu_rounded,
-            color: colorScheme.onSurfaceVariant,
-            size: 24,
-          ),
+          child: Icon(icon, color: colorScheme.onSurfaceVariant, size: 24),
         ),
       ),
     );
