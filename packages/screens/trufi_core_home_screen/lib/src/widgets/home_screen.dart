@@ -352,6 +352,15 @@ class _HomeScreenState extends State<HomeScreen>
     // populated the fields but never planned the trip.
     await cubit.setFromPlace(fromPlace);
     await cubit.setToPlace(toPlace);
+
+    // fahrplaner.de fork patch (see FAHRPLANER_PATCHES.md): a shared route
+    // carries the departure time it was planned for (route.time), but this
+    // was never applied to the cubit - "re-search today" silently replanned
+    // for the current time instead of the saved snapshot time.
+    if (route.time != null) {
+      cubit.setDateTime(route.time);
+    }
+
     await cubit.fetchPlan(selectedItineraryIndex: route.selectedItineraryIndex);
   }
 
