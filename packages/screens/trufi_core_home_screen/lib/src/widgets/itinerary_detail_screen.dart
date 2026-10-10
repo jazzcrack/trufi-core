@@ -58,6 +58,17 @@ class ItineraryDetailContent extends StatelessWidget {
   /// Start/Ziel. Null blendet die Aktion aus.
   final VoidCallback? onSaveTrip;
 
+  /// fahrplaner.de fork patch (10.10.2026, echter Nutzer-Fund: "Ganze
+  /// Fahrt" zeigt waehrend der aktiven Navigation nirgends, wo man gerade
+  /// ist). Index des Beins, auf dem der Rider GERADE unterwegs ist (siehe
+  /// NavigationState.currentLegIndex im Host) - `null`, solange diese
+  /// Ansicht aus der PLANUNGSPHASE heraus geoeffnet wird (Default,
+  /// unveraendertes Verhalten). Markiert das entsprechende Bein mit einem
+  /// "Jetzt hier"-Hinweis und faerbt dessen Zwischenhalte nach erledigt/
+  /// kommend ein (reine Fahrplanzeit-Interpolation, kein Live-GPS - siehe
+  /// Kapitel 3.67/3.68 im Hauptprojekt).
+  final int? currentLegIndex;
+
   const ItineraryDetailContent({
     super.key,
     required this.itinerary,
@@ -69,6 +80,7 @@ class ItineraryDetailContent extends StatelessWidget {
     this.onSelectAlternative,
     this.onShare,
     this.onSaveTrip,
+    this.currentLegIndex,
   });
 
   @override
@@ -111,6 +123,7 @@ class ItineraryDetailContent extends StatelessWidget {
           itinerary: itinerary,
           l10n: l10n,
           onRouteTap: onRouteTap,
+          currentLegIndex: currentLegIndex,
         ),
       ],
     );
@@ -769,11 +782,13 @@ class _VerticalTimeline extends StatelessWidget {
   final routing.Itinerary itinerary;
   final HomeScreenLocalizations l10n;
   final void Function(String routeCode)? onRouteTap;
+  final int? currentLegIndex;
 
   const _VerticalTimeline({
     required this.itinerary,
     required this.l10n,
     this.onRouteTap,
+    this.currentLegIndex,
   });
 
   @override
@@ -803,6 +818,7 @@ class _VerticalTimeline extends StatelessWidget {
               l10n: l10n,
               lineColor: _getLegColor(legs[i], colorScheme),
               onRouteTap: onRouteTap,
+              isCurrentLeg: i == currentLegIndex,
             ),
 
             // Destination / Transfer
@@ -1172,11 +1188,18 @@ class _LegItem extends StatefulWidget {
   final Color lineColor;
   final void Function(String routeCode)? onRouteTap;
 
+  /// fahrplaner.de fork patch (10.10.2026): siehe
+  /// ItineraryDetailContent.currentLegIndex. `false`, solange diese Ansicht
+  /// aus der Planungsphase heraus geoeffnet wird (unveraendertes
+  /// Verhalten).
+  final bool isCurrentLeg;
+
   const _LegItem({
     required this.leg,
     required this.l10n,
     required this.lineColor,
     this.onRouteTap,
+    this.isCurrentLeg = false,
   });
 
   @override
@@ -1184,8 +1207,17 @@ class _LegItem extends StatefulWidget {
 }
 
 class _LegItemState extends State<_LegItem> {
-  bool _isExpanded = false;
+  late bool _isExpanded;
   bool _isNavigating = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Aktuelles Bein waehrend der Navigation gleich aufgeklappt zeigen -
+    // genau die Zwischenhalte, die den Fortschritt belegen, sollen nicht
+    // hinter einem zusaetzlichen Tap versteckt sein.
+    _isExpanded = widget.isCurrentLeg;
+  }
 
   void _handleRouteTap() {
     if (_isNavigating) return;
@@ -1351,6 +1383,28 @@ class _LegItemState extends State<_LegItem> {
             ],
           ),
         ),
+        // "Jetzt hier" (fahrplaner.de fork patch, 10.10.2026): markiert das
+        // Bein, auf dem der Rider waehrend einer aktiven Navigation gerade
+        // unterwegs ist. Siehe ItineraryDetailContent.currentLegIndex.
+        if (widget.isCurrentLeg)
+          Padding(
+            padding: const EdgeInsets.only(left: 6),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: colorScheme.primaryContainer,
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: Text(
+                'Jetzt hier',
+                style: TextStyle(
+                  color: colorScheme.onPrimaryContainer,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 11,
+                ),
+              ),
+            ),
+          ),
         // Live indicator: pulses when a live vehicle is reported for
         // this leg's route. Only visible if a RealtimeVehiclesProvider
         // is wired.
@@ -1536,72 +1590,96 @@ class _LegItemState extends State<_LegItem> {
 
   Widget _buildExpandedStops(ThemeData theme, ColorScheme colorScheme) {
     final stops = widget.leg.intermediatePlaces!;
+    // fahrplaner.de fork patch (10.10.2026): auf dem AKTUELLEN Bein jeden
+    // Zwischenhalt als erledigt (gefuellter Punkt) oder kommend (Ring)
+    // markieren - reine Fahrplanzeit-Interpolation (jetzt vs. geplante
+    // Ankunftszeit je Halt), kein Live-GPS (siehe
+    // ItineraryDetailContent.currentLegIndex). Auf allen anderen Beinen
+    // unveraendert immer gefuellt, wie bisher.
+    final now = widget.isCurrentLeg ? DateTime.now() : null;
 
     return Column(
       children: [
         for (final stop in stops)
-          SizedBox(
-            height: 28,
-            child: Row(
-              children: [
-                // Icon column (empty)
-                const SizedBox(width: 32),
-                // Timeline line with small dot
-                SizedBox(
-                  width: 20,
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      // Vertical line
-                      Container(
-                        width: 4,
-                        color: widget.lineColor.withValues(alpha: 0.3),
+          Builder(
+            builder: (context) {
+              final passed =
+                  now == null ||
+                  stop.arrivalTime == null ||
+                  now.isAfter(stop.arrivalTime!);
+              return SizedBox(
+                height: 28,
+                child: Row(
+                  children: [
+                    // Icon column (empty)
+                    const SizedBox(width: 32),
+                    // Timeline line with small dot
+                    SizedBox(
+                      width: 20,
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          // Vertical line
+                          Container(
+                            width: 4,
+                            color: widget.lineColor.withValues(alpha: 0.3),
+                          ),
+                          // Small bullet - gefuellt (erledigt) oder Ring
+                          // (kommend), siehe Kommentar oben.
+                          Container(
+                            width: 6,
+                            height: 6,
+                            decoration: BoxDecoration(
+                              color: passed ? widget.lineColor : null,
+                              shape: BoxShape.circle,
+                              border: passed
+                                  ? null
+                                  : Border.all(
+                                      color: widget.lineColor,
+                                      width: 1.5,
+                                    ),
+                            ),
+                          ),
+                        ],
                       ),
-                      // Small bullet
-                      Container(
-                        width: 6,
-                        height: 6,
-                        decoration: BoxDecoration(
-                          color: widget.lineColor,
-                          shape: BoxShape.circle,
+                    ),
+                    const SizedBox(width: 12),
+                    // Stop name — long-press copies it (trufi-sanaa#9).
+                    Expanded(
+                      child: GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onLongPress: () => copyToClipboard(
+                          context,
+                          stop.name,
+                          confirmation: widget.l10n.copiedToClipboard,
+                        ),
+                        child: Text(
+                          stop.name,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: colorScheme.onSurfaceVariant,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 12),
-                // Stop name — long-press copies it (trufi-sanaa#9).
-                Expanded(
-                  child: GestureDetector(
-                    behavior: HitTestBehavior.opaque,
-                    onLongPress: () => copyToClipboard(
-                      context,
-                      stop.name,
-                      confirmation: widget.l10n.copiedToClipboard,
                     ),
-                    child: Text(
-                      stop.name,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: colorScheme.onSurfaceVariant,
+                    // Time — hidden under routing time override (synthetic).
+                    if (stop.arrivalTime != null &&
+                        context
+                                .watch<AppConfiguration?>()
+                                ?.routingTimeOverride ==
+                            null)
+                      Text(
+                        formatClockTime(context, stop.arrivalTime!),
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                        ),
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
+                    const SizedBox(width: 8),
+                  ],
                 ),
-                // Time — hidden under routing time override (synthetic).
-                if (stop.arrivalTime != null &&
-                    context.watch<AppConfiguration?>()?.routingTimeOverride ==
-                        null)
-                  Text(
-                    formatClockTime(context, stop.arrivalTime!),
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                const SizedBox(width: 8),
-              ],
-            ),
+              );
+            },
           ),
       ],
     );
@@ -1666,12 +1744,16 @@ class ItineraryDetailScreen extends StatelessWidget {
   /// fahrplaner.de fork patch (see ItineraryDetailContent.onSaveTrip).
   final VoidCallback? onSaveTrip;
 
+  /// fahrplaner.de fork patch (see ItineraryDetailContent.currentLegIndex).
+  final int? currentLegIndex;
+
   const ItineraryDetailScreen({
     super.key,
     required this.itinerary,
     this.onStartNavigation,
     this.onRouteTap,
     this.onSaveTrip,
+    this.currentLegIndex,
   });
 
   /// Shows the itinerary detail screen with a slide transition.
@@ -1681,6 +1763,7 @@ class ItineraryDetailScreen extends StatelessWidget {
     void Function(bool wakeAtDestination)? onStartNavigation,
     void Function(String routeCode)? onRouteTap,
     VoidCallback? onSaveTrip,
+    int? currentLegIndex,
   }) {
     return Navigator.of(context).push(
       PageRouteBuilder(
@@ -1690,6 +1773,7 @@ class ItineraryDetailScreen extends StatelessWidget {
               onStartNavigation: onStartNavigation,
               onRouteTap: onRouteTap,
               onSaveTrip: onSaveTrip,
+              currentLegIndex: currentLegIndex,
             ),
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
           return SlideTransition(
@@ -1719,6 +1803,7 @@ class ItineraryDetailScreen extends StatelessWidget {
           onStartNavigation: onStartNavigation,
           onRouteTap: onRouteTap,
           onSaveTrip: onSaveTrip,
+          currentLegIndex: currentLegIndex,
         ),
       ),
     );
