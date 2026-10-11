@@ -1180,15 +1180,27 @@ class _HomeScreenState extends State<HomeScreen>
     _mapController?.moveCamera(position);
   }
 
+  /// Applies [HomeScreenConfig.cameraTargetAdjuster] (fahrplaner.de fork
+  /// patch, Patch 42) to a raw GPS target before handing it to
+  /// [_moveCameraTracked] - lets a host shift the "my location" camera
+  /// target so it lands in the part of the map a floating side panel
+  /// doesn't cover. Returns the target unchanged when no adjuster is set.
+  TrufiCameraPosition _myLocationCameraPosition(LatLng target) {
+    const zoom = 16.0;
+    final adjusted =
+        widget.config.cameraTargetAdjuster?.call(context, target, zoom) ??
+        target;
+    return TrufiCameraPosition(target: adjusted, zoom: zoom);
+  }
+
   Future<void> _onMyLocationPressed() async {
     // If already tracking, just center the map on current location
     if (_locationService.isTracking) {
       final location = _locationService.currentLocation;
       if (location != null) {
         _moveCameraTracked(
-          TrufiCameraPosition(
-            target: LatLng(location.latitude, location.longitude),
-            zoom: 16,
+          _myLocationCameraPosition(
+            LatLng(location.latitude, location.longitude),
           ),
         );
       }
@@ -1214,9 +1226,8 @@ class _HomeScreenState extends State<HomeScreen>
         final lastKnown = await _locationService.getLastKnownLocation();
         if (lastKnown != null && mounted) {
           _moveCameraTracked(
-            TrufiCameraPosition(
-              target: LatLng(lastKnown.latitude, lastKnown.longitude),
-              zoom: 16,
+            _myLocationCameraPosition(
+              LatLng(lastKnown.latitude, lastKnown.longitude),
             ),
           );
         }
@@ -1229,9 +1240,8 @@ class _HomeScreenState extends State<HomeScreen>
           final location = _locationService.currentLocation;
           if (location != null) {
             _moveCameraTracked(
-              TrufiCameraPosition(
-                target: LatLng(location.latitude, location.longitude),
-                zoom: 16,
+              _myLocationCameraPosition(
+                LatLng(location.latitude, location.longitude),
               ),
             );
           }
@@ -1731,7 +1741,13 @@ class _HomeScreenState extends State<HomeScreen>
               builder: (context, constraints) {
                 // Responsive layout: use side panel for wide screens (>=600px)
                 final isWideScreen = constraints.maxWidth >= 600;
-                final sidePanelWidth = _getSidePanelWidth(constraints.maxWidth);
+                // fahrplaner.de fork patch (Patch 42): see
+                // HomeScreenConfig.sidePanelStyle doc comment.
+                final panelStyle = widget.config.sidePanelStyle?.call(context);
+                final sidePanelWidth =
+                    panelStyle?.fixedWidth ??
+                    _getSidePanelWidth(constraints.maxWidth);
+                final sidePanelFloating = panelStyle?.floating ?? false;
 
                 // Update viewport with actual map area size (excluding side panel on wide screens)
                 final mapWidth = isWideScreen
@@ -1810,16 +1826,23 @@ class _HomeScreenState extends State<HomeScreen>
                 // Update camera padding for side panel layout (panel on LEFT)
                 // Note: The map is already positioned to the right of the side panel,
                 // so we don't need to include sidePanelWidth in the padding.
-                if (isWideScreen) {
+                // A floating panel (Patch 42) overlays the map instead of
+                // sharing space with it, so the fit-camera padding stays at
+                // the narrow-screen default in that case too.
+                if (isWideScreen && !sidePanelFloating) {
                   _fitCameraUtil?.updatePadding(const EdgeInsets.all(30));
                 }
 
                 return Stack(
                   children: [
-                    // Map - adjusts for side panel on LEFT on wide screens
+                    // Map - adjusts for side panel on LEFT on wide screens.
+                    // A floating panel (Patch 42) overlays the map instead,
+                    // so the map stays full-width/unshifted underneath it.
                     Positioned(
                       top: 0,
-                      left: isWideScreen ? sidePanelWidth : 0,
+                      left: (isWideScreen && !sidePanelFloating)
+                          ? sidePanelWidth
+                          : 0,
                       bottom: 0,
                       right: 0,
                       child: _buildMap(mapEngineManager.currentEngine),
@@ -1833,6 +1856,7 @@ class _HomeScreenState extends State<HomeScreen>
                         sidePanelWidth,
                         locationState: locationState,
                         l10n: l10n,
+                        style: panelStyle,
                       ),
 
                     // Narrow screens: SearchBar floats on top of map
@@ -1998,7 +2022,13 @@ class _HomeScreenState extends State<HomeScreen>
                     // !hasResults like the search/quick-start sheet) so it
                     // survives into the results phase too, matching the
                     // always-visible "my location" button on the right.
-                    if (!isWideScreen &&
+                    // Also shown on wide screens when `panelStyle.
+                    // showMapOverlay` asks for it (Patch 42) - otherwise
+                    // silently suppressed there, since it was built for the
+                    // narrow screen's top-left corner, which the built-in
+                    // wide panel already occupies.
+                    if ((!isWideScreen ||
+                            (panelStyle?.showMapOverlay ?? false)) &&
                         widget.config.mapOverlayBuilder != null)
                       Positioned(
                         top: 0,
@@ -2019,6 +2049,9 @@ class _HomeScreenState extends State<HomeScreen>
                       hasResults,
                       sidePanelOffset: 0, // No offset needed, panel is on left
                       isWideScreen: isWideScreen,
+                      bottomLeft:
+                          isWideScreen &&
+                          (panelStyle?.mapControlsBottomLeft ?? false),
                     ),
 
                     // Narrow screens: bottom sheet for results, fixed panel for errors
@@ -2056,17 +2089,28 @@ class _HomeScreenState extends State<HomeScreen>
     bool hasResults, {
     double sidePanelOffset = 0,
     bool isWideScreen = false,
+    // fahrplaner.de fork patch (Patch 42): see
+    // HomeScreenConfig.WideSidePanelStyle.mapControlsBottomLeft doc comment.
+    bool bottomLeft = false,
   }) {
     return Positioned(
-      right: 16 + sidePanelOffset,
-      top: 0,
+      right: bottomLeft ? null : 16 + sidePanelOffset,
+      left: bottomLeft ? 16 : null,
+      top: bottomLeft ? null : 0,
+      bottom: bottomLeft ? 0 : null,
       child: SafeArea(
-        bottom: false,
+        top: !bottomLeft,
+        bottom: bottomLeft,
         child: Padding(
           // On wide screens, no floating SearchBar so less top padding needed
-          padding: EdgeInsets.only(top: isWideScreen ? 16 : 120),
+          padding: bottomLeft
+              ? EdgeInsets.zero
+              : EdgeInsets.only(top: isWideScreen ? 16 : 120),
           child: Column(
             mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: bottomLeft
+                ? MainAxisAlignment.end
+                : MainAxisAlignment.start,
             children: [
               // Map type button (with optional POI layers if available).
               // fahrplaner.de fork patch: hideable via
@@ -2360,34 +2404,47 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   /// Builds the side panel for wide screens (>=600px).
-  /// Panel is positioned on the LEFT side and includes the SearchBar.
+  /// Panel is positioned on the LEFT side and includes the SearchBar, unless
+  /// [style] (fahrplaner.de fork patch, Patch 42) asks for a different side
+  /// and/or a floating presentation.
   Widget _buildSidePanel(
     RoutePlannerState state,
     ThemeData theme,
     double width, {
     required SearchLocationState locationState,
     required HomeScreenLocalizations l10n,
+    WideSidePanelStyle? style,
   }) {
     final hasResults = state.plan != null || state.isLoading || state.hasError;
+    final onRight = style?.onRight ?? false;
+    final floatingMargin = (style?.floating ?? false)
+        ? style!.floatingMargin
+        : null;
 
     return Positioned(
-      top: 0,
-      left: 0, // Panel on LEFT
-      bottom: 0,
+      top: floatingMargin?.top ?? 0,
+      bottom: floatingMargin?.bottom ?? 0,
+      left: onRight ? null : (floatingMargin?.left ?? 0),
+      right: onRight ? (floatingMargin?.right ?? 0) : null,
       width: width,
       child: Container(
         decoration: BoxDecoration(
           color: theme.colorScheme.surface,
+          borderRadius: floatingMargin != null
+              ? BorderRadius.circular(20)
+              : null,
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.12),
               blurRadius: 12,
-              offset: const Offset(2, 0),
+              offset: Offset(onRight ? -2 : 2, 0),
             ),
           ],
         ),
+        clipBehavior: floatingMargin != null ? Clip.antiAlias : Clip.none,
         child: SafeArea(
-          right: false,
+          left: !onRight,
+          right: onRight,
           child: Column(
             children: [
               // SearchBar section - no shadow since it's inside the panel

@@ -857,6 +857,53 @@ und behält immer eine Karte daneben).
 Verifiziert: `dart analyze` aller vier geänderten Dateien sauber, alle 76
 bestehenden `trufi_core_home_screen`-Paket-Tests weiterhin grün.
 
+### 42. `HomeScreenConfig.sidePanelStyle` + `cameraTargetAdjuster`
+
+Querformat Q6 (12.10.2026, docs/design/QUERFORMAT.md des Hauptprojekts,
+Abschnitt 2.1 "Start") - vorab per Nutzer-Rückfrage geklärt (drei
+Varianten vorgelegt, "vollen Patch bauen" gewählt): anders als Q5
+braucht Q6 weiterhin die echte Karte (sie füllt den Rest), nur das
+bestehende `isWideScreen`-Seitenpanel passt nicht - es ist links statt
+rechts, flächenbündig+volle Höhe statt schwebend mit Rand, benutzt die
+eingebauten 340/380/420-Breakpoints statt einer festen Breite, und
+verschiebt die Karte zur Seite statt sie unverändert darunter
+durchlaufen zu lassen (letzteres ist genau der Unterschied, der beim
+schwebenden Panel einen expliziten Kamera-Versatz nötig macht - bei der
+bestehenden Logik ist die Kartenfläche bereits um das Panel verkleinert,
+es gibt nichts zu verschieben).
+
+- **`WideSidePanelStyle`** (neue Klasse, alle Felder mit Default, die das
+  bisherige Verhalten exakt nachbilden): `onRight`, `floating` +
+  `floatingMargin`, `fixedWidth`, `showMapOverlay`,
+  `mapControlsBottomLeft`.
+- **`HomeScreenConfig.sidePanelStyle`** (`WideSidePanelStyle? Function(
+  BuildContext)?`, Default `null`): wie `resultsBuilder`/`mapOverlayBuilder`
+  aus dem LIVE `BuildContext` ausgewertet (nicht einmalig bei
+  `HomeScreenConfig`-Konstruktion), damit ein Host auf Dinge reagieren
+  kann, die dieses Fork-Paket nicht kennt (hier: Hoch-/Querformat über
+  `FpLayout.isTwoPane` der App). `null` ändert nichts.
+- **`home_screen.dart`**: `_buildSidePanel()` positioniert sich nun
+  rechts statt links (`onRight`), schwebend mit `floatingMargin` +
+  abgerundeten Ecken statt flächenbündig (`floating`), in fester Breite
+  statt der Breakpoint-Funktion (`fixedWidth`). Die Karten-`Positioned`
+  verschiebt sich nur noch, wenn NICHT `floating` ist (vorher: immer bei
+  `isWideScreen`). `mapOverlayBuilder` war bisher auf breiten Bildschirmen
+  komplett unterdrückt (eigener, vorher nie behobener Fund beim
+  Nachlesen dieser Stelle) - mit `showMapOverlay: true` jetzt auch dort
+  sichtbar. `_buildMapControls()` bekommt einen neuen `bottomLeft`-Zweig
+  (`mapControlsBottomLeft`): Spalte unten links statt oben rechts.
+- **`HomeScreenConfig.cameraTargetAdjuster`** (`LatLng Function(
+  BuildContext, LatLng, double)?`, Default `null`): neue private
+  `_myLocationCameraPosition()`-Hilfsfunktion wendet ihn auf alle drei
+  bestehenden `TrufiCameraPosition`-Konstruktionsstellen in
+  `_onMyLocationPressed()` an (Default: Ziel unverändert) - dieser Screen
+  hat sonst keine Vorstellung davon, dass ein schwebendes Panel einen
+  Teil der Karte verdeckt, kann den nötigen Versatz also nicht selbst
+  berechnen.
+
+Verifiziert: `dart analyze` beider geänderten Dateien sauber, alle 76
+bestehenden `trufi_core_home_screen`-Paket-Tests weiterhin grün.
+
 ## Sync-Strategie: wie künftige Upstream-Änderungen reinkommen
 
 Ziel: Trufi-Core-Updates (neue Features, Bugfixes) weiter bekommen,

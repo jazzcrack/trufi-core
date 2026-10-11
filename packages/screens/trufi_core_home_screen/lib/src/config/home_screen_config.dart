@@ -1,9 +1,62 @@
 import 'package:flutter/widgets.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:trufi_core_maps/trufi_core_maps.dart';
 import 'package:trufi_core_poi_layers/trufi_core_poi_layers.dart';
 import 'package:trufi_core_search_locations/trufi_core_search_locations.dart';
 
 import '../models/route_planner_state.dart';
+
+/// Alternate rendering for the wide-screen (`isWideScreen`, >=600px) side
+/// panel in `home_screen.dart`. Returned by [HomeScreenConfig.sidePanelStyle]
+/// from the live [BuildContext], so a host can react to e.g. a landscape/
+/// portrait distinction that this Fork package doesn't know about, without
+/// importing app-level layout code.
+///
+/// Every field defaults to the value that reproduces the screen's existing,
+/// unstyled behaviour - constructing `WideSidePanelStyle()` with no
+/// arguments changes nothing.
+///
+/// fahrplaner.de fork patch (see FAHRPLANER_PATCHES.md, Patch 42).
+class WideSidePanelStyle {
+  /// Panel on the right instead of the built-in left.
+  final bool onRight;
+
+  /// When true, the panel floats over the map (margin on all sides, rounded
+  /// corners, map rendered full-width/unshifted underneath) instead of the
+  /// built-in flush, full-height split that shifts the map over to make
+  /// room. Needed because a floating panel only ever covers PART of the
+  /// map, so the rider's own location needs an explicit camera offset (see
+  /// [HomeScreenConfig.cameraTargetAdjuster]) instead of just not being
+  /// hidden under a panel the map was already resized to avoid.
+  final bool floating;
+
+  /// Margin around the panel when [floating] is true. Ignored otherwise.
+  final EdgeInsets floatingMargin;
+
+  /// Overrides the built-in 340/380/420 width breakpoints with a fixed
+  /// width. `null` (the default) keeps the breakpoint function.
+  final double? fixedWidth;
+
+  /// Also show [HomeScreenConfig.mapOverlayBuilder] on wide screens (it's
+  /// otherwise always suppressed there, since it was built for the narrow
+  /// screen's floating top-left status pill, which had no wide-screen
+  /// equivalent position until now).
+  final bool showMapOverlay;
+
+  /// Move the floating map controls (my-location, map-type) from their
+  /// built-in top-right position to bottom-left - for when [onRight] puts
+  /// the panel where the controls would otherwise be.
+  final bool mapControlsBottomLeft;
+
+  const WideSidePanelStyle({
+    this.onRight = false,
+    this.floating = false,
+    this.floatingMargin = EdgeInsets.zero,
+    this.fixedWidth,
+    this.showMapOverlay = false,
+    this.mapControlsBottomLeft = false,
+  });
+}
 
 /// Configuration for the Home Screen module.
 ///
@@ -104,6 +157,30 @@ class HomeScreenConfig {
   final Widget? Function(BuildContext context, RoutePlannerState state)?
   resultsBuilder;
 
+  /// Optional alternate rendering for the wide-screen (>=600px) side panel,
+  /// evaluated from the live [BuildContext] (so it can react to things this
+  /// Fork package doesn't know about, e.g. a landscape/portrait
+  /// distinction). Returning `null` (the default) keeps the screen's
+  /// existing left-flush, full-height, breakpoint-width panel unchanged.
+  ///
+  /// fahrplaner.de fork patch (see FAHRPLANER_PATCHES.md, Patch 42) -
+  /// additive hook, `null` (the default) changes nothing.
+  final WideSidePanelStyle? Function(BuildContext context)? sidePanelStyle;
+
+  /// Optional adjustment applied to the camera target whenever this screen
+  /// centers the map on the rider's own location (the "my location" button,
+  /// [chooseLocationZoom] applies separately). Lets a host shift the target
+  /// so it lands in the visible map area when [sidePanelStyle] floats a
+  /// panel over part of the map - this screen has no notion of a panel
+  /// "covering" part of the map on its own, so it cannot compute that shift
+  /// itself. Returning the input [LatLng] unchanged (or passing `null`, the
+  /// default) keeps the screen's existing, unshifted centering.
+  ///
+  /// fahrplaner.de fork patch (see FAHRPLANER_PATCHES.md, Patch 42) -
+  /// additive hook, `null` (the default) changes nothing.
+  final LatLng Function(BuildContext context, LatLng target, double zoom)?
+  cameraTargetAdjuster;
+
   const HomeScreenConfig({
     this.chooseLocationZoom = 16.0,
     this.searchService,
@@ -119,5 +196,7 @@ class HomeScreenConfig {
     this.belowSearchBuilder,
     this.mapOverlayBuilder,
     this.resultsBuilder,
+    this.sidePanelStyle,
+    this.cameraTargetAdjuster,
   });
 }
