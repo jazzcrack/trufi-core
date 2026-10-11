@@ -1,5 +1,2 @@
-analyzer:
-  exclude:
-    - build/**
 include: ../../../analysis_options.yaml
 
