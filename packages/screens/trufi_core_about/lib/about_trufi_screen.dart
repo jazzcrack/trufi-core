@@ -509,9 +509,13 @@ class _AboutHeroCard extends StatelessWidget {
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 16),
-          // Version badge
+          // Version badge (10.10.2026, Nutzer-Wunsch: Build-Nummer mit
+          // anzeigen, damit TestFlight-/Play-Internal-Tester erkennen, ob
+          // sie den neuesten Build haben - "Version 0.1.0" allein sagt das
+          // nicht, "Version 0.1.0+41" schon. PackageInfoPlatform.fullVersion()
+          // existierte bereits (trufi_core_utils), war hier nur ungenutzt.
           FutureBuilder(
-            future: PackageInfoPlatform.version(),
+            future: PackageInfoPlatform.fullVersion(),
             builder: (context, snapshot) {
               if (!snapshot.hasData) return const SizedBox.shrink();
               return Container(
