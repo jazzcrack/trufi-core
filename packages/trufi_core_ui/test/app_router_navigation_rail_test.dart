@@ -132,4 +132,55 @@ void main() {
       expect(find.byType(NavigationRail), findsOneWidget);
     },
   );
+
+  testWidgets('rotating mid-session (bar -> rail): active tab and its pushed '
+      'sub-route survive the chrome swap', (tester) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final screens = [
+      _StubScreen('a', '/', 'Planen', const Text('Planen-Inhalt')),
+      _StubScreen(
+        'a-detail',
+        '/a-detail',
+        'Detail',
+        const Text('Detail-Inhalt'),
+      ),
+      _StubScreen('b', '/b', 'Gemerkt', const Text('Gemerkt-Inhalt')),
+    ];
+    final router = AppRouter(
+      screens: screens,
+      bottomNavTabs: const [
+        BottomNavTab(icon: Icons.home, screenIds: ['a', 'a-detail']),
+        BottomNavTab(icon: Icons.bookmark, screenIds: ['b']),
+      ],
+      // Mirrors the app's own FpLayout.isTwoPane threshold (>=600px)
+      // instead of a fixed true/false, so the rotation below actually
+      // flips it mid-session.
+      useNavigationRail: (context) => MediaQuery.sizeOf(context).width >= 600,
+    );
+    await tester.pumpWidget(appWithTabs(router));
+    await tester.pumpAndSettle();
+
+    router.router.push('/a-detail');
+    await tester.pumpAndSettle();
+
+    expect(find.text('Detail-Inhalt'), findsOneWidget);
+    expect(find.byType(NavigationBar), findsOneWidget);
+    expect(find.byType(NavigationRail), findsNothing);
+
+    // Drehen: Breite ueberschreitet jetzt die isTwoPane-Schwelle.
+    tester.view.physicalSize = const Size(844, 390);
+    await tester.pumpAndSettle();
+
+    expect(find.byType(NavigationRail), findsOneWidget);
+    expect(find.byType(NavigationBar), findsNothing);
+    // Navigationsstapel erhalten (noch auf /a-detail, nicht auf die
+    // Branch-Wurzel zurueckgesetzt) UND der aktive Reiter unveraendert
+    // (noch Branch "a", nicht etwa auf "Gemerkt" gesprungen).
+    expect(find.text('Detail-Inhalt'), findsOneWidget);
+    expect(find.text('Gemerkt-Inhalt'), findsNothing);
+  });
 }
