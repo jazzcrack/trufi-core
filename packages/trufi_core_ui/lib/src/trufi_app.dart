@@ -93,6 +93,7 @@ class _TrufiAppState extends State<TrufiApp> {
       drawerFooterExtra: widget.config.drawerFooterExtra,
       logo: widget.config.logo,
       bottomNavTabs: widget.config.bottomNavTabs,
+      useNavigationRail: widget.config.useNavigationRail,
     );
     _sharedRouteNotifier = SharedRouteNotifier();
 

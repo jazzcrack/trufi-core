@@ -108,7 +108,15 @@ class NavigationScreen extends StatefulWidget {
     NavigationCubit? externalCubit,
     bool Function(BuildContext context)? hideBottomPanel,
   }) {
-    return Navigator.of(context).push(
+    // fahrplaner.de fork patch (Patch 43, see FAHRPLANER_PATCHES.md):
+    // rootNavigator true - a host using AppConfiguration.bottomNavTabs puts
+    // this call's context inside a StatefulShellRoute branch's OWN nested
+    // Navigator, which only ever occupies that branch's body slot (above a
+    // bottomNavigationBar/NavigationRail, never under it). Pushing on the
+    // app's root Navigator instead makes this screen truly full-screen,
+    // covering that chrome entirely, regardless of which shell style (or
+    // none) the host uses.
+    return Navigator.of(context, rootNavigator: true).push(
       PageRouteBuilder(
         pageBuilder: (context, animation, secondaryAnimation) =>
             NavigationScreen(

@@ -23,6 +23,9 @@ class AppRouter {
   /// [AppConfiguration.bottomNavTabs] for the full contract.
   final List<BottomNavTab>? bottomNavTabs;
 
+  /// See [AppConfiguration.useNavigationRail] for the full contract.
+  final bool Function(BuildContext context)? useNavigationRail;
+
   /// Initial route to navigate to (for web deep linking)
   final String? initialRoute;
 
@@ -37,6 +40,7 @@ class AppRouter {
     this.drawerFooterExtra,
     this.logo,
     this.bottomNavTabs,
+    this.useNavigationRail,
     GlobalKey<NavigatorState>? rootNavigatorKey,
     GlobalKey<NavigatorState>? shellNavigatorKey,
   }) : rootNavigatorKey = rootNavigatorKey ?? GlobalKey<NavigatorState>(),
@@ -172,6 +176,7 @@ class AppRouter {
             navigationShell: navigationShell,
             tabs: tabs,
             screens: screens,
+            useNavigationRail: useNavigationRail,
           );
         },
         branches: branches,
@@ -286,11 +291,15 @@ class AppShellWithBottomNav extends StatelessWidget {
   final List<BottomNavTab> tabs;
   final List<TrufiScreen> screens;
 
+  /// See [AppConfiguration.useNavigationRail] for the full contract.
+  final bool Function(BuildContext context)? useNavigationRail;
+
   const AppShellWithBottomNav({
     super.key,
     required this.navigationShell,
     required this.tabs,
     required this.screens,
+    this.useNavigationRail,
   });
 
   TrufiScreen _rootScreen(BottomNavTab tab) =>
@@ -300,16 +309,47 @@ class AppShellWithBottomNav extends StatelessWidget {
       tab.labelBuilder?.call(context) ??
       _rootScreen(tab).getLocalizedTitle(context);
 
+  void _onDestinationSelected(int index) => navigationShell.goBranch(
+    index,
+    initialLocation: index == navigationShell.currentIndex,
+  );
+
   @override
   Widget build(BuildContext context) {
+    // fahrplaner.de fork patch (Patch 43, see FAHRPLANER_PATCHES.md).
+    if (useNavigationRail?.call(context) ?? false) {
+      return Scaffold(
+        body: Row(
+          children: [
+            SafeArea(
+              right: false,
+              child: NavigationRail(
+                selectedIndex: navigationShell.currentIndex,
+                onDestinationSelected: _onDestinationSelected,
+                minWidth: 84,
+                labelType: NavigationRailLabelType.all,
+                groupAlignment: 0.0,
+                destinations: [
+                  for (final tab in tabs)
+                    NavigationRailDestination(
+                      icon: Icon(tab.icon),
+                      selectedIcon: Icon(tab.activeIcon ?? tab.icon),
+                      label: Text(_label(context, tab)),
+                    ),
+                ],
+              ),
+            ),
+            Expanded(child: navigationShell),
+          ],
+        ),
+      );
+    }
+
     return Scaffold(
       body: navigationShell,
       bottomNavigationBar: NavigationBar(
         selectedIndex: navigationShell.currentIndex,
-        onDestinationSelected: (index) => navigationShell.goBranch(
-          index,
-          initialLocation: index == navigationShell.currentIndex,
-        ),
+        onDestinationSelected: _onDestinationSelected,
         destinations: [
           for (final tab in tabs)
             NavigationDestination(

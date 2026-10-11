@@ -169,6 +169,17 @@ class AppConfiguration {
   /// (unchanged, fully backward compatible).
   final List<BottomNavTab>? bottomNavTabs;
 
+  /// When [bottomNavTabs] is set, lets a host switch that shell's chrome
+  /// from the default bottom `NavigationBar` to a left `NavigationRail`
+  /// (labels always shown, vertically centered) - evaluated from the live
+  /// [BuildContext] on every build, so a host can react to things this
+  /// package doesn't know about (e.g. a landscape/portrait distinction).
+  /// Ignored when [bottomNavTabs] is null/empty (no shell to switch).
+  ///
+  /// Default: null (or the callback returning false) → the bottom
+  /// `NavigationBar` (unchanged, fully backward compatible).
+  final bool Function(BuildContext context)? useNavigationRail;
+
   const AppConfiguration({
     required this.appName,
     this.appTagline,
@@ -187,5 +198,6 @@ class AppConfiguration {
     this.minSplashDuration = Duration.zero,
     this.routingTimeOverride,
     this.bottomNavTabs,
+    this.useNavigationRail,
   });
 }

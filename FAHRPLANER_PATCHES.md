@@ -904,6 +904,53 @@ es gibt nichts zu verschieben).
 Verifiziert: `dart analyze` beider geänderten Dateien sauber, alle 76
 bestehenden `trufi_core_home_screen`-Paket-Tests weiterhin grün.
 
+### 43. `AppConfiguration.useNavigationRail` + `NavigationScreen`-Root-Navigator-Fix
+
+Querformat Q7 (12.10.2026, docs/design/QUERFORMAT.md des Hauptprojekts,
+Abschnitt 3 Regel 2 "NavigationRail im Shell") - kein Genehmigungs-
+Gate im Prompt, direkt umgesetzt.
+
+- **`AppConfiguration.useNavigationRail`** (`bool Function(BuildContext)?`,
+  Default `null`): wie `HomeScreenConfig.resultsBuilder`/`sidePanelStyle`
+  aus dem LIVEN `BuildContext` ausgewertet, nur relevant, wenn
+  `bottomNavTabs` gesetzt ist. `trufi_app.dart` → `AppRouter` →
+  `AppShellWithBottomNav` durchgereicht. In dessen `build()`: liefert der
+  Callback `true`, wird statt `Scaffold(body: navigationShell,
+  bottomNavigationBar: NavigationBar(...))` ein
+  `Scaffold(body: Row([NavigationRail(...), Expanded(navigationShell)]))`
+  gebaut - `minWidth: 84`, `labelType: all`, `groupAlignment: 0.0`
+  (vertikal zentriert), `SafeArea(right: false)` um die Rail (linke
+  Aussenkante respektieren, rechte Innenkante grenzt an den Inhalt).
+  Dieselben `tabs`, derselbe `navigationShell.currentIndex`/`.goBranch()`
+  wie bei der NavigationBar - kein neuer Navigationszustand.
+
+- **Echter Fund beim Umsetzen, per Test bewiesen (nicht nur vermutet):**
+  `NavigationScreen.show()` pusht bisher auf den NÄCHSTEN Navigator
+  (`Navigator.of(context).push(...)`) statt auf den ROOT-Navigator. Bei
+  `AppConfiguration.bottomNavTabs` liegt der aufrufende `context` aber
+  IMMER innerhalb des `StatefulShellRoute`-Branches eigenem, verschachtelten
+  Navigator - ein Push darauf bleibt auf dessen eigene Box beschränkt (den
+  `body:`-Slot OBERHALB der NavigationBar/LINKS neben der Rail), deckt sie
+  NIE ab. Mit einem minimalen Testaufbau (eigener, verschachtelter
+  `Navigator` unter einer persistenten Leiste, ohne go_router-Abhängigkeit)
+  bewiesen: die gepushte Höhe war exakt um die Leistenhöhe (80px) kleiner
+  als der volle Bildschirm. Für eine Rail (84px breit, am linken Rand)
+  wäre das sichtbar schlimmer als bei der NavigationBar (schmaler Streifen
+  unten). Fix: `Navigator.of(context, rootNavigator: true).push(...)` -
+  macht die aktive Fahrt für JEDEN Shell-Stil (Drawer, NavigationBar,
+  jetzt auch NavigationRail) wirklich vollflächig, unabhängig vom
+  aufrufenden Branch. `showFromItinerary()` erbt den Fix automatisch
+  (delegiert an `show()`).
+
+Verifiziert: `dart analyze` aller fünf geänderten Dateien
+(`app_configuration.dart`, `trufi_app.dart`, `app_router.dart`,
+`navigation_screen.dart` + die zwei neuen Testdateien) sauber. Alle
+bestehenden Paket-Tests weiterhin grün (`trufi_core_interfaces`: 5,
+`trufi_core_ui`: 26 [22+4 neu in `app_router_navigation_rail_test.dart`],
+`trufi_core_navigation`: 26 [25+1 neu in
+`navigation_screen_root_navigator_test.dart`, beweist den Root-Navigator-
+Fix end-to-end über eine echte `NavigationScreen.show()`-Geometrieprüfung]).
+
 ## Sync-Strategie: wie künftige Upstream-Änderungen reinkommen
 
 Ziel: Trufi-Core-Updates (neue Features, Bugfixes) weiter bekommen,
