@@ -2599,10 +2599,16 @@ class _HomeScreenState extends State<HomeScreen>
                   ),
               ],
               // Empty state when no results
+              //
+              // fahrplaner.de fork patch (Patch 42): wrapped in
+              // SingleChildScrollView - a floating, margin-inset panel
+              // (WideSidePanelStyle.floating) leaves less height than the
+              // flush default, which could overflow this fixed-size Column
+              // at the compact end of landscape-phone heights.
               if (!hasResults)
                 Expanded(
                   child: Center(
-                    child: Padding(
+                    child: SingleChildScrollView(
                       padding: const EdgeInsets.all(24.0),
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
