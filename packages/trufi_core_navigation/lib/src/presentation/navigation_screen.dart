@@ -65,6 +65,17 @@ class NavigationScreen extends StatefulWidget {
   /// fresh cubit is created and owned/closed by this screen itself.
   final NavigationCubit? externalCubit;
 
+  /// fahrplaner.de fork patch (see FAHRPLANER_PATCHES.md, Patch 40):
+  /// invoked on every build (with THIS screen's own [BuildContext], so it
+  /// reacts live to e.g. a `MediaQuery`/orientation change) to decide
+  /// whether [NavigationBottomPanel] should render at all. Forwarded as
+  /// [NavigationBottomPanel.hidden]. `null` (the default) keeps the panel
+  /// always shown - original behaviour unchanged. Meant for hosts that
+  /// show their own panel elsewhere (e.g. a wide/landscape side panel)
+  /// and need this one fully out of the way instead of just emptied via
+  /// [bottomPanelActionsBuilder].
+  final bool Function(BuildContext context)? hideBottomPanel;
+
   const NavigationScreen({
     super.key,
     required this.route,
@@ -75,6 +86,7 @@ class NavigationScreen extends StatefulWidget {
     this.bottomPanelActionsBuilder,
     this.compactBottomPanel = false,
     this.externalCubit,
+    this.hideBottomPanel,
   });
 
   /// Show the navigation screen.
@@ -94,6 +106,7 @@ class NavigationScreen extends StatefulWidget {
     bottomPanelActionsBuilder,
     bool compactBottomPanel = false,
     NavigationCubit? externalCubit,
+    bool Function(BuildContext context)? hideBottomPanel,
   }) {
     return Navigator.of(context).push(
       PageRouteBuilder(
@@ -107,6 +120,7 @@ class NavigationScreen extends StatefulWidget {
               bottomPanelActionsBuilder: bottomPanelActionsBuilder,
               compactBottomPanel: compactBottomPanel,
               externalCubit: externalCubit,
+              hideBottomPanel: hideBottomPanel,
             ),
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
           return SlideTransition(
@@ -294,6 +308,7 @@ class _NavigationScreenState extends State<NavigationScreen>
           onExitNavigation: () => _exitNavigation(context),
           actionsBuilder: widget.bottomPanelActionsBuilder,
           compact: widget.compactBottomPanel,
+          hidden: widget.hideBottomPanel?.call(context) ?? false,
         );
 
       case NavigationStatus.completed:

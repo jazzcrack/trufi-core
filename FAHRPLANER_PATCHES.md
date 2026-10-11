@@ -785,6 +785,41 @@ Alle achtundzwanzig Patches sind per `dart analyze` (keine neuen Fehler) und
 den bestehenden Testsuiten der jeweils betroffenen Pakete verifiziert
 (alle grün, inkl. neuer Tests für Patches 8/10/11/12/13/16/17/18/19/20/21/22/24/25/26/27).
 
+> **Hinweis (11.10.2026):** Diese Datei wurde zwischen Patch 28 und Patch 40
+> nicht laufend nachgepflegt - die Patches 29-39 (u. a. "Jetzt hier"/
+> Zwischenhalt-Status, `NavigationScreen.externalCubit`, Build-Nummer
+> in der Über-Seite) sind nur als Git-Commits und in
+> `architektur-konzept.md` des Hauptprojekts dokumentiert, nicht hier.
+> Bewusst nicht rückwirkend nachgeholt (zu groß für diesen Schritt),
+> aber hier offen vermerkt statt stillschweigend übersprungen.
+
+### 40. `NavigationBottomPanel`/`NavigationScreen`: `hidden`/`hideBottomPanel`
+
+Querformat Q4 (11.10.2026, docs/design/QUERFORMAT.md des Hauptprojekts,
+Abschnitt 3 "NavigationBottomPanel") - für die aktive Fahrt quer baut die
+App ein eigenes rechtes Seitenpanel statt des unteren Bottom-Panels; das
+Fork-Panel muss dafür vollständig unsichtbar sein (nicht nur leer über
+`actionsBuilder`, da `NavigationBottomPanel` auch ohne Inhalt noch die
+`SafeArea`-Boden-Einfassung belegen würde).
+
+- `NavigationBottomPanel` bekommt `final bool hidden` (Default `false`) -
+  `build()` liefert bei `true` sofort `const SizedBox.shrink()`, vor jeder
+  anderen Logik.
+- `NavigationScreen`/`.show()` bekommen `final bool Function(BuildContext
+  context)? hideBottomPanel` - bewusst eine Callback-Funktion statt eines
+  statischen `bool`, damit sie bei jedem Build mit dem Screen-eigenen
+  `BuildContext` erneut ausgewertet wird (reagiert so live auf einen
+  `MediaQuery`/Drehungswechsel, ohne dass der Fork App-Code wie `FpLayout`
+  kennen oder importieren müsste). `null` (Default) hält das Panel wie
+  bisher immer sichtbar.
+- In `_buildBottomPanel()`: `hidden: widget.hideBottomPanel?.call(context)
+  ?? false` an `NavigationBottomPanel` durchgereicht.
+
+Verifiziert: `dart analyze` beider geänderter Dateien sauber, alle 25
+bestehenden `trufi_core_navigation`-Paket-Tests weiterhin grün (kein
+eigener neuer Test - die Änderung ist eine einzige, triviale Bedingung
+auf Feld-Ebene, analog zu Patch 28s Begründung oben).
+
 ## Sync-Strategie: wie künftige Upstream-Änderungen reinkommen
 
 Ziel: Trufi-Core-Updates (neue Features, Bugfixes) weiter bekommen,

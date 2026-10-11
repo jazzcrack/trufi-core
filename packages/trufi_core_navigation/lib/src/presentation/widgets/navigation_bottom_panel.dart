@@ -26,16 +26,28 @@ class NavigationBottomPanel extends StatelessWidget {
   /// actions row. Defaults to `false` (original behaviour unchanged).
   final bool compact;
 
+  /// fahrplaner.de fork patch (see FAHRPLANER_PATCHES.md, Patch 40): when
+  /// `true`, this panel renders nothing at all (not even the `SafeArea`
+  /// bottom-inset padding) - for hosts that show their OWN panel
+  /// elsewhere (e.g. a side panel in a wide/landscape layout) and need
+  /// this one fully out of the way, not just visually emptied via
+  /// [actionsBuilder]. Defaults to `false` (original behaviour
+  /// unchanged).
+  final bool hidden;
+
   const NavigationBottomPanel({
     super.key,
     required this.state,
     required this.onExitNavigation,
     this.actionsBuilder,
     this.compact = false,
+    this.hidden = false,
   });
 
   @override
   Widget build(BuildContext context) {
+    if (hidden) return const SizedBox.shrink();
+
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
