@@ -69,6 +69,13 @@ class ItineraryDetailContent extends StatelessWidget {
   /// Kapitel 3.67/3.68 im Hauptprojekt).
   final int? currentLegIndex;
 
+  /// fahrplaner.de fork patch (see FAHRPLANER_PATCHES.md, Patch 41,
+  /// Querformat Q5): kompaktere Zeitstrahl-Zeilenhoehe (siehe
+  /// [_PlaceItem]) und eine einzeilige Wecken+Fahrt-starten-Leiste (siehe
+  /// [_StartNavigationBar]) statt der gestapelten Hochformat-Variante.
+  /// `false` (Default) aendert nichts.
+  final bool compact;
+
   const ItineraryDetailContent({
     super.key,
     required this.itinerary,
@@ -81,6 +88,7 @@ class ItineraryDetailContent extends StatelessWidget {
     this.onShare,
     this.onSaveTrip,
     this.currentLegIndex,
+    this.compact = false,
   });
 
   @override
@@ -124,6 +132,7 @@ class ItineraryDetailContent extends StatelessWidget {
           l10n: l10n,
           onRouteTap: onRouteTap,
           currentLegIndex: currentLegIndex,
+          compact: compact,
         ),
       ],
     );
@@ -137,6 +146,7 @@ class ItineraryDetailContent extends StatelessWidget {
         ? _StartNavigationBar(
             itinerary: itinerary,
             onStartNavigation: onStartNavigation!,
+            compact: compact,
           )
         : null;
 
@@ -665,9 +675,16 @@ class _StartNavigationBar extends StatefulWidget {
   final routing.Itinerary itinerary;
   final void Function(bool wakeAtDestination) onStartNavigation;
 
+  /// fahrplaner.de fork patch (see FAHRPLANER_PATCHES.md, Patch 41,
+  /// Querformat Q5): "feste Leiste unten rechts: Wecken-Schalter +
+  /// 'Fahrt starten' in EINER Zeile" statt der gestapelten Hochformat-
+  /// Variante (Wecken-Zeile, dann volle-Breite-Button darunter).
+  final bool compact;
+
   const _StartNavigationBar({
     required this.itinerary,
     required this.onStartNavigation,
+    this.compact = false,
   });
 
   @override
@@ -682,6 +699,76 @@ class _StartNavigationBarState extends State<_StartNavigationBar> {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final destinationName = widget.itinerary.legs.last.toPlace?.name ?? '';
+
+    if (widget.compact) {
+      return SafeArea(
+        top: false,
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+          decoration: BoxDecoration(
+            color: colorScheme.surface,
+            border: Border(top: BorderSide(color: theme.dividerColor)),
+          ),
+          child: Row(
+            children: [
+              // Wecken-Schalter ohne die zweizeilige Erklaerung (kein
+              // Platz neben "Fahrt starten" in einer Zeile) - Tooltip
+              // ersetzt den fehlenden Erklaertext.
+              Tooltip(
+                message: destinationName.isNotEmpty
+                    ? 'Vor dem Aussteigen wecken (kurz vor $destinationName)'
+                    : 'Vor dem Aussteigen wecken',
+                child: InkWell(
+                  onTap: () =>
+                      setState(() => _wakeAtDestination = !_wakeAtDestination),
+                  borderRadius: BorderRadius.circular(12),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.notifications_active_rounded,
+                        size: 20,
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                      Switch(
+                        value: _wakeAtDestination,
+                        onChanged: (value) =>
+                            setState(() => _wakeAtDestination = value),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: SizedBox(
+                  height: 44,
+                  child: FilledButton.icon(
+                    onPressed: () {
+                      HapticFeedback.lightImpact();
+                      widget.onStartNavigation(_wakeAtDestination);
+                    },
+                    icon: const Icon(Icons.navigation_rounded, size: 18),
+                    label: const Text(
+                      'Fahrt starten',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    style: FilledButton.styleFrom(
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
 
     return SafeArea(
       top: false,
@@ -784,11 +871,16 @@ class _VerticalTimeline extends StatelessWidget {
   final void Function(String routeCode)? onRouteTap;
   final int? currentLegIndex;
 
+  /// fahrplaner.de fork patch (see FAHRPLANER_PATCHES.md, Patch 41) -
+  /// durchgereicht an [_PlaceItem], siehe dessen Kopfkommentar.
+  final bool compact;
+
   const _VerticalTimeline({
     required this.itinerary,
     required this.l10n,
     this.onRouteTap,
     this.currentLegIndex,
+    this.compact = false,
   });
 
   @override
@@ -810,6 +902,7 @@ class _VerticalTimeline extends StatelessWidget {
                 isOrigin: true,
                 lineColorBelow: _getLegColor(legs[i], colorScheme),
                 time: legs[i].fromPlace?.departureTime,
+                compact: compact,
               ),
 
             // Leg
@@ -839,6 +932,7 @@ class _VerticalTimeline extends StatelessWidget {
               // Referenz Verbindung.dc.html, die Abfahrtszeiten bleiben
               // dort unveraendert einfach dargestellt).
               delay: legs[i].arrivalDelay,
+              compact: compact,
             ),
 
             // "Umstieg knapp" (Abschnitt 3.2/3.3/3.4-Formel) - nur
@@ -906,6 +1000,15 @@ class _PlaceItem extends StatelessWidget {
   /// `null`/kleiner Verspaetung bleibt die Anzeige wie bisher.
   final Duration? delay;
 
+  /// fahrplaner.de fork patch (see FAHRPLANER_PATCHES.md, Patch 41,
+  /// Querformat Q5): "kompakte Zeilenhöhe 28/36" - schrumpft nur die
+  /// Timeline-Spaltenhöhe dieses Platz-Eintrags (32→28). [_LegItem]
+  /// bleibt bewusst unveraendert (seine Hoehe ist Inhalt-getrieben -
+  /// Badge/Text/Dauer/Zwischenhalte-Umschalter -, eine erzwungene
+  /// Pixel-Hoehe dort braeuchte eine groessere, riskantere Umgestaltung
+  /// fuer begrenzten Zusatznutzen).
+  final bool compact;
+
   const _PlaceItem({
     required this.place,
     required this.dotColor,
@@ -915,6 +1018,7 @@ class _PlaceItem extends StatelessWidget {
     this.lineColorBelow,
     this.time,
     this.delay,
+    this.compact = false,
   });
 
   @override
@@ -930,7 +1034,7 @@ class _PlaceItem extends StatelessWidget {
         // Timeline column - use Icon for destination, CustomPaint for others
         SizedBox(
           width: 20,
-          height: 32,
+          height: compact ? 28 : 32,
           child: isDestination
               ? Stack(
                   alignment: Alignment.center,
@@ -1747,6 +1851,9 @@ class ItineraryDetailScreen extends StatelessWidget {
   /// fahrplaner.de fork patch (see ItineraryDetailContent.currentLegIndex).
   final int? currentLegIndex;
 
+  /// fahrplaner.de fork patch (see ItineraryDetailContent.compact).
+  final bool compact;
+
   const ItineraryDetailScreen({
     super.key,
     required this.itinerary,
@@ -1754,6 +1861,7 @@ class ItineraryDetailScreen extends StatelessWidget {
     this.onRouteTap,
     this.onSaveTrip,
     this.currentLegIndex,
+    this.compact = false,
   });
 
   /// Shows the itinerary detail screen with a slide transition.
@@ -1764,6 +1872,7 @@ class ItineraryDetailScreen extends StatelessWidget {
     void Function(String routeCode)? onRouteTap,
     VoidCallback? onSaveTrip,
     int? currentLegIndex,
+    bool compact = false,
   }) {
     return Navigator.of(context).push(
       PageRouteBuilder(
@@ -1774,6 +1883,7 @@ class ItineraryDetailScreen extends StatelessWidget {
               onRouteTap: onRouteTap,
               onSaveTrip: onSaveTrip,
               currentLegIndex: currentLegIndex,
+              compact: compact,
             ),
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
           return SlideTransition(
@@ -1804,6 +1914,7 @@ class ItineraryDetailScreen extends StatelessWidget {
           onRouteTap: onRouteTap,
           onSaveTrip: onSaveTrip,
           currentLegIndex: currentLegIndex,
+          compact: compact,
         ),
       ),
     );

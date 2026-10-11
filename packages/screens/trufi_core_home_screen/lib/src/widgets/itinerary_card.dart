@@ -41,51 +41,59 @@ class ItineraryCard extends StatelessWidget {
     final theme = Theme.of(context);
     final l10n = HomeScreenLocalizations.of(context);
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-      child: Material(
-        color: isSelected
-            ? theme.colorScheme.primaryContainer.withValues(alpha: 0.3)
-            : theme.cardColor,
-        borderRadius: BorderRadius.circular(16),
-        child: InkWell(
-          onTap: () {
-            HapticFeedback.selectionClick();
-            onTap();
-          },
+    // fahrplaner.de fork patch (see FAHRPLANER_PATCHES.md, Patch 41):
+    // exposes the already-existing isSelected visual state (the 2px
+    // border below) to assistive technology too - a host rendering
+    // several of these cards side by side (list+detail split) needs this
+    // for the selected card to actually announce as selected.
+    return Semantics(
+      selected: isSelected,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        child: Material(
+          color: isSelected
+              ? theme.colorScheme.primaryContainer.withValues(alpha: 0.3)
+              : theme.cardColor,
           borderRadius: BorderRadius.circular(16),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: isSelected
-                    ? theme.colorScheme.primary
-                    : theme.dividerColor.withValues(alpha: 0.5),
-                width: isSelected ? 2 : 1,
+          child: InkWell(
+            onTap: () {
+              HapticFeedback.selectionClick();
+              onTap();
+            },
+            borderRadius: BorderRadius.circular(16),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: isSelected
+                      ? theme.colorScheme.primary
+                      : theme.dividerColor.withValues(alpha: 0.5),
+                  width: isSelected ? 2 : 1,
+                ),
               ),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Top row: time range, duration, transfers, Go button
-                _buildHeaderRow(context, theme, l10n),
-                const SizedBox(height: 10),
-                // Proportional per-leg duration bar (Redesign Oktober
-                // 2026, docs/design/HANDOFF.md Abschnitt 3.2)
-                _buildSegmentBar(context),
-                const SizedBox(height: 8),
-                // "in N Min ab X" + Echtzeit-Chips je Transit-Abschnitt
-                _buildRealtimeRow(context, theme, l10n),
-                if (_tightTransferWarning() != null) ...[
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Top row: time range, duration, transfers, Go button
+                  _buildHeaderRow(context, theme, l10n),
+                  const SizedBox(height: 10),
+                  // Proportional per-leg duration bar (Redesign Oktober
+                  // 2026, docs/design/HANDOFF.md Abschnitt 3.2)
+                  _buildSegmentBar(context),
                   const SizedBox(height: 8),
-                  _buildTransferWarningRow(theme),
+                  // "in N Min ab X" + Echtzeit-Chips je Transit-Abschnitt
+                  _buildRealtimeRow(context, theme, l10n),
+                  if (_tightTransferWarning() != null) ...[
+                    const SizedBox(height: 8),
+                    _buildTransferWarningRow(theme),
+                  ],
+                  const SizedBox(height: 8),
+                  // Bottom row: Distance, walking, and details button
+                  _buildFooterRow(theme, l10n),
                 ],
-                const SizedBox(height: 8),
-                // Bottom row: Distance, walking, and details button
-                _buildFooterRow(theme, l10n),
-              ],
+              ),
             ),
           ),
         ),

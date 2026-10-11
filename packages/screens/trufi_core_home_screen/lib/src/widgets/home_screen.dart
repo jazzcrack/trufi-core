@@ -1713,6 +1713,20 @@ class _HomeScreenState extends State<HomeScreen>
             final hasResults =
                 state.plan != null || state.isLoading || state.hasError;
 
+            // fahrplaner.de fork patch (see FAHRPLANER_PATCHES.md, Patch
+            // 41): a host-supplied resultsBuilder COMPLETELY replaces this
+            // screen's own map+results rendering below, for hosts that
+            // want a fundamentally different results layout (e.g. no map
+            // at all). Checked before the LayoutBuilder/Stack further
+            // down, which is skipped entirely when this returns non-null.
+            if (hasResults) {
+              final override = widget.config.resultsBuilder?.call(
+                context,
+                state,
+              );
+              if (override != null) return override;
+            }
+
             return LayoutBuilder(
               builder: (context, constraints) {
                 // Responsive layout: use side panel for wide screens (>=600px)

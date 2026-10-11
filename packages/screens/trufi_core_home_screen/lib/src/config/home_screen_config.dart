@@ -3,6 +3,8 @@ import 'package:trufi_core_maps/trufi_core_maps.dart';
 import 'package:trufi_core_poi_layers/trufi_core_poi_layers.dart';
 import 'package:trufi_core_search_locations/trufi_core_search_locations.dart';
 
+import '../models/route_planner_state.dart';
+
 /// Configuration for the Home Screen module.
 ///
 /// Routing configuration is provided via RoutingEngineManager in the app's
@@ -84,6 +86,24 @@ class HomeScreenConfig {
   /// additive hook, `null` (the default) changes nothing.
   final Widget Function(BuildContext context)? mapOverlayBuilder;
 
+  /// Optional, COMPLETE replacement of the screen's own map+results
+  /// rendering - for hosts that want a fundamentally different results
+  /// layout (e.g. a list+detail split with no map at all) instead of the
+  /// built-in map+bottom-sheet (narrow)/map+side-panel (wide) rendering.
+  ///
+  /// Called with the current [RoutePlannerState] only while there ARE
+  /// results to show (`state.plan != null || state.isLoading ||
+  /// state.hasError`) - never while the search itself is still empty, so
+  /// a host that only wants to override the RESULTS phase doesn't also
+  /// have to reimplement the empty/search state. Returning `null` for a
+  /// given state (e.g. the host only wants to override on wide screens)
+  /// falls back to the screen's own rendering for that build.
+  ///
+  /// fahrplaner.de fork patch (see FAHRPLANER_PATCHES.md, Patch 41) -
+  /// additive hook, `null` (the default) changes nothing.
+  final Widget? Function(BuildContext context, RoutePlannerState state)?
+  resultsBuilder;
+
   const HomeScreenConfig({
     this.chooseLocationZoom = 16.0,
     this.searchService,
@@ -98,5 +118,6 @@ class HomeScreenConfig {
     this.showMapTypeButton = true,
     this.belowSearchBuilder,
     this.mapOverlayBuilder,
+    this.resultsBuilder,
   });
 }

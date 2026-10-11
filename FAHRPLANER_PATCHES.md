@@ -820,6 +820,43 @@ bestehenden `trufi_core_navigation`-Paket-Tests weiterhin grün (kein
 eigener neuer Test - die Änderung ist eine einzige, triviale Bedingung
 auf Feld-Ebene, analog zu Patch 28s Begründung oben).
 
+### 41. `HomeScreenConfig.resultsBuilder` + `ItineraryCard`/`ItineraryDetailContent`-Ergänzungen
+
+Querformat Q5 (11.10.2026, docs/design/QUERFORMAT.md des Hauptprojekts,
+Abschnitt 2.2 "Verbindungen + Detail") - vorab per Nutzer-Rückfrage
+geklärt (zwei Varianten vorgelegt, "App übernimmt komplett" gewählt):
+die Referenzvorlage für Verbindungen quer zeigt GAR KEINE Karte, nur
+Liste(330)+Detail(Rest) nebeneinander - die bestehende `isWideScreen`-
+Seitenpanel-Logik in `home_screen.dart` passt dafür nicht (sie tauscht
+Liste/Detail innerhalb EINER Fläche aus, zeigt beide nie gleichzeitig,
+und behält immer eine Karte daneben).
+
+- **`HomeScreenConfig.resultsBuilder`** (`Widget? Function(BuildContext,
+  RoutePlannerState)?`, Default `null`): wird in `home_screen.dart`s
+  `build()` direkt nach der Berechnung von `hasResults` aufgerufen - gibt
+  er ein Widget zurück, ERSETZT das die GESAMTE übrige Rendering-Logik
+  dieses Builds (Karte, Bottom-Sheet, Side-Panel) komplett; nur solange
+  tatsächlich Ergebnisse/ein Ladezustand/ein Fehler vorliegen
+  (`hasResults`), nie auf dem leeren Such-Screen. `null` (Default, oder
+  wenn der Callback selbst `null` liefert) ändert nichts.
+- **`ItineraryCard`**: `Semantics(selected: isSelected, …)`-Wrapper
+  ergänzt - das bereits bestehende `isSelected` (2px-Markenrand) war
+  bisher nur visuell, nicht für assistive Technologien erkennbar.
+- **`ItineraryDetailContent`/`ItineraryDetailScreen`**: neuer `compact`-
+  Parameter (Default `false`):
+  - `_PlaceItem`s Timeline-Spaltenhöhe 32→28px. `_LegItem` bewusst
+    UNVERÄNDERT gelassen - seine Höhe ist inhaltsgetrieben (Badge/Text/
+    Dauer/Zwischenhalte-Umschalter), eine erzwungene Pixelhöhe bräuchte
+    eine größere, riskantere Umgestaltung für begrenzten Zusatznutzen.
+  - `_StartNavigationBar` bekommt einen komplett separaten `compact`-
+    Zweig: EINE Zeile (Wecken-Icon+Switch mit Tooltip statt Erklärtext,
+    dann `Expanded` "Fahrt starten"-Button, 44px statt 54px hoch) statt
+    der gestapelten Hochformat-Variante (Erklärzeile, dann volle Breite
+    darunter).
+
+Verifiziert: `dart analyze` aller vier geänderten Dateien sauber, alle 76
+bestehenden `trufi_core_home_screen`-Paket-Tests weiterhin grün.
+
 ## Sync-Strategie: wie künftige Upstream-Änderungen reinkommen
 
 Ziel: Trufi-Core-Updates (neue Features, Bugfixes) weiter bekommen,
