@@ -788,8 +788,120 @@ class _HomeScreenState extends State<HomeScreen>
             }
             return null;
           },
+          onAddHouseNumber: (street) =>
+              _resolveHouseNumber(street, searchLocationsCubit, l10n),
         ),
       ),
+    );
+  }
+
+  /// "+ Hausnummer" (fahrplaner.de fork patch, siehe FAHRPLANER_PATCHES.md,
+  /// Nutzer-Fund: nach einem Straßen-Treffer eine Hausnummer zu ergänzen
+  /// war muehsam). Fragt die Hausnummer per Bottom-Sheet ab, versucht dann
+  /// EINE verfeinerte Freitext-Anfrage (Straße+Hausnummer+Ort) ueber
+  /// denselben Suchdienst - liefert die eine echte Adresse, ist die Sache
+  /// erledigt. Findet OSM dafuer keinen Hausnummern-Knoten (bestaetigter
+  /// Realfall), faellt es auf den bereits bestehenden Kartenpicker zurueck,
+  /// vorzentriert auf die Straße statt auf [MapEngineManager.defaultCenter]
+  /// - [_resolvePickedLocation] geocodiert das Ergebnis bereits zurueck.
+  Future<SearchLocation?> _resolveHouseNumber(
+    SearchLocation street,
+    SearchLocationsCubit searchLocationsCubit,
+    HomeScreenLocalizations l10n,
+  ) async {
+    final houseNumber = await _showHouseNumberSheet(street);
+    if (houseNumber == null || houseNumber.isEmpty) return null;
+    if (!mounted) return null;
+
+    final streetLocality = street.address;
+    final composedQuery = streetLocality != null && streetLocality.isNotEmpty
+        ? '${street.displayName} $houseNumber, $streetLocality'
+        : '${street.displayName} $houseNumber';
+
+    try {
+      final refined = await searchLocationsCubit.searchLocationService.search(
+        composedQuery,
+      );
+      final precise = refined
+          .where((r) => r.locationType == SearchLocationType.address)
+          .firstOrNull;
+      if (precise != null) return precise;
+    } catch (_) {
+      // Anfrage fehlgeschlagen (z. B. Netzwerk) - faellt unten auf den
+      // Kartenpicker zurueck, statt den Rider ganz ohne Ergebnis zu lassen.
+    }
+
+    if (!mounted) return null;
+    final result = await Navigator.push<MapLocationResult>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ChooseOnMapScreen(
+          configuration: ChooseOnMapConfiguration(
+            title: 'Punkt für Hausnummer $houseNumber setzen',
+            initialLatitude: street.latitude,
+            initialLongitude: street.longitude,
+            initialZoom: widget.config.chooseLocationZoom,
+            confirmButtonText: l10n.confirmLocation,
+          ),
+        ),
+      ),
+    );
+    if (result == null) return null;
+    return _resolvePickedLocation(result.latitude, result.longitude);
+  }
+
+  /// Leichtgewichtiger Bottom-Sheet statt eines Vollbild-Flows - der Rider
+  /// hat die Straße bereits gefunden, es fehlt nur noch eine Zahl.
+  Future<String?> _showHouseNumberSheet(SearchLocation street) {
+    final controller = TextEditingController();
+    return showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      builder: (sheetContext) {
+        return Padding(
+          padding: EdgeInsets.only(
+            left: 20,
+            right: 20,
+            top: 20,
+            bottom: 20 + MediaQuery.of(sheetContext).viewInsets.bottom,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Hausnummer zu "${street.displayName}" hinzufügen',
+                style: Theme.of(
+                  sheetContext,
+                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: controller,
+                autofocus: true,
+                keyboardType: TextInputType.text,
+                textCapitalization: TextCapitalization.none,
+                decoration: const InputDecoration(
+                  labelText: 'Hausnummer',
+                  border: OutlineInputBorder(),
+                ),
+                onSubmitted: (value) =>
+                    Navigator.of(sheetContext).pop(value.trim()),
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: FilledButton(
+                  onPressed: () =>
+                      Navigator.of(sheetContext).pop(controller.text.trim()),
+                  child: const Text('Weiter'),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 

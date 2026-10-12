@@ -1016,6 +1016,56 @@ anzeigen könnte.
 Verifiziert: `dart analyze` sauber, 82 bestehende + 1 neuer
 `trufi_core_home_screen`-Paket-Test grün.
 
+### 46. `LocationSearchScreen.onAddHouseNumber` + `HomeScreen`-Verfeinerung/Kartenpicker-Fallback
+
+Echter Nutzer-Fund (Hausnummer-Entwurfsrunde, fahrplaner.de): ein
+Straßen-Suchtreffer ohne Hausnummer (z. B. "Schleusenstraße,
+Bremerhaven") war mühsam nachzubessern. Nutzer-Beobachtung aus Google
+Maps/Android (Vorbild für die gewählte Interaktion): dort gibt es bei
+Straßen-ohne-Hausnummer-Treffern direkt im Ergebnis einen "Hausnummer
+hinzufügen"-Button - nicht erst nach Auswahl des Treffers.
+
+- **`location_search_screen.dart`**: neuer optionaler
+  `LocationSearchScreen.onAddHouseNumber` (`Future<SearchLocation?>
+  Function(SearchLocation street)?`). Jeder Treffer mit `locationType ==
+  street` (ohne Drilldown-Pfeil, siehe Patch "Street → corners") bekommt
+  jetzt eine Trailing-Aktion ("+ Hausnummer"), wenn dieser Callback
+  gesetzt ist - erkannt über Nominatims eigene `class`/`type`-Klassifi-
+  kation (bereits vorhanden), nicht über ein Regex auf den fertigen
+  Anzeigetext. Liefert der Callback eine `SearchLocation`, schließt der
+  Suchscreen damit; liefert er `null` (abgebrochen), bleibt die
+  Ergebnisliste offen (`_handleAddHouseNumber()`).
+- **`home_screen.dart`**: `_pushLocationSearch()`s `LocationSearchScreen`
+  bekommt jetzt `onAddHouseNumber: _resolveHouseNumber`. Ablauf: (1)
+  leichtgewichtiges Bottom-Sheet fragt die Hausnummer ab
+  (`_showHouseNumberSheet`); (2) EIN verfeinerter Freitext-Suchaufruf
+  (Straße + Hausnummer + Ort, aus `displayName`/`address` zusammen-
+  gesetzt - kein Modell-Umbau nötig) über denselben Suchdienst; liefert
+  die Antwort einen `locationType == address`-Treffer, wird dieser direkt
+  verwendet; (3) **OSM-Lücken-Fallback** (bestätigter Realfall: manche
+  Straßen haben in OSM keinen Hausnummern-Knoten): sonst Fallback auf
+  den bereits bestehenden Kartenpicker (`ChooseOnMapScreen`, derselbe wie
+  bei "Auf der Karte wählen"), jetzt aber vorzentriert auf die Straßen-
+  Koordinaten statt `MapEngineManager.defaultCenter`, mit erklärendem
+  Titel statt eines generischen. Wiederverwendet `_resolvePickedLocation()`
+  (bereits vorhanden, geocodiert das Kartenergebnis bereits zurück - KEIN
+  fehlender Reverse-Geocoding-Schritt hier, anders als zunächst vermutet
+  für die App-eigene `_MapPickerScreen` in `places_screen.dart`, die
+  separat app-seitig behoben wurde).
+- **Bewusst NICHT umgesetzt:** ein voller Struktur-Editor (getrennte
+  Felder für Straße/Hausnummer/PLZ/Ort) - das Datenmodell
+  (`SearchLocation`) trägt das nicht sauber, und die recherchierte
+  UX-Praxis (Geoapify/AWS Location/Mapbox Address-Autofill) favorisiert
+  für genau diesen "Daten sind dünn"-Fall die Karten-Verfeinerung
+  gegenüber Struktur-Editoren.
+
+Verifiziert: `dart analyze` sauber (beide Pakete). `trufi_core_search_locations`:
+169 bestehende + 5 neue Tests grün (die 19 fehlschlagenden Integrationstests
+sind bekannte, rein netzwerkabhängige Live-API-Tests gegen Photon/Nominatim,
+unabhängig von dieser Änderung). `trufi_core_home_screen`: 82 Tests weiterhin
+grün (kein neuer Test dort nötig, die neue Logik ruft nur bereits getestete
+Bausteine auf).
+
 ## Sync-Strategie: wie künftige Upstream-Änderungen reinkommen
 
 Ziel: Trufi-Core-Updates (neue Features, Bugfixes) weiter bekommen,

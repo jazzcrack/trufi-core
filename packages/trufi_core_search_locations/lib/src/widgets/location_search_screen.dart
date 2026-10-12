@@ -83,6 +83,18 @@ class LocationSearchScreen extends StatefulWidget {
   /// Callback to open map picker.
   final Future<SearchLocation?> Function()? onChooseOnMap;
 
+  /// fahrplaner.de fork patch (siehe FAHRPLANER_PATCHES.md, Nutzer-Fund:
+  /// Hausnummer-Eingabe nach einem Straßen-Suchtreffer ist mühsam). Wenn
+  /// gesetzt, bekommt jeder Treffer mit `locationType == street` (ohne
+  /// Drilldown-Pfeil, siehe [canDrillDown]) eine zusätzliche Trailing-
+  /// Aktion "+ Hausnummer" (Google-Maps-Vorbild: direkt im Ergebnis, nicht
+  /// erst nach Auswahl). Liefert der Callback eine [SearchLocation],
+  /// schließt dieser Screen damit (statt mit dem ursprünglichen
+  /// Straßen-Treffer) - liefert er `null` (z. B. abgebrochen), bleibt die
+  /// Ergebnisliste unverändert offen.
+  final Future<SearchLocation?> Function(SearchLocation street)?
+  onAddHouseNumber;
+
   /// Search service to use (Photon, Nominatim, or custom).
   final SearchLocationService searchService;
 
@@ -96,6 +108,7 @@ class LocationSearchScreen extends StatefulWidget {
     this.myPlacesProvider,
     this.onYourLocation,
     this.onChooseOnMap,
+    this.onAddHouseNumber,
     required this.searchService,
     this.configuration = const LocationSearchScreenConfiguration(),
   });
@@ -123,8 +136,7 @@ class _LocationSearchScreenState extends State<LocationSearchScreen>
   SearchLocation? _drillDownParent;
   List<SearchLocation> _drillDownResults = [];
   bool _isDrillingDown = false;
-  final TextEditingController _cornerFilterController =
-      TextEditingController();
+  final TextEditingController _cornerFilterController = TextEditingController();
   String _cornerFilter = '';
 
   @override
@@ -148,8 +160,9 @@ class _LocationSearchScreenState extends State<LocationSearchScreen>
     // is an inherited dependency, so a language switch re-fires this.
     final service = widget.searchService;
     if (service is LanguageAwareSearch) {
-      (service as LanguageAwareSearch).searchLanguage =
-          Localizations.localeOf(context).languageCode;
+      (service as LanguageAwareSearch).searchLanguage = Localizations.localeOf(
+        context,
+      ).languageCode;
     }
   }
 
@@ -249,6 +262,19 @@ class _LocationSearchScreenState extends State<LocationSearchScreen>
       _isDrillingDown = false;
       _cornerFilter = '';
     });
+  }
+
+  /// "+ Hausnummer"-Trailing-Aktion (siehe [LocationSearchScreen.onAddHouseNumber]
+  /// weiter oben) - delegiert die eigentliche Verfeinerung/den Kartenpicker-
+  /// Fallback komplett an den Host (`home_screen.dart`), der allein Zugriff
+  /// auf `SearchLocationsCubit`/`ChooseOnMapScreen` hat. Schließt diesen
+  /// Screen nur, wenn der Host tatsächlich ein Ergebnis liefert.
+  Future<void> _handleAddHouseNumber(SearchLocation street) async {
+    HapticFeedback.selectionClick();
+    final result = await widget.onAddHouseNumber!(street);
+    if (result != null && mounted) {
+      Navigator.pop(context, result);
+    }
   }
 
   /// Corners matching the corner filter, accent- and case-insensitively.
@@ -394,8 +420,7 @@ class _LocationSearchScreenState extends State<LocationSearchScreen>
                   padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
                   child: TextField(
                     controller: _cornerFilterController,
-                    onChanged: (value) =>
-                        setState(() => _cornerFilter = value),
+                    onChanged: (value) => setState(() => _cornerFilter = value),
                     decoration: InputDecoration(
                       hintText: l10n.searchCornersHint,
                       prefixIcon: const Icon(Icons.search_rounded),
@@ -413,38 +438,35 @@ class _LocationSearchScreenState extends State<LocationSearchScreen>
                   child: _isDrillingDown
                       ? const Center(child: CircularProgressIndicator())
                       : _filteredCorners.isEmpty
-                          ? _EmptySearchResults(
-                              text: config.noResultsText ??
-                                  l10n.noResultsFound,
-                            )
-                          : ListView.builder(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
+                      ? _EmptySearchResults(
+                          text: config.noResultsText ?? l10n.noResultsFound,
+                        )
+                      : ListView.builder(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          itemCount: _filteredCorners.length,
+                          itemBuilder: (context, index) {
+                            final corner = _filteredCorners[index];
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: 8),
+                              child: _ModernLocationTile(
+                                location: corner,
+                                displayNameOverride: _cornerLabel(corner),
+                                // The header already names the street's
+                                // municipality; a corner only adds its
+                                // own when it differs (a boundary
+                                // corner, "Cercado / Sacaba").
+                                showAddress:
+                                    corner.address != _drillDownParent!.address,
+                                icon: Icons.fork_right_rounded,
+                                iconColor: colorScheme.primary,
+                                onTap: () {
+                                  HapticFeedback.selectionClick();
+                                  Navigator.pop(context, corner);
+                                },
                               ),
-                              itemCount: _filteredCorners.length,
-                              itemBuilder: (context, index) {
-                                final corner = _filteredCorners[index];
-                                return Padding(
-                                  padding: const EdgeInsets.only(bottom: 8),
-                                  child: _ModernLocationTile(
-                                    location: corner,
-                                    displayNameOverride: _cornerLabel(corner),
-                                    // The header already names the street's
-                                    // municipality; a corner only adds its
-                                    // own when it differs (a boundary
-                                    // corner, "Cercado / Sacaba").
-                                    showAddress: corner.address !=
-                                        _drillDownParent!.address,
-                                    icon: Icons.fork_right_rounded,
-                                    iconColor: colorScheme.primary,
-                                    onTap: () {
-                                      HapticFeedback.selectionClick();
-                                      Navigator.pop(context, corner);
-                                    },
-                                  ),
-                                );
-                              },
-                            ),
+                            );
+                          },
+                        ),
                 ),
               ],
             ),
@@ -617,6 +639,18 @@ class _LocationSearchScreenState extends State<LocationSearchScreen>
                                 ? Icon(
                                     Icons.chevron_right_rounded,
                                     color: colorScheme.onSurfaceVariant,
+                                  )
+                                : (widget.onAddHouseNumber != null &&
+                                      location.locationType ==
+                                          SearchLocationType.street)
+                                ? IconButton(
+                                    tooltip: 'Hausnummer hinzufügen',
+                                    icon: Icon(
+                                      Icons.add_location_alt_outlined,
+                                      color: colorScheme.primary,
+                                    ),
+                                    onPressed: () =>
+                                        _handleAddHouseNumber(location),
                                   )
                                 : null,
                           ),
