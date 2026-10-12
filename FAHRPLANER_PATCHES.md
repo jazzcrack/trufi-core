@@ -951,6 +951,32 @@ bestehenden Paket-Tests weiterhin grün (`trufi_core_interfaces`: 5,
 `navigation_screen_root_navigator_test.dart`, beweist den Root-Navigator-
 Fix end-to-end über eine echte `NavigationScreen.show()`-Geometrieprüfung]).
 
+### 44. `_DepartureTimeChip`/`_FewerTransfersChip` 44px + `HomeScreenConfig.attributionButtonPosition`/`attributionButtonMargin`
+
+Querformat-Q8-Abgleich (fahrplaner.de, 12.10.2026, siehe
+architektur-konzept.md Kapitel 3.83) - zwei eigene Lücken gegen
+`docs/design/QUERFORMAT.md` gefunden und behoben, kein Nutzer-Auftrag,
+direkt umgesetzt.
+
+- **`_DepartureTimeChip`/`_FewerTransfersChip`** (`home_screen.dart`):
+  vertikales Padding 8→12 - die bisherige Tipphöhe lag bei ca. 36px,
+  unter Grundregel 5s 44px-Minimum. Per neuem Test gemessen statt nur
+  behauptet (`test/chip_tap_target_test.dart`, rendert den vollen
+  `HomeScreen`-Baum mit einer echten Verbindung, misst die Material-
+  Höhe beider Chips).
+- **`HomeScreenConfig.attributionButtonPosition`/`attributionButtonMargin`**
+  (`BuildContext`-Callback, wie `sidePanelStyle`/`cameraTargetAdjuster`):
+  `_buildMap()` reichte diese bisher NIE an `engine.buildMap()` durch -
+  anders als eine Navigationskarte (die das schon lange tut) hatte die
+  Home-Screen-Karte keine Möglichkeit, das native Attribution-Logo aus
+  dem Weg eines eigenen Overlays (z. B. Patch 42s schwebendes
+  Querformat-Panel) zu räumen. `maplibre_gl` dafür von
+  `dev_dependencies` nach `dependencies` verschoben (wird jetzt auch in
+  echtem Lib-Code gebraucht, nicht nur in Tests).
+
+Verifiziert: `dart analyze` aller geänderten Dateien sauber, 81
+bestehende + 1 neuer `trufi_core_home_screen`-Paket-Test grün.
+
 ## Sync-Strategie: wie künftige Upstream-Änderungen reinkommen
 
 Ziel: Trufi-Core-Updates (neue Features, Bugfixes) weiter bekommen,

@@ -32,16 +32,18 @@ dependencies:
   trufi_core_poi_layers: ^1.0.0
   share_plus: ^13.0.0
   go_router: ^17.0.1
+  # fahrplaner.de fork patch (see FAHRPLANER_PATCHES.md): only for the
+  # AttributionButtonPosition type on HomeScreenConfig, passed straight
+  # through to ITrufiMapEngine.buildMap() (trufi_core_maps) unchanged.
+  # Moved here from dev_dependencies (04.10.2026) now that it's used in
+  # real lib code too, not just restored_plan_map_test.dart's fake engine.
+  maplibre_gl: ^0.26.2
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
   mocktail: ^1.0.4
-  # fahrplaner.de fork patch (04.10.2026, siehe FAHRPLANER_PATCHES.md): nur
-  # fuer den AttributionButtonPosition-Typ in restored_plan_map_test.darts
-  # Fake-Engine-Signatur noetig (ITrufiMapEngine-Override).
-  maplibre_gl: ^0.26.2
 
 flutter:
   generate: true

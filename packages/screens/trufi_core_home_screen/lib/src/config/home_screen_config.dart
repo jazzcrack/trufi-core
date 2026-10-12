@@ -1,5 +1,6 @@
 import 'package:flutter/widgets.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:maplibre_gl/maplibre_gl.dart' show AttributionButtonPosition;
 import 'package:trufi_core_maps/trufi_core_maps.dart';
 import 'package:trufi_core_poi_layers/trufi_core_poi_layers.dart';
 import 'package:trufi_core_search_locations/trufi_core_search_locations.dart';
@@ -181,6 +182,27 @@ class HomeScreenConfig {
   final LatLng Function(BuildContext context, LatLng target, double zoom)?
   cameraTargetAdjuster;
 
+  /// Position of the native map attribution control, evaluated from the
+  /// live [BuildContext] like [sidePanelStyle]/[cameraTargetAdjuster] so a
+  /// host can move it out from under its own overlaid UI (e.g. a floating
+  /// side panel). Passed straight through to
+  /// [ITrufiMapEngine.buildMap]'s `attributionButtonPosition` - this
+  /// screen otherwise never sets it, unlike the equivalent parameter on
+  /// a navigation map. Returning `null` (the default) keeps the engine's
+  /// own default position.
+  ///
+  /// fahrplaner.de fork patch (see FAHRPLANER_PATCHES.md) - additive
+  /// hook, `null` (the default) changes nothing.
+  final AttributionButtonPosition? Function(BuildContext context)?
+  attributionButtonPosition;
+
+  /// Margin for the native map attribution control. See
+  /// [attributionButtonPosition] for the full contract.
+  ///
+  /// fahrplaner.de fork patch (see FAHRPLANER_PATCHES.md) - additive
+  /// hook, `null` (the default) changes nothing.
+  final Offset? Function(BuildContext context)? attributionButtonMargin;
+
   const HomeScreenConfig({
     this.chooseLocationZoom = 16.0,
     this.searchService,
@@ -198,5 +220,7 @@ class HomeScreenConfig {
     this.resultsBuilder,
     this.sidePanelStyle,
     this.cameraTargetAdjuster,
+    this.attributionButtonPosition,
+    this.attributionButtonMargin,
   });
 }

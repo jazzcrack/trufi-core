@@ -1688,6 +1688,15 @@ class _HomeScreenState extends State<HomeScreen>
       onMapClick: _onMapClick,
       onMapLongClick: _onMapLongPress,
       layers: _buildLayers(),
+      // fahrplaner.de fork patch (see FAHRPLANER_PATCHES.md): this screen
+      // otherwise never passes these through at all, unlike a navigation
+      // map - see HomeScreenConfig.attributionButtonPosition doc comment.
+      attributionButtonPosition: widget.config.attributionButtonPosition?.call(
+        context,
+      ),
+      attributionButtonMargin: widget.config.attributionButtonMargin?.call(
+        context,
+      ),
     );
   }
 
@@ -3290,9 +3299,12 @@ class _FewerTransfersChip extends StatelessWidget {
                 button: true,
                 toggled: active,
                 child: Container(
+                  // fahrplaner.de fork patch (see FAHRPLANER_PATCHES.md):
+                  // 12 instead of 8, same reasoning as _DepartureTimeChip
+                  // above (44px tap-target minimum).
                   padding: const EdgeInsets.symmetric(
                     horizontal: 12,
-                    vertical: 8,
+                    vertical: 12,
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -3354,9 +3366,13 @@ class _DepartureTimeChip extends StatelessWidget {
               onTap: () => _showTimePicker(context, timeMode, dateTime),
               borderRadius: BorderRadius.circular(20),
               child: Container(
+                // fahrplaner.de fork patch (see FAHRPLANER_PATCHES.md):
+                // 12 instead of 8 - the old padding left the tappable area
+                // under the 44px minimum (docs/design/QUERFORMAT.md
+                // Grundregel 5, found during the Querformat Q8 gap review).
                 padding: const EdgeInsets.symmetric(
                   horizontal: 12,
-                  vertical: 8,
+                  vertical: 12,
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
