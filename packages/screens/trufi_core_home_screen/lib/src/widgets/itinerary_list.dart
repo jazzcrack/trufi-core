@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -55,6 +57,24 @@ List<routing.ItineraryGroup>? _groupsRankedByFewerTransfers(
     return a.representative.startTime.compareTo(b.representative.startTime);
   });
   return ranked;
+}
+
+/// Index des Beins, in dem [now] faellt - fahrplaner.de fork patch (siehe
+/// FAHRPLANER_PATCHES.md, Nutzer-Fund "Ganze Fahrt zeigt Fahrplan statt
+/// Live"). Kleine Eigenkopie von itinerary_live_refresh.dart's
+/// currentLegIndexAt() im Hauptprojekt-Repo (der Fork kann das
+/// Hauptprojekt nicht importieren, siehe Patch 23) - haelt dieselbe
+/// Zeitfenster-Logik: waehrend einer Umstiegs-Luecke zeigt es bereits das
+/// NAECHSTE Bein als "aktuell", `null` vor dem ersten bzw. nach dem
+/// letzten Bein oder bei leerer Liste.
+int? _currentLegIndexAt(List<routing.Leg> legs, DateTime now) {
+  if (legs.isEmpty) return null;
+  if (now.isBefore(legs.first.startTime)) return null;
+  if (!now.isBefore(legs.last.endTime)) return null;
+  for (var i = 0; i < legs.length; i++) {
+    if (now.isBefore(legs[i].endTime)) return i;
+  }
+  return null;
 }
 
 /// List of itinerary options with inline detail view.
@@ -124,6 +144,12 @@ class _ItineraryListState extends State<ItineraryList> {
   routing.Itinerary? _detailItinerary;
   bool _hasAutoShownDetail = false;
 
+  /// fahrplaner.de fork patch (siehe FAHRPLANER_PATCHES.md, Nutzer-Fund
+  /// "Ganze Fahrt zeigt Fahrplan statt Live"): pollt Verspaetungen fuer die
+  /// gerade offene Detailansicht nach, solange sie sichtbar ist - siehe
+  /// [_showDetails]/[_hideDetails]/[_refreshDetailItineraryDelays].
+  Timer? _delayRefreshTimer;
+
   // "Fahrplan heißt..."-Hinweis (Redesign Oktober 2026, docs/design/
   // HANDOFF.md Abschnitt 3.2): einmalig erklären, danach dauerhaft
   // wegklickbar. `null` waehrend des (sehr kurzen) asynchronen Ladens
@@ -158,6 +184,7 @@ class _ItineraryListState extends State<ItineraryList> {
       _detailItinerary = itinerary;
     });
     widget.onDetailStateChanged?.call(true);
+    _syncDelayRefreshTimer();
   }
 
   void _hideDetails() {
@@ -166,6 +193,78 @@ class _ItineraryListState extends State<ItineraryList> {
       _detailItinerary = null;
     });
     widget.onDetailStateChanged?.call(false);
+    _syncDelayRefreshTimer();
+  }
+
+  /// Startet/stoppt den Verspaetungs-Refresh je danach, ob gerade eine
+  /// Detailansicht offen ist - derselbe An/Aus-Mechanismus wie
+  /// navigation_map.dart._syncDelayRefreshTimer() im Hauptprojekt-Repo.
+  void _syncDelayRefreshTimer() {
+    if (_detailItinerary == null) {
+      _delayRefreshTimer?.cancel();
+      _delayRefreshTimer = null;
+      return;
+    }
+    _delayRefreshTimer ??= Timer.periodic(
+      const Duration(seconds: 45),
+      (_) => _refreshDetailItineraryDelays(),
+    );
+  }
+
+  /// Fragt IRoutingProvider.fetchLiveStopDelays() fuer jede eindeutige
+  /// Einstiegshaltestelle der Transit-Beine der offenen Detailansicht ab
+  /// und schreibt neue Verspaetungen zurueck. Fehlt eine Trip-ID in einer
+  /// Antwort (kein GTFS-RT-Update fuer diesen Takt), bleibt der zuletzt
+  /// bekannte Wert bewusst unveraendert statt faelschlich zurueckgesetzt
+  /// zu werden.
+  Future<void> _refreshDetailItineraryDelays() async {
+    final current = _detailItinerary;
+    if (current == null) return;
+
+    final stopIds = <String>{
+      for (final leg in current.transitLegs)
+        if (leg.fromPlace?.stopId != null) leg.fromPlace!.stopId!,
+    };
+    if (stopIds.isEmpty) return;
+
+    final routingProvider = context
+        .read<routing.RoutingEngineManager>()
+        .currentEngine;
+    final delaysByStop = <String, Map<String, Duration>>{};
+    for (final stopId in stopIds) {
+      try {
+        final delays = await routingProvider.fetchLiveStopDelays(stopId);
+        if (delays != null) delaysByStop[stopId] = delays;
+      } catch (_) {
+        // Einzelner Halt fehlgeschlagen - andere Halte trotzdem abfragen,
+        // zuletzt bekannte Werte fuer diesen Halt bleiben erhalten.
+      }
+    }
+    if (delaysByStop.isEmpty || !mounted) return;
+
+    final updatedLegs = current.legs.map((leg) {
+      final stopId = leg.fromPlace?.stopId;
+      final tripId = leg.tripId;
+      if (stopId == null || tripId == null) return leg;
+      final newDelay = delaysByStop[stopId]?[tripId];
+      if (newDelay == null) return leg;
+      return leg.copyWith(arrivalDelay: newDelay);
+    }).toList();
+
+    // Nur neu rendern, wenn die Detailansicht fuer GENAU diese Itinerary
+    // noch offen ist - zwischen Start der Abfrage und ihrer Antwort kann
+    // der Rider bereits eine andere Itinerary geoeffnet oder die
+    // Detailansicht wieder verlassen haben.
+    if (_detailItinerary != current) return;
+    setState(() {
+      _detailItinerary = current.copyWith(legs: updatedLegs);
+    });
+  }
+
+  @override
+  void dispose() {
+    _delayRefreshTimer?.cancel();
+    super.dispose();
   }
 
   @override
@@ -317,6 +416,12 @@ class _ItineraryListState extends State<ItineraryList> {
       onSaveTrip: widget.onSaveTrip != null
           ? () => widget.onSaveTrip!(itinerary)
           : null,
+      // fahrplaner.de fork patch (siehe FAHRPLANER_PATCHES.md, Nutzer-Fund
+      // "Ganze Fahrt zeigt Fahrplan statt Live"): markiert bereits in
+      // dieser Vor-Fahrt-Vorschau, auf welchem Bein man laut Fahrplan
+      // "jetzt" waere - reine Fahrplanzeit-Interpolation, kein GPS (siehe
+      // _currentLegIndexAt oben).
+      currentLegIndex: _currentLegIndexAt(itinerary.legs, DateTime.now()),
     );
   }
 

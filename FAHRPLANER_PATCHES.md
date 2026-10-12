@@ -977,6 +977,45 @@ direkt umgesetzt.
 Verifiziert: `dart analyze` aller geänderten Dateien sauber, 81
 bestehende + 1 neuer `trufi_core_home_screen`-Paket-Test grün.
 
+### 45. `ItineraryList`: periodischer Verspätungs-/"Jetzt hier"-Refresh der inline-Detailansicht
+
+Echter TestFlight-Fund (fahrplaner.de, Build 0.1.0+43/+44): "Ganze Fahrt
+zeigt Fahrplan statt Live" - die Detailansicht direkt nach der
+Verbindungssuche (vor Fahrtstart) zeigte nur den Fahrplan-Schnappschuss
+vom Öffnen, nie eine Aktualisierung danach, obwohl `RealtimeChip`/
+`ItineraryDetailContent._buildRealtimeSummaryRow` das technisch längst
+anzeigen könnte.
+
+- **`_ItineraryListState`**: neuer `Timer? _delayRefreshTimer`, gestartet/
+  gestoppt in `_showDetails()`/`_hideDetails()` (`_syncDelayRefreshTimer()`,
+  gleicher An/Aus-Mechanismus wie `navigation_map.dart`s
+  `_syncDelayRefreshTimer()` im Hauptprojekt-Repo). Alle 45s fragt
+  `_refreshDetailItineraryDelays()` `IRoutingProvider.fetchLiveStopDelays()`
+  für jede eindeutige Einstiegshaltestelle der offenen Itinerary ab (ein
+  Aufruf je Haltestelle, nicht je Bein) und schreibt neue Verspätungen pro
+  Trip-ID zurück - fehlt eine Trip-ID in einer Antwort (kein GTFS-RT-Update
+  für diesen Takt), bleibt der zuletzt bekannte Wert bewusst unverändert.
+  `IRoutingProvider` kommt aus dem bereits app-weit bereitgestellten
+  `RoutingEngineManager` (`context.read`), nicht aus der Cubit/Repository-
+  Schicht, die keinen Zugriff darauf hat.
+- **`_currentLegIndexAt()`** (neue Modul-Funktion): kleine Eigenkopie der
+  gleichnamigen Funktion aus `itinerary_live_refresh.dart` im
+  Hauptprojekt-Repo (der Fork kann das Hauptprojekt nicht importieren,
+  siehe Patch 23) - bei jedem Aufbau der Detailansicht neu berechnet und
+  in `ItineraryDetailContent.currentLegIndex` eingespeist, gibt die
+  bereits bestehende "Jetzt hier"-Markierung (Patch 27) auch für die
+  Vor-Fahrt-Vorschau, rein fahrplanzeit-basiert.
+- Ein Nebenfund dabei (siehe `itinerary_live_refresh_test.dart` im
+  Hauptprojekt-Repo für denselben Befund app-seitig): `routing.Leg.props`
+  schließt `arrivalDelay` bewusst aus der Equatable-Gleichheit aus - zwei
+  Itinerarys, die sich nur in der Verspätung unterscheiden, sind also
+  `==`. Ein naiver `ValueNotifier<Itinerary>`-Ansatz hätte solche Updates
+  stillschweigend verschluckt; `setState()` auf dem rohen Feld (wie hier
+  umgesetzt) ist davon nicht betroffen.
+
+Verifiziert: `dart analyze` sauber, 82 bestehende + 1 neuer
+`trufi_core_home_screen`-Paket-Test grün.
+
 ## Sync-Strategie: wie künftige Upstream-Änderungen reinkommen
 
 Ziel: Trufi-Core-Updates (neue Features, Bugfixes) weiter bekommen,
