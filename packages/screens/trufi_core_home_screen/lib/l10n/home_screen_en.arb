@@ -460,6 +460,10 @@
   "@routeSettings": {
     "description": "Title for route settings sheet"
   },
+  "routingOptionsButton": "Options",
+  "@routingOptionsButton": {
+    "description": "Label for the pill button below the search bar that opens the route settings sheet"
+  },
   "departureTimeLabel": "Time of travel",
   "@departureTimeLabel": {
     "description": "Label for the departure/arrival time row inside the route settings sheet"

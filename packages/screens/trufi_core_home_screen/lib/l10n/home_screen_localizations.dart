@@ -601,6 +601,12 @@ abstract class HomeScreenLocalizations {
   /// **'Route Settings'**
   String get routeSettings;
 
+  /// Label for the pill button below the search bar that opens the route settings sheet
+  ///
+  /// In en, this message translates to:
+  /// **'Options'**
+  String get routingOptionsButton;
+
   /// Label for the departure/arrival time row inside the route settings sheet
   ///
   /// In en, this message translates to:

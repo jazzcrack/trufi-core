@@ -222,4 +222,21 @@ void main() {
       );
     },
   );
+
+  testWidgets(
+    '_RoutingOptionsButton ("Optionen") meets the 44px tap-target minimum '
+    'and sits next to "Jetzt losfahren" as a labeled pill, not a bare icon '
+    'inside the search bar (fahrplaner.de fork patch, 13.10.2026, '
+    'Nutzer-Fund anhand des Design-Entwurfs Main.dc.html)',
+    (tester) async {
+      await _pumpHomeWithPlan(tester);
+
+      final optionsHeight = _tapTargetHeight(tester, find.text('Optionen'));
+      expect(
+        optionsHeight,
+        greaterThanOrEqualTo(44),
+        reason: '_RoutingOptionsButton tap target is only ${optionsHeight}px',
+      );
+    },
+  );
 }

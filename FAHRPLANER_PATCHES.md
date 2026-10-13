@@ -1159,6 +1159,39 @@ Chips, Sharing-Abschnitt bleibt ausgeblendet ohne Schnellfilter-Angebot).
 Code nötig - `onRoutingSettings`/"Optionen" war bereits verdrahtet, nur das
 Sheet selbst wurde erweitert.
 
+### 49. "Optionen"-Knopf: beschriftete Pille statt bloßem Icon im Suchbalken
+
+Nutzer-Fund (13.10.2026) im Nachgang zu Patch 48: der "Optionen"-Knopf selbst
+blieb dabei unverändert ein unauffälliges `Icons.tune_rounded`-Icon innerhalb
+der `SearchLocationBar` (neben dem Tausch-Knopf) - der Original-Entwurf
+(`docs/design/referenz/Main.dc.html`, Hauptprojekt-Repo) zeigt "Optionen"
+aber als gleichwertige, beschriftete Pille direkt neben "Jetzt losfahren",
+nicht als reines Icon im Suchfeld.
+
+- **`home_screen.dart`**: `onRoutingSettings: _onRoutingSettings` nicht mehr
+  an `SearchLocationBar` durchgereicht (beide Stellen, Hochkant und
+  Querformat) - dadurch rendert `SearchLocationBar` ihren internen
+  Icon-Knopf gar nicht mehr (dort weiterhin optional, nur ungenutzt). Neue
+  private `_RoutingOptionsButton` (gleicher Pillen-Stil wie
+  `DepartureTimeChip`/`_FewerTransfersChip`: `Material`+`InkWell`,
+  Radius 20, Padding 12/12 für die 44px-Mindestfläche) direkt neben dem
+  Zeit-Chip platziert. Beide Stellen nutzen jetzt `Wrap` statt `Row` (mit
+  `spacing`/`runSpacing: 8`) - im schmalen Querformat-Seitenpanel (~300px)
+  passen beide vollen Pillen nicht nebeneinander, `Wrap` lässt den
+  "Optionen"-Knopf dann auf eine zweite Zeile fallen statt zu overflowen
+  (beim ersten Testlauf als `RenderFlex overflowed` in drei bestehenden
+  Tests aufgefallen, dort selbst behoben).
+- Der "Optionen"-Knopf ist bewusst IMMER sichtbar (anders als der
+  `DepartureTimeChip`, der an `fromPlace`/`toPlace` hängt) - er saß vorher
+  unbedingt im Suchbalken, das darf sich durch die Umplatzierung nicht
+  ändern.
+- Ein neuer ARB-String `routingOptionsButton` ("Optionen"/"Options"/
+  "Opciones", alle drei Sprachen) + `flutter gen-l10n` neu ausgeführt.
+
+Verifiziert: `dart analyze` sauber. `chip_tap_target_test.dart` um einen
+Test für `_RoutingOptionsButton` erweitert (44px-Mindestfläche). 87
+`trufi_core_home_screen`-Paket-Tests grün (86+1 neu).
+
 ## Sync-Strategie: wie künftige Upstream-Änderungen reinkommen
 
 Ziel: Trufi-Core-Updates (neue Features, Bugfixes) weiter bekommen,

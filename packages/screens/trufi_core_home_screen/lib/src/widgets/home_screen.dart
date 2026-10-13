@@ -2043,7 +2043,6 @@ class _HomeScreenState extends State<HomeScreen>
                                           onSwap: _onSwapLocations,
                                           onReset: _onReset,
                                           onClearLocation: _onClearLocation,
-                                          onRoutingSettings: _onRoutingSettings,
                                           onMenuPressed: widget.onMenuPressed,
                                         ),
                                         // Redesign Oktober 2026 (docs/design/
@@ -2078,26 +2077,53 @@ class _HomeScreenState extends State<HomeScreen>
                                                 .config
                                                 .belowSearchBuilder!(context),
                                           ),
-                                        // Departure time chip (visible when
-                                        // locations are set, and only when no
-                                        // app-level `routingTimeOverride` is
-                                        // configured — when set, every request
-                                        // resolves against a fixed time of day
-                                        // and the picker would mislead).
-                                        if (context
-                                                    .read<AppConfiguration?>()
-                                                    ?.routingTimeOverride ==
-                                                null &&
-                                            (state.fromPlace != null ||
-                                                state.toPlace != null))
-                                          Padding(
-                                            padding: const EdgeInsets.only(
-                                              top: 8,
-                                            ),
-                                            child: DepartureTimeChip(
-                                              onTimeChanged: _fetchPlanIfReady,
-                                            ),
+                                        // "Jetzt losfahren"/"Optionen"-Zeile
+                                        // (docs/design/referenz/Main.dc.html):
+                                        // Zeit-Chip nur wenn Orte gesetzt und
+                                        // kein `routingTimeOverride` aktiv ist
+                                        // (sonst wuerde der Picker eine fixe
+                                        // Zeit zeigen, die er nicht aendern
+                                        // kann); der "Optionen"-Knopf selbst
+                                        // bleibt unabhaengig davon IMMER
+                                        // sichtbar - er sass vorher als reines
+                                        // Icon im Suchbalken (SearchLocationBar.
+                                        // onRoutingSettings), war dort immer da.
+                                        // fahrplaner.de fork patch (13.10.2026,
+                                        // Nutzer-Fund: Optionen-Knopf war ein
+                                        // unauffaelliges Icon im Suchbalken statt
+                                        // der im Entwurf vorgesehenen, beschrif-
+                                        // teten Pille neben "Jetzt losfahren").
+                                        // `Wrap` statt `Row`, weil der schmale
+                                        // Querformat-Seitenpanel (~300px) fuer
+                                        // beide vollen Pillen nebeneinander
+                                        // keinen Platz hat - faellt dort auf
+                                        // eine zweite Zeile statt zu overflown.
+                                        Padding(
+                                          padding: const EdgeInsets.only(
+                                            top: 8,
                                           ),
+                                          child: Wrap(
+                                            spacing: 8,
+                                            runSpacing: 8,
+                                            children: [
+                                              if (context
+                                                          .read<
+                                                            AppConfiguration?
+                                                          >()
+                                                          ?.routingTimeOverride ==
+                                                      null &&
+                                                  (state.fromPlace != null ||
+                                                      state.toPlace != null))
+                                                DepartureTimeChip(
+                                                  onTimeChanged:
+                                                      _fetchPlanIfReady,
+                                                ),
+                                              _RoutingOptionsButton(
+                                                onPressed: _onRoutingSettings,
+                                              ),
+                                            ],
+                                          ),
+                                        ),
                                         // "Weniger Umstiege" (Redesign Oktober
                                         // 2026, Abschnitt 3.2) - nur sinnvoll,
                                         // sobald ein Plan vorliegt (sonst gibt es
@@ -2571,7 +2597,6 @@ class _HomeScreenState extends State<HomeScreen>
                       onSwap: _onSwapLocations,
                       onReset: _onReset,
                       onClearLocation: _onClearLocation,
-                      onRoutingSettings: _onRoutingSettings,
                       onMenuPressed: widget.onMenuPressed,
                     ),
                     // Redesign Oktober 2026 (Abschnitt 3.1) - sonst
@@ -2584,21 +2609,27 @@ class _HomeScreenState extends State<HomeScreen>
                         padding: const EdgeInsets.only(top: 8),
                         child: widget.config.belowSearchBuilder!(context),
                       ),
-                    // Departure time chip — same guard as the mobile
-                    // layout above: hidden when an app-level
-                    // `routingTimeOverride` is set, since every plan
-                    // request resolves to a fixed time of day.
-                    if (context
-                                .read<AppConfiguration?>()
-                                ?.routingTimeOverride ==
-                            null &&
-                        (state.fromPlace != null || state.toPlace != null))
-                      Padding(
-                        padding: const EdgeInsets.only(top: 8),
-                        child: DepartureTimeChip(
-                          onTimeChanged: _fetchPlanIfReady,
-                        ),
+                    // "Jetzt losfahren"/"Optionen"-Zeile - gleiche Logik
+                    // wie in der schmalen Ansicht oben (dortiger Kommentar,
+                    // inkl. `Wrap` statt `Row` wegen des schmalen
+                    // Querformat-Seitenpanels).
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          if (context
+                                      .read<AppConfiguration?>()
+                                      ?.routingTimeOverride ==
+                                  null &&
+                              (state.fromPlace != null ||
+                                  state.toPlace != null))
+                            DepartureTimeChip(onTimeChanged: _fetchPlanIfReady),
+                          _RoutingOptionsButton(onPressed: _onRoutingSettings),
+                        ],
                       ),
+                    ),
                     // "Weniger Umstiege" (Redesign Oktober 2026, Abschnitt
                     // 3.2) - sonst gleich wie in der schmalen Ansicht.
                     if (state.plan?.hasItineraries == true)
@@ -3427,6 +3458,58 @@ class _FewerTransfersChip extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+/// "Optionen"-Knopf unterhalb der Suchleiste (docs/design/referenz/
+/// Main.dc.html: beschriftete Pille neben "Jetzt losfahren", nicht das
+/// bloße Icon, das vorher in [SearchLocationBar] saß - fahrplaner.de fork
+/// patch, 13.10.2026, Nutzer-Fund).
+class _RoutingOptionsButton extends StatelessWidget {
+  final VoidCallback onPressed;
+
+  const _RoutingOptionsButton({required this.onPressed});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final l10n = HomeScreenLocalizations.of(context);
+
+    return Material(
+      color: colorScheme.surface,
+      borderRadius: BorderRadius.circular(20),
+      elevation: 2,
+      shadowColor: Colors.black.withValues(alpha: 0.15),
+      child: InkWell(
+        onTap: () {
+          HapticFeedback.lightImpact();
+          onPressed();
+        },
+        borderRadius: BorderRadius.circular(20),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.tune_rounded,
+                size: 18,
+                color: colorScheme.onSurfaceVariant,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                l10n.routingOptionsButton,
+                style: theme.textTheme.labelLarge?.copyWith(
+                  color: colorScheme.onSurface,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

@@ -316,6 +316,9 @@ class HomeScreenLocalizationsEs extends HomeScreenLocalizations {
   String get routeSettings => 'Configuración de ruta';
 
   @override
+  String get routingOptionsButton => 'Opciones';
+
+  @override
   String get departureTimeLabel => 'Hora del viaje';
 
   @override
