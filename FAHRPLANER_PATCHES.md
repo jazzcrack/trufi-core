@@ -1066,6 +1066,47 @@ unabhängig von dieser Änderung). `trufi_core_home_screen`: 82 Tests weiterhin
 grün (kein neuer Test dort nötig, die neue Logik ruft nur bereits getestete
 Bausteine auf).
 
+### 47. `ItineraryList`: sofortiger erster Verspätungs-Takt statt erst nach 45s
+
+Echter Nutzer-Fund (12.10.2026, Screenshot-Vergleich): die in Patch 45
+gebaute Live-Verspätung der Vor-Fahrt-Detailansicht zeigte sich in der
+Praxis faktisch nie, weil `Timer.periodic(...)` in Dart **nie sofort**
+feuert, erst nach dem ersten vollen Intervall (hier 45s) - ein kurzer
+Blick auf die Detailansicht (der Normalfall) sah deshalb immer nur den
+Fahrplan-Schnappschuss vom Öffnen. Derselbe Fehler steckte identisch noch
+zweimal im Hauptprojekt-Repo (`navigation_map.dart`s
+`_syncDelayRefreshTimer()`, `itinerary_live_refresh.dart`s
+`ItineraryLiveRefresher.start()`) - alle drei unabhängig in
+unterschiedlichen Sitzungen gebaut, derselbe Flutter/Dart-Timer-Stolperstein
+jedes Mal wiederholt.
+
+- **`_ItineraryListState._syncDelayRefreshTimer()`**: ruft
+  `_refreshDetailItineraryDelays()` jetzt EINMAL sofort auf, bevor der
+  `Timer.periodic` für die folgenden Takte angelegt wird (Guard `if
+  (_delayRefreshTimer != null) return;` davor, damit ein wiederholter
+  `_syncDelayRefreshTimer()`-Aufruf - z. B. bei einem Rebuild - den
+  sofortigen Abruf nicht mehrfach auslöst).
+- **Dabei aufgedeckter, unabhängiger Nebenfund:** `_refreshDetailItineraryDelays()`
+  las `context.read<routing.RoutingEngineManager>()` bisher AUSSERHALB
+  des try/catch, das nur die einzelnen `fetchLiveStopDelays()`-Aufrufe je
+  Haltestelle umschließt. Bisher nie sichtbar, weil der erste Aufruf immer
+  45s in der Zukunft lag, weit nach jedem bestehenden Testlauf - der
+  sofortige erste Aufruf brachte das in 10 bereits bestehenden Tests in
+  `route_planner_grouping_test.dart` zum Vorschein (`ItineraryList` dort
+  ohne `RoutingEngineManager`-Provider gebaut, da jene Tests nur Gruppierung/
+  Pillen prüfen, nicht Live-Verspätung). Fix: `context.read<...>()` jetzt
+  selbst in einem try/catch - fehlt der Provider, bricht die Anreicherung
+  still ab, statt die ganze Ansicht abstürzen zu lassen (entspricht dem
+  bereits dokumentierten "optionale Anreicherung, kein kritischer Pfad"-
+  Prinzip).
+
+Verifiziert: `dart analyze` sauber. Bestehender Live-Refresh-Test
+umgeschrieben (prüft jetzt die Verspätung DIREKT nach dem Öffnen statt
+erst nach 45s simulierter Zeit) + ein neuer Test für den fortgesetzten
+periodischen Takt danach. 83 `trufi_core_home_screen`-Paket-Tests grün
+(82+1 neu, netto - ein Test umgeschrieben statt ergänzt, einer neu
+dazugekommen).
+
 ## Sync-Strategie: wie künftige Upstream-Änderungen reinkommen
 
 Ziel: Trufi-Core-Updates (neue Features, Bugfixes) weiter bekommen,

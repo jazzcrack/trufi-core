@@ -205,7 +205,13 @@ class _ItineraryListState extends State<ItineraryList> {
       _delayRefreshTimer = null;
       return;
     }
-    _delayRefreshTimer ??= Timer.periodic(
+    if (_delayRefreshTimer != null) return;
+    // fahrplaner.de fork patch (siehe FAHRPLANER_PATCHES.md, echter
+    // Nutzer-Fund 12.10.2026): `Timer.periodic` feuert NIE sofort, erst
+    // nach den vollen 45s - ein kurzer Blick auf die Detailansicht sah
+    // deshalb nie eine Live-Verspaetung, nur den Schnappschuss vom Oeffnen.
+    _refreshDetailItineraryDelays();
+    _delayRefreshTimer = Timer.periodic(
       const Duration(seconds: 45),
       (_) => _refreshDetailItineraryDelays(),
     );
@@ -227,9 +233,20 @@ class _ItineraryListState extends State<ItineraryList> {
     };
     if (stopIds.isEmpty) return;
 
-    final routingProvider = context
-        .read<routing.RoutingEngineManager>()
-        .currentEngine;
+    // fahrplaner.de fork patch (FAHRPLANER_PATCHES.md, Patch 47): die
+    // sofortige erste Abfrage in _showDetails() (statt erst nach dem
+    // ersten 45s-Takt) deckte auf, dass dieser Pfad bisher davon ausging,
+    // dass ein RoutingEngineManager IMMER im Kontext vorhanden ist - eine
+    // optionale Anreicherung sollte das nie erzwingen (gleiches Prinzip
+    // wie der try/catch je Haltestelle unten).
+    routing.IRoutingProvider routingProvider;
+    try {
+      routingProvider = context
+          .read<routing.RoutingEngineManager>()
+          .currentEngine;
+    } catch (_) {
+      return;
+    }
     final delaysByStop = <String, Map<String, Duration>>{};
     for (final stopId in stopIds) {
       try {
