@@ -38,12 +38,14 @@ export 'src/services/request_plan_service.dart';
 export 'src/cubit/route_planner_cubit.dart';
 
 // Widgets
+export 'src/widgets/departure_time_sheet.dart';
 export 'src/widgets/home_screen.dart';
 export 'src/widgets/live_vehicle_info_panel.dart';
 export 'src/widgets/poi_compact_card.dart';
 export 'src/widgets/itinerary_card.dart';
 export 'src/widgets/itinerary_detail_screen.dart';
 export 'src/widgets/itinerary_list.dart';
+export 'src/widgets/routing_settings_sheet.dart';
 
 // TrufiScreen Integration
 export 'src/home_screen_trufi_screen.dart';

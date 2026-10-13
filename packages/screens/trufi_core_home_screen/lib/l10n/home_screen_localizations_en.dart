@@ -316,6 +316,12 @@ class HomeScreenLocalizationsEn extends HomeScreenLocalizations {
   String get routeSettings => 'Route Settings';
 
   @override
+  String get departureTimeLabel => 'Time of travel';
+
+  @override
+  String get sharingSectionTitle => 'Sharing';
+
+  @override
   String get wheelchairAccessible => 'Wheelchair accessible';
 
   @override

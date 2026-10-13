@@ -601,6 +601,18 @@ abstract class HomeScreenLocalizations {
   /// **'Route Settings'**
   String get routeSettings;
 
+  /// Label for the departure/arrival time row inside the route settings sheet
+  ///
+  /// In en, this message translates to:
+  /// **'Time of travel'**
+  String get departureTimeLabel;
+
+  /// Heading for the rental/sharing quick-filter section inside the route settings sheet
+  ///
+  /// In en, this message translates to:
+  /// **'Sharing'**
+  String get sharingSectionTitle;
+
   /// Wheelchair accessibility option
   ///
   /// In en, this message translates to:

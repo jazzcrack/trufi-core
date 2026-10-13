@@ -83,6 +83,8 @@
   "buttonTryAgain": "Reintentar",
   "buttonReset": "Restablecer",
   "routeSettings": "Configuración de ruta",
+  "departureTimeLabel": "Hora del viaje",
+  "sharingSectionTitle": "Compartir vehículos",
   "wheelchairAccessible": "Accesible para silla de ruedas",
   "wheelchairAccessibleOn": "Las rutas evitan escaleras y pendientes pronunciadas",
   "wheelchairAccessibleOff": "Incluir todas las rutas",

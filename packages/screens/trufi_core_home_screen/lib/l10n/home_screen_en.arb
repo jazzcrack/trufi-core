@@ -460,6 +460,14 @@
   "@routeSettings": {
     "description": "Title for route settings sheet"
   },
+  "departureTimeLabel": "Time of travel",
+  "@departureTimeLabel": {
+    "description": "Label for the departure/arrival time row inside the route settings sheet"
+  },
+  "sharingSectionTitle": "Sharing",
+  "@sharingSectionTitle": {
+    "description": "Heading for the rental/sharing quick-filter section inside the route settings sheet"
+  },
   "wheelchairAccessible": "Wheelchair accessible",
   "@wheelchairAccessible": {
     "description": "Wheelchair accessibility option"

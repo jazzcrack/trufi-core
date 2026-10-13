@@ -1107,6 +1107,58 @@ periodischen Takt danach. 83 `trufi_core_home_screen`-Paket-Tests grün
 (82+1 neu, netto - ein Test umgeschrieben statt ergänzt, einer neu
 dazugekommen).
 
+### 48. "Optionen"-Sheet umfassender: Zeitpunkt-Kontext + Sharing-Schnellfilter
+
+Nutzer-Wunsch (12.10.2026, Screenshot-Vergleich mit `docs/design/referenz/
+Main.dc.html` im Hauptprojekt-Repo): der GBFS-Sharing-Schnellfilter ("Nur
+Leihrad"/"Kein Sharing", Patch 11) stand bisher als eigene, dritte Chip-Zeile
+unter "Jetzt losfahren" auf dem Home-Screen - wich damit vom Original-Entwurf
+ab, der dort nur "Jetzt losfahren" und "Optionen" als zwei gleichwertige
+Knöpfe zeigt. Nutzerentscheidung (gestellte Rückfrage): "Jetzt losfahren"
+bleibt als eigener Schnellzugriff bestehen (kein vollständiges Zusammenlegen
+in einen einzigen Dialog); "Optionen" wird stattdessen umfassender und nimmt
+den Sharing-Filter sowie eine Zeitpunkt-Kontextzeile auf.
+
+- **`departure_time_sheet.dart`** (neu): `_DepartureTimeChip`/
+  `_DepartureTimeSheet`/`_TimeModeOption`/`_DateTimeButton` aus
+  `home_screen.dart` hierher ausgelagert. `_DepartureTimeChip` wird dabei
+  öffentlich (`DepartureTimeChip`, unverändertes Verhalten/Aussehen auf dem
+  Home-Screen), zwei neue öffentliche Hilfsfunktionen `timeModeIcon()`/
+  `timeModeLabel()` sowie `showDepartureTimeSheet()` (öffnet denselben
+  Zeit-Dialog) - damit kann `routing_settings_sheet.dart` dieselbe Logik
+  mitnutzen, statt sie zu verdoppeln.
+- **`routing_settings_sheet.dart`**: `RoutingSettingsSheet` bekommt oben eine
+  neue `_DepartureTimeSettingsRow` (liest `RoutePlannerCubit`, zeigt Icon +
+  "Zeitpunkt der Fahrt" + aktuellen Wert + Chevron, öffnet bei Antippen
+  denselben Zeit-Dialog) - ausgeblendet unter derselben Bedingung wie der
+  Home-Screen-Chip (`AppConfiguration.routingTimeOverride == null`). Neue
+  `_SharingFilterSection` (Icon + Titel "Sharing" + die vom aktuellen
+  `IRoutingProvider.buildQuickFilterChips()` gelieferten Chips) erscheint nach
+  den Routing-Präferenzen, nur wenn der aktive Provider überhaupt einen
+  Schnellfilter anbietet. Der Sharing-Filter wirkt hier bewusst NICHT mehr
+  sofort bei jedem Chip-Tap (anders als die alte Home-Screen-Zeile), sondern
+  erst über den bestehenden "Übernehmen"-Button des Sheets - konsistent mit
+  den übrigen Routing-Präferenzen im selben Sheet, kein neuer, abweichender
+  Refetch-Pfad nötig.
+- **`home_screen.dart`**: die alte, eigene Home-Screen-Zeile für den
+  Sharing-Schnellfilter (`_buildQuickFilterChips()`, Patch 23) entfernt
+  (beide Stellen, Hochkant und Querformat) - lebt jetzt ausschließlich im
+  "Optionen"-Sheet.
+- **`trufi_core_home_screen.dart`** (Paket-Barrel): `routing_settings_sheet
+  .dart` und `departure_time_sheet.dart` neu exportiert - `RoutingSettingsSheet`
+  war zuvor gar nicht von außerhalb des Pakets erreichbar (auch nicht aus der
+  App), nur `home_screen.dart`s eigener `_onRoutingSettings()`-Aufruf nutzte
+  es intern.
+- Zwei neue, übersetzte ARB-Strings (`departureTimeLabel`, `sharingSectionTitle`,
+  alle drei Sprachen DE/EN/ES) + `flutter gen-l10n` neu ausgeführt.
+
+Verifiziert: `dart analyze` sauber. Neuer `routing_settings_sheet_test.dart`
+(3 Tests: Zeitpunkt-Zeile öffnet den Dialog, Sharing-Abschnitt erscheint mit
+Chips, Sharing-Abschnitt bleibt ausgeblendet ohne Schnellfilter-Angebot).
+86 `trufi_core_home_screen`-Paket-Tests grün (83+3 neu). Kein App-seitiger
+Code nötig - `onRoutingSettings`/"Optionen" war bereits verdrahtet, nur das
+Sheet selbst wurde erweitert.
+
 ## Sync-Strategie: wie künftige Upstream-Änderungen reinkommen
 
 Ziel: Trufi-Core-Updates (neue Features, Bugfixes) weiter bekommen,
