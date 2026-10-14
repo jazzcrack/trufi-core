@@ -71,4 +71,28 @@ void main() {
       expect(parseLiveStopDelays(const []), isEmpty);
     });
   });
+
+  group('stripKnownFeedPrefix', () {
+    test('entfernt das exakte Feed-Praefix von einer rohen OTP-Stop-ID', () {
+      expect(stripKnownFeedPrefix('2:92253', '2'), '92253');
+    });
+
+    test('laesst eine rohe ID ohne Feed-Praefix unveraendert', () {
+      expect(stripKnownFeedPrefix('92253', '2'), '92253');
+    });
+
+    test(
+      'echter Regressions-Fund (14.10.2026): zerschneidet eine DHID-Stop-ID '
+      '("de:03405:99839", MEHRERE Doppelpunkte als Teil der ID selbst) NICHT '
+      '- stripGtfsFeedPrefix haette hier faelschlich "03405:99839" geliefert',
+      () {
+        expect(stripKnownFeedPrefix('de:03405:99839', '2'), 'de:03405:99839');
+      },
+    );
+
+    test('entfernt nur ein wirklich fuehrendes Feed-Praefix, auch bei einer '
+        'DHID-Stop-ID (z. B. wenn OTP sie selbst feed-qualifiziert hat)', () {
+      expect(stripKnownFeedPrefix('2:de:03405:99839', '2'), 'de:03405:99839');
+    });
+  });
 }

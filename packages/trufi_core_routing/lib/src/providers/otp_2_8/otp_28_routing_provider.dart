@@ -37,6 +37,19 @@ Map<String, Duration> parseLiveStopDelays(List<dynamic> stoptimesJson) {
   return delays;
 }
 
+/// Strips exactly the `"$feedId:"` prefix from [stopId] if present, leaving
+/// the rest untouched - deliberately NOT the same as [stripGtfsFeedPrefix]
+/// (which cuts at the FIRST colon, no matter what). fahrplaner.de fork
+/// patch (14.10.2026, echter Regressions-Fund): manche GTFS-Quellen
+/// (DELFI/DHID) liefern Stop-IDs, die SELBST mehrere Doppelpunkte enthalten
+/// (z. B. `"de:03405:99839"`) - `stripGtfsFeedPrefix` darauf angewandt
+/// zerschnitt die ID faelschlich zu `"03405:99839"`. Pure/testable, siehe
+/// [Otp28RoutingProvider.fetchLiveStopDelays] fuer den Aufrufkontext.
+String stripKnownFeedPrefix(String stopId, String feedId) {
+  final prefix = '$feedId:';
+  return stopId.startsWith(prefix) ? stopId.substring(prefix.length) : stopId;
+}
+
 /// Routing provider for OpenTripPlanner 2.8.
 ///
 /// OTP 2.8 uses GraphQL API with enhanced features:
@@ -434,10 +447,20 @@ class Otp28RoutingProvider extends IRoutingProvider {
       // feed-qualifiziert ist ("2:92253"). Ohne Normalisierung wurde daraus
       // "2:2:92253" - eine nie existierende Stop-ID, die OTP klaglos mit
       // "stop: null" beantwortet (kein Fehler, nur stille Null-Rueckgabe
-      // oben). `stripGtfsFeedPrefix` macht die Funktion robust gegen BEIDE
-      // Eingabeformen (roh ODER bereits qualifiziert), statt sich auf den
-      // Dokumentationskommentar der Schnittstelle zu verlassen.
-      final rawStopId = stripGtfsFeedPrefix(stopId);
+      // oben).
+      //
+      // ECHTER REGRESSIONS-FUND (14.10.2026): der erste Versuch nutzte
+      // hierfuer `stripGtfsFeedPrefix` (schneidet alles vor dem ERSTEN
+      // Doppelpunkt ab) - das zerstoerte die Stop-IDs DIESES Datensatzes,
+      // die im DHID-Format vorliegen ("de:03405:99839", MEHRERE
+      // Doppelpunkte als Teil der eigentlichen ID, nicht nur als
+      // Feed-Trenner). Aus "de:03405:99839" wurde faelschlich
+      // "03405:99839" - brach damit sogar den vorher funktionierenden
+      // rohen Pfad (Haltestellenansicht). Jetzt wird NUR das exakt
+      // bekannte "$feedId:"-Praefix entfernt, falls vorhanden - der Rest
+      // der ID (inkl. etwaiger weiterer Doppelpunkte) bleibt unberuehrt.
+      // Siehe stripKnownFeedPrefix() oben fuer die pure, getestete Logik.
+      final rawStopId = stripKnownFeedPrefix(stopId, feedId!);
       final options = WatchQueryOptions(
         document: parseString(otp28StopDeparturesQuery),
         fetchResults: true,

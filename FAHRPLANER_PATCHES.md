@@ -1240,6 +1240,40 @@ Integrationstests (echter OTP-Server) scheitern bereits ohne diese
 Änderung an HTTP 400 in dieser Umgebung (kein Netzzugriff/Endpunkt hier
 konfiguriert) - vorbestehend, nicht durch diesen Patch verursacht.
 
+### 51. Regression aus Patch 50 behoben: DHID-Stop-IDs wurden zerschnitten
+
+Echter, selbst verursachter Regressions-Fund (14.10.2026, Nutzer-Meldung
+"Jetzt habe ich nirgendwo mehr Echtzeitdaten!" - direkt nach Build 54 mit
+Patch 50): Patch 50 nutzte `stripGtfsFeedPrefix()` zum Normalisieren der
+Stop-ID vor dem Abruf. Diese Funktion schneidet IMMER alles vor dem ERSTEN
+Doppelpunkt ab - eine Annahme, die für Trip-/Routen-IDs dieses Deploys
+(reine Zahlen wie `"524896258"`) harmlos ist, aber für die Stop-IDs dieses
+konkreten Datensatzes falsch war: die liegen im DHID-Format vor
+(`"de:03405:99839"`, Gemeindeschlüssel:lokale-Nummer, siehe Kapitel 3.73 im
+Hauptprojekt-Repo) - MEHRERE Doppelpunkte als Teil der eigentlichen ID,
+nicht nur als Feed-Trenner. `stripGtfsFeedPrefix("de:03405:99839")` lieferte
+fälschlich `"03405:99839"` - zerschnitt damit nicht nur die drei zuvor
+reparierten Aufrufer erneut, sondern auch den bis dahin korrekt
+funktionierenden rohen Pfad der Haltestellenansicht. Patch 50 hat sein
+eigentliches Ziel (robust gegen beide Eingabeformen) technisch erreicht,
+aber mit der falschen Normalisierungsfunktion - ein Unterschied, der beim
+Schreiben nicht auffiel, weil nur mit einfachen, rein numerischen
+Test-IDs geprüft wurde, nicht mit einem DHID-Beispiel aus den echten
+Projektdaten.
+
+**Fix:** neue, eigene `stripKnownFeedPrefix(stopId, feedId)` - entfernt
+NUR ein exakt passendes `"$feedId:"`-Präfix (per `startsWith`/`substring`),
+lässt alle weiteren Doppelpunkte in der ID unangetastet. Ersetzt
+`stripGtfsFeedPrefix` ausschließlich an dieser einen Stelle (Stop-IDs) -
+die Trip-ID-Normalisierung in `parseLiveStopDelays()` bleibt unverändert
+bei `stripGtfsFeedPrefix`, da Trip-IDs in diesem Datensatz nachweislich
+keine eigenen Doppelpunkte enthalten (geprüft gegen `trips.txt` im
+gebündelten GTFS-Asset).
+
+Verifiziert: `dart analyze` sauber. 4 neue Unit-Tests für
+`stripKnownFeedPrefix` (inkl. des genauen DHID-Reproduktionsfalls). 186
+`trufi_core_routing`-Unit-Tests grün (182+4 neu).
+
 ## Sync-Strategie: wie künftige Upstream-Änderungen reinkommen
 
 Ziel: Trufi-Core-Updates (neue Features, Bugfixes) weiter bekommen,
