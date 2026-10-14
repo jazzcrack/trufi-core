@@ -130,19 +130,47 @@ class Otp28ResponseParser {
     );
   }
 
-  /// Extracts the real-time delay (seconds) from a GraphQL `LegTime`
-  /// object (`{scheduledTime, estimated: {delay}}`), fahrplaner.de fork
-  /// patch (see FAHRPLANER_PATCHES.md). Null whenever `estimated` is null -
-  /// OTP's own documented signal for "no real-time data here". Mirrors
+  /// Extracts the real-time delay from a GraphQL `LegTime` object
+  /// (`{scheduledTime, estimated: {delay}}`), fahrplaner.de fork patch (see
+  /// FAHRPLANER_PATCHES.md). Null whenever `estimated` is null - OTP's own
+  /// documented signal for "no real-time data here". Mirrors
   /// Leg._parseDelayFromLegTime, duplicated because that one is file-
   /// private to leg.dart.
+  ///
+  /// ECHTER NUTZER-FUND (14.10.2026): `estimated.delay` ist auf diesem
+  /// Deploy kein numerischer Sekundenwert, sondern ein ISO-8601-Duration-
+  /// String ("PT1M5S") - live gegen den echten OTP-Server verifiziert. Die
+  /// alte `if (delaySeconds is! num) return null`-Pruefung griff deshalb
+  /// IMMER, jede Planung/Fahrt-Ansicht bekam dadurch dauerhaft `null`
+  /// zurueck, obwohl der Server selbst korrekt Echtzeitdaten lieferte
+  /// (bestaetigt: dieselbe Antwort enthaelt `arrivalDelay: 129` als
+  /// funktionierenden Plain-Int-Fallback, siehe [_parseLeg]). Jetzt werden
+  /// BEIDE Formen akzeptiert.
   static Duration? _parseDelay(dynamic legTimeJson) {
     if (legTimeJson is! Map<String, dynamic>) return null;
     final estimated = legTimeJson['estimated'];
     if (estimated is! Map<String, dynamic>) return null;
-    final delaySeconds = estimated['delay'];
-    if (delaySeconds is! num) return null;
-    return Duration(seconds: delaySeconds.toInt());
+    final delay = estimated['delay'];
+    if (delay is num) return Duration(seconds: delay.toInt());
+    if (delay is String) return _parseIso8601Duration(delay);
+    return null;
+  }
+
+  /// Parses the subset of ISO-8601 durations OTP's GraphQL `Duration`
+  /// scalar actually emits: an optional leading `-`, `PT`, then any of
+  /// `#H`/`#M`/`#S` (seconds may be fractional) - no days/months/years,
+  /// which transit delays never need. Null for anything else.
+  static Duration? _parseIso8601Duration(String iso) {
+    final match = RegExp(
+      r'^(-)?PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+(?:\.\d+)?)S)?$',
+    ).firstMatch(iso);
+    if (match == null) return null;
+    final sign = match.group(1) != null ? -1 : 1;
+    final hours = int.tryParse(match.group(2) ?? '') ?? 0;
+    final minutes = int.tryParse(match.group(3) ?? '') ?? 0;
+    final seconds = double.tryParse(match.group(4) ?? '') ?? 0;
+    final totalSeconds = hours * 3600 + minutes * 60 + seconds;
+    return Duration(seconds: (sign * totalSeconds).round());
   }
 
   static Route _parseRoute(Map<String, dynamic> json) {

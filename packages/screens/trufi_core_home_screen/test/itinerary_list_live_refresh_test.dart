@@ -247,4 +247,46 @@ void main() {
       await cubit.close();
     },
   );
+
+  testWidgets(
+    'echter Nutzer-Fund (14.10.2026): findet die Verspaetung auch, wenn '
+    'leg.tripId feed-qualifiziert ist (z. B. "1:trip-1" aus einer echten '
+    'OTP-Planungsantwort), waehrend fetchLiveStopDelays() laut eigenem '
+    'Vertrag feed-praefix-gestrippte Trip-IDs zurueckliefert ("trip-1")',
+    (tester) async {
+      final itinerary = routing.Itinerary(
+        legs: [
+          _bus(
+            '18',
+            duration: const Duration(minutes: 10),
+            tripId: '1:trip-1',
+            fromStopId: 'stop-1',
+          ),
+        ],
+        startTime: DateTime(2026, 8, 12, 8),
+        endTime: DateTime(2026, 8, 12, 8, 10),
+        walkTime: Duration.zero,
+        duration: const Duration(minutes: 10),
+        walkDistance: 0,
+      );
+      final cubit = await _cubitWithPlan([itinerary]);
+      final manager = routing.RoutingEngineManager(
+        engines: [
+          _FakeRoutingProvider({
+            'stop-1': {'trip-1': const Duration(minutes: 4)},
+          }),
+        ],
+      );
+
+      await tester.pumpWidget(host(cubit, manager));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byType(ItineraryCard));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('+4 Min'), findsWidgets);
+
+      await cubit.close();
+    },
+  );
 }

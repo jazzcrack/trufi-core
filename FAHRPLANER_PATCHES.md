@@ -1284,6 +1284,22 @@ Bei der Suche nach der Ursache, warum Echtzeitdaten während Planung/laufender F
 
 Verifiziert: `dart analyze` sauber. Neuer Regressionstest (`navigation_cubit_refresh_delay_test.dart`) - setzt ein Bein explizit auf `RealtimeState.canceled`, bestätigt `isCanceled` bleibt nach einem Verspätungs-Refresh erhalten. 27 `trufi_core_navigation`-Tests grün (26+1 neu).
 
+### 53. Echter Haupt-Bug gefunden: zwei eigenständige Fehler für fehlende Echtzeitdaten in Planung/laufender Fahrt
+
+Auf Nutzer-Vorschlag direkt gegen den echten, in `app/android/otp.properties` hinterlegten Produktiv-OTP-Server getestet (14.10.2026, `curl` gegen dessen GraphQL-Endpunkt `/otp/gtfs/v1`), statt weiter zu raten. Zwei konkrete, unabhängig voneinander bestätigte Befunde:
+
+**Bug 1 - `estimated.delay` ist ein ISO-8601-Duration-String, keine Zahl:** eine frische `plan(...)`-Abfrage für eine live bekanntermaßen verspätete Fahrt (Linie 4, Wilhelmshaven) lieferte `"estimated": {"delay": "PT1M5S"}` zurück - `_parseDelay()` erwartete aber eine Zahl (`if (delaySeconds is! num) return null`), schlug deshalb bei JEDER Planung/laufenden Fahrt fehl. Dieselbe Antwort enthielt zum Vergleich den (laut OTP-Doku deprecated) Plain-Int-Fallback `arrivalDelay: 129` korrekt - der Server selbst hatte also die ganze Zeit korrekte Echtzeitdaten, nur die Client-seitige Typannahme für das neue Feld war falsch. Die bisherigen Tests (`delay_parsing_test.dart`) nutzten ausschließlich Zahlen als Fixture (`'delay': 320`) - deckten diesen Formatunterschied nie auf, exakt dasselbe Muster wie beim DHID-Stop-ID-Fund (Patch 50/51): Testdaten, die nicht der echten Serverantwort entsprachen.
+
+**Fix:** `_parseDelay()` akzeptiert jetzt beides - eine Zahl ODER einen ISO-8601-String, geparst von einer neuen `_parseIso8601Duration()` (Teilmenge `PT#H#M#S`, optional negatives Vorzeichen, reicht für Transit-Verspätungen). 5 neue Unit-Tests gegen die live beobachteten Formen ("PT1M5S", "PT0S", "PT1H2M3S", "-PT45S", unparsbarer String).
+
+**Bug 2 - Trip-ID-Feed-Präfix-Mismatch bei der Live-Refresh-Abfrage:** selbst mit korrekt funktionierender `fetchLiveStopDelays()` (seit Patch 51) schlug der Abgleich in `navigation_map.dart`, `itinerary_live_refresh.dart` (Hauptprojekt) und `itinerary_list.dart` (hier) weiterhin fehl: `fetchLiveStopDelays()` liefert laut eigenem, bereits bestehendem Doku-Kommentar feed-präfix-**gestrippte** Trip-IDs zurück (z. B. `"449964075"`), während `leg.tripId` aus der Planungsantwort **feed-qualifiziert bleibt** (z. B. `"1:449964075"`, live bestätigt). Der Lookup `delays?[tripId]` verglich damit zwei nie übereinstimmende Formen - fand NIE eine Verspätung, obwohl die Abfrage selbst längst korrekte Daten zurückgab.
+
+**Fix:** alle drei Aufrufer wenden jetzt `stripGtfsFeedPrefix(tripId)` an, bevor sie als Lookup-Schlüssel verwendet werden - exakt dieselbe Normalisierung, die `fetchLiveStopDelays()` intern schon auf die Map-Schlüssel anwendet. Neue Regressionstests an allen drei Stellen, jeweils mit einer feed-qualifizierten `leg.tripId` ("1:trip-1") gegen eine gestrippte Fake-Antwort ("trip-1").
+
+**Damit sind jetzt vermutlich BEIDE Ursachen für T034 behoben** - Bug 1 betrifft den initialen Schnappschuss (Planung, "Ganze Fahrt" direkt nach dem Öffnen), Bug 2 betrifft jeden nachfolgenden Live-Refresh (laufende Fahrt, periodische Aktualisierung). Geräteverifikation steht noch aus.
+
+Verifiziert: `dart analyze` sauber (beide Pakete). `trufi_core_routing`: 191 Unit-Tests grün (186+5 neu). `trufi_core_home_screen`: 88 Tests grün (87+1 neu). App (Hauptprojekt): neuer Regressionstest in `itinerary_live_refresh_test.dart`, beide betroffenen Dateien `dart analyze`-sauber.
+
 ## Sync-Strategie: wie künftige Upstream-Änderungen reinkommen
 
 Ziel: Trufi-Core-Updates (neue Features, Bugfixes) weiter bekommen,

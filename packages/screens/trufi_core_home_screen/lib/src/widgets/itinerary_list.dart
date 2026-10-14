@@ -263,7 +263,14 @@ class _ItineraryListState extends State<ItineraryList> {
       final stopId = leg.fromPlace?.stopId;
       final tripId = leg.tripId;
       if (stopId == null || tripId == null) return leg;
-      final newDelay = delaysByStop[stopId]?[tripId];
+      // Echter Nutzer-Fund (14.10.2026): fetchLiveStopDelays() liefert laut
+      // eigenem Doku-Kommentar feed-praefix-gestrippte Trip-IDs zurueck
+      // (z. B. "449964075"), waehrend leg.tripId aus der Planungsantwort
+      // feed-qualifiziert bleibt (z. B. "1:449964075") - ohne Stripping
+      // fand dieser Lookup NIE eine Uebereinstimmung, selbst nachdem die
+      // Stop-ID-Normalisierung (Patch 51) die eigentliche Abfrage schon
+      // repariert hatte.
+      final newDelay = delaysByStop[stopId]?[stripGtfsFeedPrefix(tripId)];
       if (newDelay == null) return leg;
       return leg.copyWith(arrivalDelay: newDelay);
     }).toList();
