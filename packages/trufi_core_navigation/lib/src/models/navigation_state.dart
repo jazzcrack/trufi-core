@@ -152,6 +152,48 @@ class NavigationLeg extends Equatable {
     this.realtimeState,
   });
 
+  /// fahrplaner.de fork patch (14.10.2026, echter Nutzer-Fund): vorher gab
+  /// es kein `copyWith` - `NavigationCubit.refreshCurrentLegDelay()` baute
+  /// ein neues `NavigationLeg` stattdessen von Hand zusammen und vergass
+  /// dabei `realtimeState` (setzte den Ausfall-Status bei jedem
+  /// Verspaetungs-Refresh unbemerkt auf `null` zurueck). `clearArrivalDelay`
+  /// als expliziter Sentinel (wie `NavigationState.clearDistanceFromRoute`)
+  /// noetig, weil `arrivalDelay: null` ein gueltiger, bewusster Wert ist
+  /// (Verspaetung aufgeholt/keine Live-Daten mehr) - ein einfaches
+  /// `arrivalDelay ?? this.arrivalDelay` koennte ihn nie auf `null` setzen.
+  NavigationLeg copyWith({
+    String? id,
+    List<LatLng>? points,
+    bool? isTransit,
+    bool? isWalking,
+    bool? isBicycle,
+    int? color,
+    String? routeName,
+    String? modeName,
+    Duration? duration,
+    Duration? arrivalDelay,
+    bool clearArrivalDelay = false,
+    String? tripId,
+    routing.RealtimeState? realtimeState,
+  }) {
+    return NavigationLeg(
+      id: id ?? this.id,
+      points: points ?? this.points,
+      isTransit: isTransit ?? this.isTransit,
+      isWalking: isWalking ?? this.isWalking,
+      isBicycle: isBicycle ?? this.isBicycle,
+      color: color ?? this.color,
+      routeName: routeName ?? this.routeName,
+      modeName: modeName ?? this.modeName,
+      duration: duration ?? this.duration,
+      arrivalDelay: clearArrivalDelay
+          ? null
+          : (arrivalDelay ?? this.arrivalDelay),
+      tripId: tripId ?? this.tripId,
+      realtimeState: realtimeState ?? this.realtimeState,
+    );
+  }
+
   @override
   List<Object?> get props => [
     id,

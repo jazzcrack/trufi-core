@@ -1274,6 +1274,16 @@ Verifiziert: `dart analyze` sauber. 4 neue Unit-Tests für
 `stripKnownFeedPrefix` (inkl. des genauen DHID-Reproduktionsfalls). 186
 `trufi_core_routing`-Unit-Tests grün (182+4 neu).
 
+### 52. `NavigationLeg.copyWith()` ergänzt: `realtimeState` ging bei jedem Verspätungs-Refresh verloren
+
+Bei der Suche nach der Ursache, warum Echtzeitdaten während Planung/laufender Fahrt trotz Patch 51 weiterhin fehlen (14.10.2026, Nutzer-Bestätigung), beim Code-Review gefunden (nicht der gesuchte Haupt-Bug, aber ein echter, eigenständiger Fehler): `NavigationCubit.refreshCurrentLegDelay()` baute das aktualisierte `NavigationLeg` von Hand zusammen, statt ein `copyWith` zu nutzen (`NavigationLeg` hatte bis dahin gar keins) - und vergaß dabei `realtimeState`. Jeder Verspätungs-Refresh setzte den Ausfall-Status eines Abschnitts (`isCanceled`) damit unbemerkt auf `null` zurück, selbst wenn er zuvor korrekt als ausgefallen markiert war.
+
+**Fix:** `NavigationLeg` bekommt ein eigenes `copyWith()` (mit `clearArrivalDelay`-Sentinel, da `arrivalDelay: null` ein gültiger, bewusster Wert ist - selbe Begründung wie beim bereits bestehenden `clearDistanceFromRoute` in `NavigationState`). `refreshCurrentLegDelay()` nutzt es jetzt statt der Handimplementierung - verhindert diese Fehlerklasse auch an künftigen Stellen.
+
+**Wichtig: dies ist NICHT der gesuchte Haupt-Bug.** `RealtimeChip.fromDelay(leg.arrivalDelay)` liest nur `arrivalDelay`, nicht `realtimeState` - der Verspätungs-Chip selbst wurde von diesem Fehler nicht blockiert. Die eigentliche Ursache, warum Planung/laufende Fahrt weiterhin keine Echtzeitdaten zeigen (obwohl die Haltestellenansicht nach Patch 51 wieder korrekt funktioniert), ist zum Zeitpunkt dieses Patches noch NICHT gefunden - siehe TODO.md T034 für den aktuellen Ermittlungsstand und die als Nächstes nötigen Schritte (vermutlich Geräte-Logs oder eine direkte Prüfung, ob OTPs Planungs-Endpunkt selbst überhaupt Echtzeitdaten in frische Itinerary-Berechnungen einbezieht).
+
+Verifiziert: `dart analyze` sauber. Neuer Regressionstest (`navigation_cubit_refresh_delay_test.dart`) - setzt ein Bein explizit auf `RealtimeState.canceled`, bestätigt `isCanceled` bleibt nach einem Verspätungs-Refresh erhalten. 27 `trufi_core_navigation`-Tests grün (26+1 neu).
+
 ## Sync-Strategie: wie künftige Upstream-Änderungen reinkommen
 
 Ziel: Trufi-Core-Updates (neue Features, Bugfixes) weiter bekommen,

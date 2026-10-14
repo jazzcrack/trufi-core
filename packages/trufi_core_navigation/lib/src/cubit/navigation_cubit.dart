@@ -182,18 +182,9 @@ class NavigationCubit extends Cubit<NavigationState> {
     if (old.arrivalDelay == arrivalDelay) return;
 
     final updatedLegs = List<NavigationLeg>.from(route.legs);
-    updatedLegs[index] = NavigationLeg(
-      id: old.id,
-      points: old.points,
-      isTransit: old.isTransit,
-      isWalking: old.isWalking,
-      isBicycle: old.isBicycle,
-      color: old.color,
-      routeName: old.routeName,
-      modeName: old.modeName,
-      duration: old.duration,
+    updatedLegs[index] = old.copyWith(
       arrivalDelay: arrivalDelay,
-      tripId: old.tripId,
+      clearArrivalDelay: arrivalDelay == null,
     );
 
     emit(
