@@ -177,8 +177,10 @@ class Otp28RoutingProvider extends IRoutingProvider {
       _prefs.setRentalFormFactors(formFactors);
 
   @override
-  Widget? buildQuickFilterChips(BuildContext context, {VoidCallback? onChanged}) =>
-      availableRentalFormFactors.isEmpty
+  Widget? buildQuickFilterChips(
+    BuildContext context, {
+    VoidCallback? onChanged,
+  }) => availableRentalFormFactors.isEmpty
       ? null
       : SharingQuickFilterChips(
           state: _prefs,
@@ -299,10 +301,7 @@ class Otp28RoutingProvider extends IRoutingProvider {
 
     return plan.copyWith(
       itineraries: sortByGeneralizedCost(
-        filterLongWalks(
-          plan.itineraries,
-          walkOnlyRequested: walkOnlyRequested,
-        ),
+        filterLongWalks(plan.itineraries, walkOnlyRequested: walkOnlyRequested),
       ),
     );
   }
@@ -428,12 +427,23 @@ class Otp28RoutingProvider extends IRoutingProvider {
     if (feedId == null) return null;
 
     try {
+      // fahrplaner.de fork patch (13.10.2026, echter Nutzer-Fund): drei
+      // Aufrufer (navigation_map.dart, itinerary_live_refresh.dart,
+      // itinerary_list.dart) reichen hier tatsaechlich `Place.stopId`
+      // durch, das aus OTPs eigenem `gtfsId` stammt und deshalb bereits
+      // feed-qualifiziert ist ("2:92253"). Ohne Normalisierung wurde daraus
+      // "2:2:92253" - eine nie existierende Stop-ID, die OTP klaglos mit
+      // "stop: null" beantwortet (kein Fehler, nur stille Null-Rueckgabe
+      // oben). `stripGtfsFeedPrefix` macht die Funktion robust gegen BEIDE
+      // Eingabeformen (roh ODER bereits qualifiziert), statt sich auf den
+      // Dokumentationskommentar der Schnittstelle zu verlassen.
+      final rawStopId = stripGtfsFeedPrefix(stopId);
       final options = WatchQueryOptions(
         document: parseString(otp28StopDeparturesQuery),
         fetchResults: true,
         fetchPolicy: FetchPolicy.networkOnly,
         variables: <String, dynamic>{
-          'stopId': '$feedId:$stopId',
+          'stopId': '$feedId:$rawStopId',
           'numberOfDepartures': 20,
         },
       );

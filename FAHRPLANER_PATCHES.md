@@ -1192,6 +1192,54 @@ Verifiziert: `dart analyze` sauber. `chip_tap_target_test.dart` um einen
 Test für `_RoutingOptionsButton` erweitert (44px-Mindestfläche). 87
 `trufi_core_home_screen`-Paket-Tests grün (86+1 neu).
 
+### 50. Echtzeitdaten fehlten in Fahrt/Planung: doppelt feed-qualifizierte Stop-ID
+
+Echter Nutzer-Fund (14.10.2026, Build 53 am Gerät getestet): Live-Verspätungen
+erschienen weiterhin NUR in der Haltestellenansicht (Abfahrtstafel), nicht
+während einer laufenden Fahrt und nicht bei der Planung - trotz des
+Timer.periodic-Fixes (Patch 47) und eines zuvor behobenen Server-Problems.
+Da zur selben Zeit am selben Halt die Haltestellenansicht sehr wohl eine
+Verspätung zeigte, war klar: die Daten sind da, nur der Abruf in den drei
+anderen Pfaden (`navigation_map.dart`, `itinerary_live_refresh.dart` im
+Hauptprojekt, `itinerary_list.dart` hier im Fork) schlägt fehl.
+
+**Ursache gefunden:** `Otp28RoutingProvider.fetchLiveStopDelays(stopId)`
+baute die GraphQL-Variable immer als `'$feedId:$stopId'` - unter der
+Annahme, `stopId` sei die rohe, nicht feed-qualifizierte GTFS-Stop-ID (so
+auch im Doc-Kommentar der `IRoutingProvider`-Schnittstelle festgehalten).
+Die Abfahrtstafel haelt sich daran (ihre `memberStopIds` kommen direkt aus
+dem lokal gebündelten GTFS-Datensatz, also roh). Die drei anderen Aufrufer
+reichen aber `Place.stopId` durch, das aus OTPs eigenem `gtfsId`-Feld
+stammt und deshalb SELBST BEREITS feed-qualifiziert ist (z. B. `"2:92253"`).
+Daraus wurde `"2:2:92253"` - eine nie existierende Stop-ID. OTP beantwortet
+das klaglos mit `stop: null`, kein Fehler, nur eine stille Null-Rückgabe
+(der Try/Catch-Block drumherum ist genau dafür gedacht, "keine
+Echtzeitdaten" vorzutäuschen) - weshalb das drei Sessions lang unbemerkt
+blieb, selbst nachdem alle drei Timer-Mechanismen korrekt sofort feuerten.
+
+**Fix:** `fetchLiveStopDelays()` normalisiert die eingehende `stopId` jetzt
+selbst mit dem bereits bestehenden `stripGtfsFeedPrefix()` (aus
+`trufi_core_interfaces`, bisher nur für Trip-/Routen-IDs genutzt, siehe
+dessen Doc-Kommentar zum exakt selben Rohdaten-vs-qualifiziert-Problem bei
+Fahrzeugpositionen) - macht die Funktion robust gegen BEIDE Eingabeformen,
+statt sich darauf zu verlassen, dass jeder künftige Aufrufer den
+Doc-Kommentar der Schnittstelle korrekt beachtet. Keine Änderung an den
+drei Aufrufern nötig.
+
+**Nicht eigenständig testbar:** `fetchLiveStopDelays()` baut seinen
+`GraphQLClient` intern (`GraphQLClientFactory.create(...)`), nicht über den
+Konstruktor injizierbar - es gibt in diesem Paket keine Mock-Infrastruktur
+für den GraphQL-Link, nur echte Integrationstests gegen einen laufenden
+OTP-Server. Die Korrektheit der Normalisierung selbst ist über die
+bestehenden `stripGtfsFeedPrefix`-Tests in `trufi_core_interfaces`
+abgedeckt (`'1:1132'` → `'1132'`, `'1132'` → `'1132'`).
+
+Verifiziert: `dart analyze` sauber. 182 `trufi_core_routing`-Unit-Tests
+grün (unverändert - reine Verkabelungsänderung, keine neue Logik). Die
+Integrationstests (echter OTP-Server) scheitern bereits ohne diese
+Änderung an HTTP 400 in dieser Umgebung (kein Netzzugriff/Endpunkt hier
+konfiguriert) - vorbestehend, nicht durch diesen Patch verursacht.
+
 ## Sync-Strategie: wie künftige Upstream-Änderungen reinkommen
 
 Ziel: Trufi-Core-Updates (neue Features, Bugfixes) weiter bekommen,
