@@ -141,9 +141,13 @@ RealtimeStatus realtimeStatusFor(Duration? delay, {bool cancelled = false}) {
   return delay.inSeconds <= 60 ? RealtimeStatus.onTime : RealtimeStatus.late;
 }
 
-/// Minuten-Text fuer eine Verspaetung, aufgerundet wie bisher.
-String delayMinutesLabel(Duration delay) =>
-    '+${(delay.inSeconds / 60).ceil()} Min';
+/// Verspaetung in GANZEN Minuten, kaufmaennisch gerundet (fahrplaner.de
+/// T052, 15.10.2026) - dieselbe Rundung wie `delayWholeMinutes` in der App.
+/// Chip-Text UND neue Uhrzeit nutzen sie, sonst "21:59" neben "+2 Min".
+int delayWholeMinutes(Duration delay) => (delay.inSeconds / 60).round();
+
+/// Minuten-Text fuer eine Verspaetung, gerundet wie [delayWholeMinutes].
+String delayMinutesLabel(Duration delay) => '+${delayWholeMinutes(delay)} Min';
 
 /// Status-Kennzeichen "Live · puenktlich" / "Live · +3 Min" / "Ausfall" /
 /// "Fahrplan". [prefix] z. B. eine Liniennummer ("RS2"), [showLiveWord]
@@ -198,7 +202,7 @@ class RealtimeChip extends StatelessWidget {
       case RealtimeStatus.onTime:
         return 'Live-Daten: pünktlich';
       case RealtimeStatus.late:
-        final min = delay != null ? (delay!.inSeconds / 60).ceil() : null;
+        final min = delay != null ? delayWholeMinutes(delay!) : null;
         return min != null
             ? 'Live-Daten: $min Minuten verspätet'
             : 'Live-Daten: verspätet';

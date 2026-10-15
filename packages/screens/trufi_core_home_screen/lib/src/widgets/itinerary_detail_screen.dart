@@ -1117,7 +1117,10 @@ class _PlaceItem extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    formatClockTime(context, time!.add(delay!)),
+                    formatClockTime(
+                      context,
+                      time!.add(Duration(minutes: delayWholeMinutes(delay!))),
+                    ),
                     style: theme.textTheme.bodyMedium?.copyWith(
                       color: lateColor,
                       fontWeight: FontWeight.bold,

@@ -413,18 +413,11 @@ class ItineraryCard extends StatelessWidget {
 
     return Row(
       children: [
-        // fahrplaner.de fork patch (07.10.2026, siehe FAHRPLANER_PATCHES
-        // .md): "fällt aus" ist dringlicher als "hat Verspätung" und
-        // verdrängt daher den Verspätungs-Badge, statt daneben zu stehen -
-        // beide gleichzeitig anzuzeigen wäre verwirrend (eine ausgefallene
-        // Fahrt hat ohnehin meist keine sinnvolle Verspätungsangabe mehr).
-        if (itinerary.hasCanceledLeg) ...[
-          _CancellationBadge(theme: theme, l10n: l10n),
-          const SizedBox(width: 8),
-        ] else if (itinerary.overallArrivalDelay != null) ...[
-          RealtimeChip.fromDelay(itinerary.overallArrivalDelay),
-          const SizedBox(width: 8),
-        ],
+        // fahrplaner.de fork patch (15.10.2026, T042): KEIN eigener
+        // Verspaetungs-/Ausfall-Chip mehr in der Fusszeile - die
+        // Echtzeit-Zeile darueber zeigt beides bereits je Transit-Bein
+        // ("505 +3 Min" / "505 Ausfall"), der zusaetzliche Gesamt-Chip
+        // ("+3 Min") wirkte wie eine doppelte Anzeige.
         // Distance
         _InfoChip(
           icon: Icons.straighten_rounded,
@@ -679,38 +672,6 @@ class _LegChip extends StatelessWidget {
       default:
         return Icons.directions_rounded;
     }
-  }
-}
-
-/// Real-time cancellation indicator (fahrplaner.de fork patch, 07.10.2026,
-/// siehe FAHRPLANER_PATCHES.md). Bewusst ein eigenes Icon/Farbe statt nur
-/// eine Textvariante von [_DelayBadge] - "fällt aus" ist kategorisch
-/// anders als "hat Verspätung", nicht nur eine extremere Verspätung.
-class _CancellationBadge extends StatelessWidget {
-  final ThemeData theme;
-  final HomeScreenLocalizations l10n;
-
-  const _CancellationBadge({required this.theme, required this.l10n});
-
-  @override
-  Widget build(BuildContext context) {
-    const color = Color(
-      0xFFC62828,
-    ); // red - dasselbe Rot wie die starke Delay-Stufe
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        const Icon(Icons.cancel_rounded, size: 14, color: color),
-        const SizedBox(width: 4),
-        Text(
-          l10n.tripCanceled,
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: color,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      ],
-    );
   }
 }
 

@@ -70,10 +70,10 @@ void main() {
         );
 
         expect(find.textContaining('ab Schleusenstr.'), findsOneWidget);
-        // Zwei "+3 Min"-Texte sind hier korrekt: die Fusszeile zeigt
-        // weiterhin den GESAMT-Verspaetungs-Chip (ohne Praefix, Patch 23),
-        // die neue Echtzeit-Zeile den EIGENEN, praefixierten Chip je Bein.
+        // Nur der praefixierte Chip je Bein - KEIN zusaetzlicher Gesamt-
+        // Chip "+3 Min" in der Fusszeile mehr (T042, doppelte Anzeige).
         expect(find.text('RS2 +3 Min'), findsOneWidget);
+        expect(find.text('+3 Min'), findsNothing);
       },
     );
   });

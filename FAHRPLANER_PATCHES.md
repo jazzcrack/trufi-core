@@ -1300,6 +1300,14 @@ Auf Nutzer-Vorschlag direkt gegen den echten, in `app/android/otp.properties` hi
 
 Verifiziert: `dart analyze` sauber (beide Pakete). `trufi_core_routing`: 191 Unit-Tests grün (186+5 neu). `trufi_core_home_screen`: 88 Tests grün (87+1 neu). App (Hauptprojekt): neuer Regressionstest in `itinerary_live_refresh_test.dart`, beide betroffenen Dateien `dart analyze`-sauber.
 
+### 54. Verbindungskarte: doppelte Echtzeit-Anzeige entfernt + einheitliche Minuten-Rundung (T042/T052)
+
+Nutzer-Fund (15.10.2026, Build 57): in der Verbindungsliste stand die Echtzeit doppelt - "505 +3 Min" in der Echtzeit-Zeile UND zusätzlich "+3 Min" in der Fußzeile. **Fix:** `ItineraryCard._buildFooterRow()` zeigt keinen eigenen Gesamt-Verspätungs-Chip und keinen `_CancellationBadge` mehr (die Echtzeit-Zeile zeigt beides schon je Transit-Bein, inkl. "505 Ausfall"); `_CancellationBadge` dadurch ungenutzt und entfernt. Bestehender Test, der die Doppelung ausdrücklich als "korrekt" festschrieb, umgedreht (`find.text('+3 Min')` → `findsNothing`).
+
+Zweiter Fund: Verspätung wurde AUFGERUNDET (`ceil`), die neue Uhrzeit aber per `time.add(delay)` effektiv abgeschnitten - 61 s Verspätung ergab "21:59" neben "+2 Min". **Fix:** neue `delayWholeMinutes()` (kaufmännisch gerundet) in `realtime_chip.dart`, genutzt von Chip-Text, Semantik-Text und der neuen Uhrzeit in `itinerary_detail_screen.dart`. Gleiche Funktion im Hauptprojekt (`fahrplaner_theme.dart`), da der Fork die App nicht importieren kann.
+
+Verifiziert: `dart analyze` (nur der bekannte, vorbestehende `depend_on_referenced_packages`-Hinweis), `trufi_core_home_screen`: 88 Tests grün.
+
 ## Sync-Strategie: wie künftige Upstream-Änderungen reinkommen
 
 Ziel: Trufi-Core-Updates (neue Features, Bugfixes) weiter bekommen,
