@@ -2045,6 +2045,57 @@ class _HomeScreenState extends State<HomeScreen>
                                           onClearLocation: _onClearLocation,
                                           onMenuPressed: widget.onMenuPressed,
                                         ),
+                                        // fahrplaner.de fork patch (15.10.2026,
+                                        // T046/T047): diese Zeile gehoert zum
+                                        // Planungsformular und steht deshalb
+                                        // DIREKT unter Von/Nach/Tauschen (wie in
+                                        // Main.dc.html), nicht mehr unter dem
+                                        // belowSearchBuilder-Block; Zeit-Chip
+                                        // jetzt immer sichtbar, nicht erst mit
+                                        // gesetztem Ort.
+                                        // "Jetzt losfahren"/"Optionen"-Zeile
+                                        // (docs/design/referenz/Main.dc.html):
+                                        // Zeit-Chip nur wenn Orte gesetzt und
+                                        // kein `routingTimeOverride` aktiv ist
+                                        // (sonst wuerde der Picker eine fixe
+                                        // Zeit zeigen, die er nicht aendern
+                                        // kann); der "Optionen"-Knopf selbst
+                                        // bleibt unabhaengig davon IMMER
+                                        // sichtbar - er sass vorher als reines
+                                        // Icon im Suchbalken (SearchLocationBar.
+                                        // onRoutingSettings), war dort immer da.
+                                        // fahrplaner.de fork patch (13.10.2026,
+                                        // Nutzer-Fund: Optionen-Knopf war ein
+                                        // unauffaelliges Icon im Suchbalken statt
+                                        // der im Entwurf vorgesehenen, beschrif-
+                                        // teten Pille neben "Jetzt losfahren").
+                                        // `Wrap` statt `Row`, weil der schmale
+                                        // Querformat-Seitenpanel (~300px) fuer
+                                        // beide vollen Pillen nebeneinander
+                                        // keinen Platz hat - faellt dort auf
+                                        // eine zweite Zeile statt zu overflown.
+                                        Padding(
+                                          padding: const EdgeInsets.only(
+                                            top: 8,
+                                          ),
+                                          child: Wrap(
+                                            spacing: 8,
+                                            runSpacing: 8,
+                                            children: [
+                                              if (context
+                                                      .read<AppConfiguration?>()
+                                                      ?.routingTimeOverride ==
+                                                  null)
+                                                DepartureTimeChip(
+                                                  onTimeChanged:
+                                                      _fetchPlanIfReady,
+                                                ),
+                                              _RoutingOptionsButton(
+                                                onPressed: _onRoutingSettings,
+                                              ),
+                                            ],
+                                          ),
+                                        ),
                                         // Redesign Oktober 2026 (docs/design/
                                         // HANDOFF.md Abschnitt 3.1): Inhalte
                                         // unterhalb der Suchleiste auf dem LEEREN
@@ -2077,53 +2128,6 @@ class _HomeScreenState extends State<HomeScreen>
                                                 .config
                                                 .belowSearchBuilder!(context),
                                           ),
-                                        // "Jetzt losfahren"/"Optionen"-Zeile
-                                        // (docs/design/referenz/Main.dc.html):
-                                        // Zeit-Chip nur wenn Orte gesetzt und
-                                        // kein `routingTimeOverride` aktiv ist
-                                        // (sonst wuerde der Picker eine fixe
-                                        // Zeit zeigen, die er nicht aendern
-                                        // kann); der "Optionen"-Knopf selbst
-                                        // bleibt unabhaengig davon IMMER
-                                        // sichtbar - er sass vorher als reines
-                                        // Icon im Suchbalken (SearchLocationBar.
-                                        // onRoutingSettings), war dort immer da.
-                                        // fahrplaner.de fork patch (13.10.2026,
-                                        // Nutzer-Fund: Optionen-Knopf war ein
-                                        // unauffaelliges Icon im Suchbalken statt
-                                        // der im Entwurf vorgesehenen, beschrif-
-                                        // teten Pille neben "Jetzt losfahren").
-                                        // `Wrap` statt `Row`, weil der schmale
-                                        // Querformat-Seitenpanel (~300px) fuer
-                                        // beide vollen Pillen nebeneinander
-                                        // keinen Platz hat - faellt dort auf
-                                        // eine zweite Zeile statt zu overflown.
-                                        Padding(
-                                          padding: const EdgeInsets.only(
-                                            top: 8,
-                                          ),
-                                          child: Wrap(
-                                            spacing: 8,
-                                            runSpacing: 8,
-                                            children: [
-                                              if (context
-                                                          .read<
-                                                            AppConfiguration?
-                                                          >()
-                                                          ?.routingTimeOverride ==
-                                                      null &&
-                                                  (state.fromPlace != null ||
-                                                      state.toPlace != null))
-                                                DepartureTimeChip(
-                                                  onTimeChanged:
-                                                      _fetchPlanIfReady,
-                                                ),
-                                              _RoutingOptionsButton(
-                                                onPressed: _onRoutingSettings,
-                                              ),
-                                            ],
-                                          ),
-                                        ),
                                         // "Weniger Umstiege" (Redesign Oktober
                                         // 2026, Abschnitt 3.2) - nur sinnvoll,
                                         // sobald ein Plan vorliegt (sonst gibt es
@@ -2599,16 +2603,6 @@ class _HomeScreenState extends State<HomeScreen>
                       onClearLocation: _onClearLocation,
                       onMenuPressed: widget.onMenuPressed,
                     ),
-                    // Redesign Oktober 2026 (Abschnitt 3.1) - sonst
-                    // gleich wie in der schmalen Ansicht, inkl. des
-                    // Patch-31-Fixes (nur toPlace, siehe dortiger
-                    // Kommentar).
-                    if (state.toPlace == null &&
-                        widget.config.belowSearchBuilder != null)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 8),
-                        child: widget.config.belowSearchBuilder!(context),
-                      ),
                     // "Jetzt losfahren"/"Optionen"-Zeile - gleiche Logik
                     // wie in der schmalen Ansicht oben (dortiger Kommentar,
                     // inkl. `Wrap` statt `Row` wegen des schmalen
@@ -2620,16 +2614,24 @@ class _HomeScreenState extends State<HomeScreen>
                         runSpacing: 8,
                         children: [
                           if (context
-                                      .read<AppConfiguration?>()
-                                      ?.routingTimeOverride ==
-                                  null &&
-                              (state.fromPlace != null ||
-                                  state.toPlace != null))
+                                  .read<AppConfiguration?>()
+                                  ?.routingTimeOverride ==
+                              null)
                             DepartureTimeChip(onTimeChanged: _fetchPlanIfReady),
                           _RoutingOptionsButton(onPressed: _onRoutingSettings),
                         ],
                       ),
                     ),
+                    // Redesign Oktober 2026 (Abschnitt 3.1) - sonst
+                    // gleich wie in der schmalen Ansicht, inkl. des
+                    // Patch-31-Fixes (nur toPlace, siehe dortiger
+                    // Kommentar).
+                    if (state.toPlace == null &&
+                        widget.config.belowSearchBuilder != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: widget.config.belowSearchBuilder!(context),
+                      ),
                     // "Weniger Umstiege" (Redesign Oktober 2026, Abschnitt
                     // 3.2) - sonst gleich wie in der schmalen Ansicht.
                     if (state.plan?.hasItineraries == true)

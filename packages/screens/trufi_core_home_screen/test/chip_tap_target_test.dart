@@ -115,7 +115,11 @@ class _FakeEngine extends ITrufiMapEngine {
   }
 }
 
-Future<void> _pumpHomeWithPlan(WidgetTester tester) async {
+Future<void> _pumpHomeWithPlan(
+  WidgetTester tester, {
+  bool withPlan = true,
+  HomeScreenConfig config = const HomeScreenConfig(),
+}) async {
   final manager = MapEngineManager(
     engines: [_FakeEngine(_MapCalls())],
     defaultCenter: _defaultCenter,
@@ -125,13 +129,15 @@ Future<void> _pumpHomeWithPlan(WidgetTester tester) async {
     requestService: _FakePlanService(),
   );
   addTearDown(cubit.close);
-  await cubit.setFromPlace(
-    const TrufiLocation(description: 'A', latitude: 53.0, longitude: 8.8),
-  );
-  await cubit.setToPlace(
-    const TrufiLocation(description: 'B', latitude: 53.1, longitude: 8.6),
-  );
-  await cubit.fetchPlan();
+  if (withPlan) {
+    await cubit.setFromPlace(
+      const TrufiLocation(description: 'A', latitude: 53.0, longitude: 8.8),
+    );
+    await cubit.setToPlace(
+      const TrufiLocation(description: 'B', latitude: 53.1, longitude: 8.6),
+    );
+    await cubit.fetchPlan();
+  }
 
   await tester.pumpWidget(
     MultiProvider(
@@ -148,10 +154,7 @@ Future<void> _pumpHomeWithPlan(WidgetTester tester) async {
         ],
         supportedLocales: HomeScreenLocalizations.supportedLocales,
         locale: const Locale('de'),
-        home: HomeScreen(
-          onMenuPressed: () {},
-          config: const HomeScreenConfig(),
-        ),
+        home: HomeScreen(onMenuPressed: () {}, config: config),
       ),
     ),
   );
@@ -237,6 +240,26 @@ void main() {
         greaterThanOrEqualTo(44),
         reason: '_RoutingOptionsButton tap target is only ${optionsHeight}px',
       );
+    },
+  );
+
+  testWidgets(
+    '"Jetzt losfahren" + "Optionen" stehen direkt unter Von/Nach - auch ohne '
+    'gewaehlten Ort und OBERHALB des belowSearchBuilder-Blocks (T046/T047)',
+    (tester) async {
+      await _pumpHomeWithPlan(
+        tester,
+        withPlan: false,
+        config: HomeScreenConfig(
+          belowSearchBuilder: (_) => const Text('Zuhause-Kacheln'),
+        ),
+      );
+
+      expect(find.text('Jetzt losfahren'), findsOneWidget);
+      expect(find.text('Optionen'), findsOneWidget);
+      final timeY = tester.getTopLeft(find.text('Jetzt losfahren')).dy;
+      final belowY = tester.getTopLeft(find.text('Zuhause-Kacheln')).dy;
+      expect(timeY, lessThan(belowY));
     },
   );
 }

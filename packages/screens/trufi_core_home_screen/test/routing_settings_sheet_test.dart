@@ -143,24 +143,16 @@ Future<void> _pumpSheet(
 }
 
 void main() {
-  testWidgets(
-    'zeigt den aktuellen Zeitpunkt ("Jetzt losfahren") als Kontextzeile '
-    'ganz oben, Antippen oeffnet den Zeit-Dialog',
-    (tester) async {
-      final cubit = await _cubit();
-      addTearDown(cubit.close);
+  testWidgets('zeigt KEINE Zeitpunkt-Zeile mehr - der Zeitpunkt gehoert zum '
+      'Planungsformular, nicht zu den Optionen (T047)', (tester) async {
+    final cubit = await _cubit();
+    addTearDown(cubit.close);
 
-      await _pumpSheet(tester, cubit: cubit, engine: _FakeRoutingProvider());
+    await _pumpSheet(tester, cubit: cubit, engine: _FakeRoutingProvider());
 
-      expect(find.text('Zeitpunkt der Fahrt'), findsOneWidget);
-      expect(find.text('Jetzt losfahren'), findsOneWidget);
-
-      await tester.tap(find.text('Jetzt losfahren'));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Wann möchtest du reisen?'), findsOneWidget);
-    },
-  );
+    expect(find.text('Zeitpunkt der Fahrt'), findsNothing);
+    expect(find.text('Jetzt losfahren'), findsNothing);
+  });
 
   testWidgets(
     'zeigt den Sharing-Schnellfilter-Abschnitt, wenn der Provider einen '

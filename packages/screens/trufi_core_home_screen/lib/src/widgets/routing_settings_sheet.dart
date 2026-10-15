@@ -1,15 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:trufi_core_base_widgets/trufi_core_base_widgets.dart';
-import 'package:trufi_core_interfaces/trufi_core_interfaces.dart'
-    show AppConfiguration;
 import 'package:trufi_core_routing/trufi_core_routing.dart';
 
 import '../../l10n/home_screen_localizations.dart';
-import '../cubit/route_planner_cubit.dart';
-import '../models/route_planner_state.dart';
-import 'departure_time_sheet.dart';
 
 /// Shows the routing settings bottom sheet.
 /// Returns `true` if the user tapped "Apply" to confirm changes.
@@ -98,20 +92,9 @@ class RoutingSettingsSheet extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // fahrplaner.de fork patch (siehe FAHRPLANER_PATCHES.md,
-                  // Nutzer-Wunsch 12.10.2026): der Zeitpunkt der Fahrt als
-                  // Kontext ganz oben im Sheet - derselbe Dialog wie der
-                  // separate "Jetzt losfahren"-Schnellzugriff auf dem
-                  // Home-Screen (showDepartureTimeSheet), nur hier als Teil
-                  // der gesammelten Fahrt-Einstellungen. Gleiche
-                  // Sichtbarkeits-Bedingung wie dort: ausgeblendet, wenn ein
-                  // App-weiter `routingTimeOverride` jede Anfrage ohnehin
-                  // auf eine feste Uhrzeit festlegt.
-                  if (context.read<AppConfiguration?>()?.routingTimeOverride ==
-                      null) ...[
-                    const _DepartureTimeSettingsRow(),
-                    const Divider(height: 1),
-                  ],
+                  // Zeitpunkt der Fahrt NICHT mehr hier (fahrplaner.de fork
+                  // patch 15.10.2026, T047): er gehoert zum Planungsformular
+                  // ("Jetzt losfahren"-Chip direkt unter Von/Nach).
                   // Engine selector - only show if multiple engines available
                   if (routingManager.hasMultipleEngines) ...[
                     _RoutingEngineSelector(routingManager: routingManager),
@@ -185,80 +168,6 @@ class RoutingSettingsSheet extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-}
-
-/// fahrplaner.de fork patch (siehe FAHRPLANER_PATCHES.md, Nutzer-Wunsch
-/// 12.10.2026): Zeitpunkt-Kontextzeile oben im "Optionen"-Sheet - liest
-/// [RoutePlannerCubit]s Stand direkt (wie [DepartureTimeChip]), oeffnet bei
-/// Antippen denselben Dialog (showDepartureTimeSheet). "Jetzt losfahren"
-/// bleibt als eigener Schnellzugriff auf dem Home-Screen bestehen
-/// (Nutzerentscheidung: kein vollstaendiges Zusammenlegen in einen
-/// einzigen Dialog) - diese Zeile gibt dem "Optionen"-Sheet trotzdem den
-/// vollen Fahrt-Kontext, ohne dass man dafuer das Sheet erst schliessen muss.
-class _DepartureTimeSettingsRow extends StatelessWidget {
-  const _DepartureTimeSettingsRow();
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-    final l10n = HomeScreenLocalizations.of(context);
-
-    return BlocBuilder<RoutePlannerCubit, RoutePlannerState>(
-      builder: (context, state) {
-        final timeMode = state.timeMode;
-        final dateTime = state.dateTime;
-
-        return Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: () => showDepartureTimeSheet(
-              context,
-              currentMode: timeMode,
-              currentDateTime: dateTime,
-              onTimeChanged: () {},
-            ),
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
-              child: Row(
-                children: [
-                  Icon(
-                    timeModeIcon(timeMode),
-                    color: colorScheme.primary,
-                    size: 22,
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          l10n.departureTimeLabel,
-                          style: theme.textTheme.labelSmall?.copyWith(
-                            color: colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                        Text(
-                          timeModeLabel(timeMode, dateTime, l10n),
-                          style: theme.textTheme.bodyLarge?.copyWith(
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Icon(
-                    Icons.chevron_right_rounded,
-                    color: colorScheme.onSurfaceVariant,
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
     );
   }
 }

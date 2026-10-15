@@ -1308,6 +1308,14 @@ Zweiter Fund: Verspätung wurde AUFGERUNDET (`ceil`), die neue Uhrzeit aber per 
 
 Verifiziert: `dart analyze` (nur der bekannte, vorbestehende `depend_on_referenced_packages`-Hinweis), `trufi_core_home_screen`: 88 Tests grün.
 
+### 55. Planungsformular wie im Entwurf: Zeit + Optionen direkt unter Von/Nach, Zeitpunkt raus aus "Optionen" (T046/T047)
+
+Nutzer-Fund (15.10.2026, Build 57): "Optionen" stand nicht beim Formular (Von/Nach/Tauschen), sondern unter dem ganzen `belowSearchBuilder`-Block (Zuhause/Arbeit, gemerkte Fahrt, nächste Haltestelle) - weit unten und optisch getrennt vom Formular. Außerdem war der Zeitpunkt der Fahrt faktisch nur über das Optionen-Sheet erreichbar, weil der "Jetzt losfahren"-Chip erst mit gesetztem Ort erschien.
+
+**Fix (`home_screen.dart`, Hoch- und Querformat):** die `Wrap`-Zeile "Jetzt losfahren"/"Optionen" steht jetzt DIREKT unter `SearchLocationBar`, vor dem `belowSearchBuilder`-Block (entspricht `Main.dc.html`); der Zeit-Chip ist immer sichtbar (nur noch `routingTimeOverride` blendet ihn aus). **`routing_settings_sheet.dart`:** `_DepartureTimeSettingsRow` (Patch 48) samt nun ungenutzter Imports entfernt - der Zeitpunkt gehört zum Formular, nicht zu den Präferenzen. Teilweise Rücknahme von Patch 48 auf ausdrücklichen Nutzer-Wunsch.
+
+Tests: `routing_settings_sheet_test.dart` prüft jetzt das Fehlen der Zeitzeile; neuer Test in `chip_tap_target_test.dart` (beide Pillen ohne gesetzten Ort sichtbar und OBERHALB des `belowSearchBuilder`-Inhalts). 89 Tests grün, `dart analyze` ohne neue Befunde.
+
 ## Sync-Strategie: wie künftige Upstream-Änderungen reinkommen
 
 Ziel: Trufi-Core-Updates (neue Features, Bugfixes) weiter bekommen,
