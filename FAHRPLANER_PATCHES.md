@@ -1318,7 +1318,7 @@ Tests: `routing_settings_sheet_test.dart` prüft jetzt das Fehlen der Zeitzeile;
 
 ### 56. "Jetzt losfahren" + "Optionen" nebeneinander und als echte Pillen (T046, Folgefund zu Patch 55)
 
-Beim Simulator-Abgleich von Patch 55 gefunden: beide Knöpfe standen trotz `Wrap` UNTEREINANDER. Ursache: `DepartureTimeChip` war in ein `Align(centerLeft)` gehüllt, das im `Wrap` die volle Zeilenbreite belegt - "Optionen" rutschte dadurch immer in eine eigene Zeile (bestand schon seit Patch 49, fiel erst mit dem neuen Simulator-Screenshot auf). `Align` entfernt. Zugleich die Optik an `Main.dc.html` angeglichen: getönte Fläche (`--sf2` = `colorScheme.surfaceContainer`) statt Sheet-Farbe mit Schatten (im Dunkelmodus praktisch unsichtbar), voll gerundet, Label fett (w700).
+Beim Simulator-Abgleich von Patch 55 gefunden: beide Knöpfe standen trotz `Wrap` UNTEREINANDER. Ursache: `DepartureTimeChip` war in ein `Align(centerLeft)` gehüllt, das im `Wrap` die volle Zeilenbreite belegt - "Optionen" rutschte dadurch immer in eine eigene Zeile (bestand schon seit Patch 49, fiel erst mit dem neuen Simulator-Screenshot auf). `Align` entfernt. Zugleich die Optik an `Main.dc.html` angeglichen: getönte Fläche (`--sf2` = `colorScheme.surfaceContainer`) statt Sheet-Farbe mit Schatten (im Dunkelmodus praktisch unsichtbar), voll gerundet, Label fett (w700), Zeile linksbündig (`Align` um das `Wrap`, die umgebende Column zentrierte sonst).
 
 Test: der T046/T047-Test in `chip_tap_target_test.dart` prüft jetzt zusätzlich "beide in einer Zeile" in einem 550er-Hochformat (im 800x600-Standard läuft das schmale Querformat-Seitenpanel, wo der Umbruch gewollt ist). Gegenprobe: mit wieder eingesetztem `Align` schlägt er fehl. 89 Tests grün.
 

@@ -2078,22 +2078,29 @@ class _HomeScreenState extends State<HomeScreen>
                                           padding: const EdgeInsets.only(
                                             top: 8,
                                           ),
-                                          child: Wrap(
-                                            spacing: 8,
-                                            runSpacing: 8,
-                                            children: [
-                                              if (context
-                                                      .read<AppConfiguration?>()
-                                                      ?.routingTimeOverride ==
-                                                  null)
-                                                DepartureTimeChip(
-                                                  onTimeChanged:
-                                                      _fetchPlanIfReady,
+                                          child: Align(
+                                            // Linksbuendig wie Main.dc.html (T046) - die umgebende Column
+                                            // zentriert das Wrap sonst.
+                                            alignment: Alignment.centerLeft,
+                                            child: Wrap(
+                                              spacing: 8,
+                                              runSpacing: 8,
+                                              children: [
+                                                if (context
+                                                        .read<
+                                                          AppConfiguration?
+                                                        >()
+                                                        ?.routingTimeOverride ==
+                                                    null)
+                                                  DepartureTimeChip(
+                                                    onTimeChanged:
+                                                        _fetchPlanIfReady,
+                                                  ),
+                                                _RoutingOptionsButton(
+                                                  onPressed: _onRoutingSettings,
                                                 ),
-                                              _RoutingOptionsButton(
-                                                onPressed: _onRoutingSettings,
-                                              ),
-                                            ],
+                                              ],
+                                            ),
                                           ),
                                         ),
                                         // Redesign Oktober 2026 (docs/design/
@@ -2609,17 +2616,26 @@ class _HomeScreenState extends State<HomeScreen>
                     // Querformat-Seitenpanels).
                     Padding(
                       padding: const EdgeInsets.only(top: 8),
-                      child: Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: [
-                          if (context
-                                  .read<AppConfiguration?>()
-                                  ?.routingTimeOverride ==
-                              null)
-                            DepartureTimeChip(onTimeChanged: _fetchPlanIfReady),
-                          _RoutingOptionsButton(onPressed: _onRoutingSettings),
-                        ],
+                      child: Align(
+                        // Linksbuendig wie Main.dc.html (T046) - die umgebende Column
+                        // zentriert das Wrap sonst.
+                        alignment: Alignment.centerLeft,
+                        child: Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            if (context
+                                    .read<AppConfiguration?>()
+                                    ?.routingTimeOverride ==
+                                null)
+                              DepartureTimeChip(
+                                onTimeChanged: _fetchPlanIfReady,
+                              ),
+                            _RoutingOptionsButton(
+                              onPressed: _onRoutingSettings,
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                     // Redesign Oktober 2026 (Abschnitt 3.1) - sonst
