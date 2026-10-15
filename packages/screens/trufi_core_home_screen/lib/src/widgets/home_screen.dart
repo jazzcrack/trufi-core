@@ -3480,16 +3480,15 @@ class _RoutingOptionsButton extends StatelessWidget {
     final l10n = HomeScreenLocalizations.of(context);
 
     return Material(
-      color: colorScheme.surface,
-      borderRadius: BorderRadius.circular(20),
-      elevation: 2,
-      shadowColor: Colors.black.withValues(alpha: 0.15),
+      // Gleiche Pillen-Optik wie DepartureTimeChip (T046, Main.dc.html).
+      color: colorScheme.surfaceContainer,
+      borderRadius: BorderRadius.circular(999),
       child: InkWell(
         onTap: () {
           HapticFeedback.lightImpact();
           onPressed();
         },
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(999),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
           child: Row(
@@ -3505,7 +3504,7 @@ class _RoutingOptionsButton extends StatelessWidget {
                 l10n.routingOptionsButton,
                 style: theme.textTheme.labelLarge?.copyWith(
                   color: colorScheme.onSurface,
-                  fontWeight: FontWeight.w500,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
             ],

@@ -111,54 +111,51 @@ class DepartureTimeChip extends StatelessWidget {
         final timeMode = state.timeMode;
         final dateTime = state.dateTime;
 
-        return Align(
-          alignment: Alignment.centerLeft,
-          child: Material(
-            color: colorScheme.surface,
-            borderRadius: BorderRadius.circular(20),
-            elevation: 2,
-            shadowColor: Colors.black.withValues(alpha: 0.15),
-            child: InkWell(
-              onTap: () => showDepartureTimeSheet(
-                context,
-                currentMode: timeMode,
-                currentDateTime: dateTime,
-                onTimeChanged: onTimeChanged,
-              ),
-              borderRadius: BorderRadius.circular(20),
-              child: Container(
-                // fahrplaner.de fork patch (see FAHRPLANER_PATCHES.md):
-                // 12 instead of 8 - the old padding left the tappable area
-                // under the 44px minimum (docs/design/QUERFORMAT.md
-                // Grundregel 5, found during the Querformat Q8 gap review).
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 12,
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      timeModeIcon(timeMode),
-                      size: 18,
-                      color: colorScheme.primary,
+        // fahrplaner.de fork patch (15.10.2026, T046): KEIN `Align` mehr -
+        // es dehnte den Chip auf volle Breite, wodurch "Optionen" im
+        // umgebenden `Wrap` immer in eine eigene Zeile rutschte. Pillen-
+        // Optik wie Main.dc.html: getoente Flaeche (--sf2 =
+        // surfaceContainer), voll gerundet, ohne Schatten.
+        return Material(
+          color: colorScheme.surfaceContainer,
+          borderRadius: BorderRadius.circular(999),
+          child: InkWell(
+            onTap: () => showDepartureTimeSheet(
+              context,
+              currentMode: timeMode,
+              currentDateTime: dateTime,
+              onTimeChanged: onTimeChanged,
+            ),
+            borderRadius: BorderRadius.circular(999),
+            child: Container(
+              // fahrplaner.de fork patch (see FAHRPLANER_PATCHES.md):
+              // 12 instead of 8 - the old padding left the tappable area
+              // under the 44px minimum (docs/design/QUERFORMAT.md
+              // Grundregel 5, found during the Querformat Q8 gap review).
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    timeModeIcon(timeMode),
+                    size: 18,
+                    color: colorScheme.primary,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    timeModeLabel(timeMode, dateTime, l10n),
+                    style: theme.textTheme.labelLarge?.copyWith(
+                      color: colorScheme.onSurface,
+                      fontWeight: FontWeight.w700,
                     ),
-                    const SizedBox(width: 6),
-                    Text(
-                      timeModeLabel(timeMode, dateTime, l10n),
-                      style: theme.textTheme.labelLarge?.copyWith(
-                        color: colorScheme.onSurface,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    const SizedBox(width: 4),
-                    Icon(
-                      Icons.arrow_drop_down_rounded,
-                      size: 20,
-                      color: colorScheme.onSurfaceVariant,
-                    ),
-                  ],
-                ),
+                  ),
+                  const SizedBox(width: 4),
+                  Icon(
+                    Icons.arrow_drop_down_rounded,
+                    size: 20,
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                ],
               ),
             ),
           ),

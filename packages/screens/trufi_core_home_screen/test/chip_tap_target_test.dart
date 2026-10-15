@@ -247,6 +247,12 @@ void main() {
     '"Jetzt losfahren" + "Optionen" stehen direkt unter Von/Nach - auch ohne '
     'gewaehlten Ort und OBERHALB des belowSearchBuilder-Blocks (T046/T047)',
     (tester) async {
+      // Hochformat, 550 breit wegen der breiten Ahem-Testschrift (im
+      // 800x600-Standard laeuft dagegen das schmale
+      // Querformat-Seitenpanel, wo der Umbruch gewollt ist).
+      tester.view.physicalSize = const Size(1650, 3000);
+      tester.view.devicePixelRatio = 3;
+      addTearDown(tester.view.reset);
       await _pumpHomeWithPlan(
         tester,
         withPlan: false,
@@ -260,6 +266,15 @@ void main() {
       final timeY = tester.getTopLeft(find.text('Jetzt losfahren')).dy;
       final belowY = tester.getTopLeft(find.text('Zuhause-Kacheln')).dy;
       expect(timeY, lessThan(belowY));
+      // Nebeneinander in EINER Zeile (vorher dehnte ein Align den
+      // Zeit-Chip auf volle Breite, "Optionen" rutschte darunter).
+      expect(
+        tester.getCenter(find.text('Optionen')).dy,
+        moreOrLessEquals(
+          tester.getCenter(find.text('Jetzt losfahren')).dy,
+          epsilon: 2,
+        ),
+      );
     },
   );
 }
