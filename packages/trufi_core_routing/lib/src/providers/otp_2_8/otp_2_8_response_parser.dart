@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:latlong2/latlong.dart';
 
 import '../../models/agency.dart';
@@ -262,4 +264,22 @@ class Otp28ResponseParser {
       );
     }).toList();
   }
+}
+
+/// fahrplaner.de fork patch 61 (T055): wandelt eine OTP-Relay-ID eines
+/// Patterns (`base64("Pattern:<code>")`, z. B. "UGF0dGVybjoxOjMyODgwOjA6MDg"
+/// -> "1:32880:0:08") in den Code um, den `pattern(id: ...)` findet. Noetig
+/// fuer Schnappschuesse gemerkter Fahrten, die noch die alte ID enthalten.
+/// Alles andere (bereits ein Code, unlesbar) kommt unveraendert zurueck.
+String patternLookupKey(String id) {
+  if (id.contains(':')) return id;
+  try {
+    final padded = id.padRight((id.length + 3) ~/ 4 * 4, '=');
+    final decoded = utf8.decode(base64.decode(padded));
+    const prefix = 'Pattern:';
+    if (decoded.startsWith(prefix)) return decoded.substring(prefix.length);
+  } on FormatException {
+    // kein Base64 - unveraendert
+  }
+  return id;
 }

@@ -54,4 +54,18 @@ void main() {
       expect(plan.itineraries!.single.legs.single.tripPatternId, isNull);
     });
   });
+
+  group('patternLookupKey (alte Relay-IDs aus gemerkten Fahrten)', () {
+    test('Relay-ID wird zum Code', () {
+      expect(patternLookupKey(_realId), _realCode);
+    });
+
+    test('ein Code bleibt unveraendert', () {
+      expect(patternLookupKey(_realCode), _realCode);
+    });
+
+    test('Unlesbares bleibt unveraendert', () {
+      expect(patternLookupKey('kein-base64!'), 'kein-base64!');
+    });
+  });
 }

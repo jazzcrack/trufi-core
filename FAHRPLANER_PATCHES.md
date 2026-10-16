@@ -1360,7 +1360,9 @@ Nutzer-Fund (16.10.2026, Build 59): Antippen einer Linienbadge in einer gesuchte
 
 **Fix:** `Otp28ResponseParser` setzt `tripPatternId` aus `pattern.code`, `pattern.id` nur noch als Rückfall. `otp_28_trip_pattern_id_test.dart` mit den echten Live-Werten neu geschrieben.
 
-Verifiziert: `trufi_core_routing` 192 Unit-Tests grün (`test/integration/` fragt externe Trufi-Server ab und schlägt unabhängig davon fehl - wie bisher nicht Teil der Prüfung).
+**Nachtrag:** gemerkte Fahrten tragen im Schnappschuss noch die alte Relay-ID. Die ist nur `base64("Pattern:<code>")` - neue `patternLookupKey()` wandelt sie in `fetchTransitRouteById()` in den Code um, damit auch alte Schnappschüsse funktionieren.
+
+Verifiziert: `trufi_core_routing` 195 Unit-Tests grün (`test/integration/` fragt externe Trufi-Server ab und schlägt unabhängig davon fehl - wie bisher nicht Teil der Prüfung).
 
 ## Sync-Strategie: wie künftige Upstream-Änderungen reinkommen
 

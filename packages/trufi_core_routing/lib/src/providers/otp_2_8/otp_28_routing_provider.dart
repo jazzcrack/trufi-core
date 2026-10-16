@@ -405,7 +405,8 @@ class Otp28RoutingProvider extends IRoutingProvider {
       document: parseString(pattern_queries.patternById),
       fetchResults: true,
       fetchPolicy: FetchPolicy.networkOnly,
-      variables: <String, dynamic>{'id': id},
+      // Patch 61 (T055): alte Relay-IDs aus gemerkten Fahrten -> Code.
+      variables: <String, dynamic>{'id': patternLookupKey(id)},
     );
 
     final result = await _client.query(options);
