@@ -1354,6 +1354,14 @@ Nutzer-Fund (16.10.2026, Build 59): in manchen Zeitfenstern brachte erst der 3. 
 
 Tests: vier neue Fälle in `load_more_keeps_position_test.dart` (leere Seiten übersprungen, Hinweis nach Höchstzahl, Hinweis im Widget, Cursor wird geleert). 99 Tests grün.
 
+### 61. "Linie nicht gefunden": `tripPatternId` wieder aus `pattern.code` (T055, korrigiert Patch 13)
+
+Nutzer-Fund (16.10.2026, Build 59): Antippen einer Linienbadge in einer gesuchten Verbindung meldete weiterhin "Linie nicht gefunden". **Live gegen den Produktiv-OTP-Server geprüft** (Linie 509, Bremerhaven): `pattern(id: "UGF0dGVybjoxOjMyODgwOjA6MDg")` (das `pattern.id` aus der Planungsantwort) liefert `null`, `pattern(id: "1:32880:0:08")` (das `pattern.code`) liefert den Treffer. Der Patch aus Kapitel 3.26 hatte also genau falsch herum umgestellt (code → id) - gestützt auf einen Test mit erfundenen Werten (`id: 'RS1:1:01'`, `code: 'RS1'`) statt einer echten Serverantwort, dasselbe Muster wie bei Patch 50/53. Das funktionierende app-eigene Liniendetail übergibt ebenfalls den Code (`variant.code`).
+
+**Fix:** `Otp28ResponseParser` setzt `tripPatternId` aus `pattern.code`, `pattern.id` nur noch als Rückfall. `otp_28_trip_pattern_id_test.dart` mit den echten Live-Werten neu geschrieben.
+
+Verifiziert: `trufi_core_routing` 192 Unit-Tests grün (`test/integration/` fragt externe Trufi-Server ab und schlägt unabhängig davon fehl - wie bisher nicht Teil der Prüfung).
+
 ## Sync-Strategie: wie künftige Upstream-Änderungen reinkommen
 
 Ziel: Trufi-Core-Updates (neue Features, Bugfixes) weiter bekommen,
