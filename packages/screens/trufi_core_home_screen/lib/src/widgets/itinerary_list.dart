@@ -473,7 +473,8 @@ class _ItineraryListState extends State<ItineraryList> {
           return _LoadMoreButton(
             cursor: state.plan?.previousPageCursor,
             earlier: true,
-            isLoading: state.isLoading,
+            isLoading: state.isLoadingEarlier,
+            isBusy: state.isLoadingMore,
             onTap: () => cubit.loadMoreItineraries(earlier: true),
           );
         }
@@ -481,7 +482,8 @@ class _ItineraryListState extends State<ItineraryList> {
           return _LoadMoreButton(
             cursor: state.plan?.nextPageCursor,
             earlier: false,
-            isLoading: state.isLoading,
+            isLoading: state.isLoadingLater,
+            isBusy: state.isLoadingMore,
             onTap: () => cubit.loadMoreItineraries(earlier: false),
           );
         }
@@ -498,9 +500,12 @@ class _ItineraryListState extends State<ItineraryList> {
             : group.representative;
 
         return TweenAnimationBuilder<double>(
-          key: ValueKey('group-$groupIndex'),
+          // Schluessel nach Verbindung statt Position (Patch 59, T043):
+          // sonst blendeten nach dem Voranstellen frueherer Verbindungen
+          // alle Karten neu ein.
+          key: ValueKey('group-${itineraryIdentityKey(group.representative)}'),
           tween: Tween(begin: 0.0, end: 1.0),
-          duration: Duration(milliseconds: 200 + (groupIndex * 50)),
+          duration: Duration(milliseconds: 200 + (groupIndex.clamp(0, 6) * 50)),
           curve: Curves.easeOutCubic,
           builder: (context, value, child) {
             return Transform.translate(
@@ -566,7 +571,8 @@ class _ItineraryListState extends State<ItineraryList> {
           return _LoadMoreButton(
             cursor: state.plan?.previousPageCursor,
             earlier: true,
-            isLoading: state.isLoading,
+            isLoading: state.isLoadingEarlier,
+            isBusy: state.isLoadingMore,
             onTap: () => cubit.loadMoreItineraries(earlier: true),
           );
         }
@@ -574,7 +580,8 @@ class _ItineraryListState extends State<ItineraryList> {
           return _LoadMoreButton(
             cursor: state.plan?.nextPageCursor,
             earlier: false,
-            isLoading: state.isLoading,
+            isLoading: state.isLoadingLater,
+            isBusy: state.isLoadingMore,
             onTap: () => cubit.loadMoreItineraries(earlier: false),
           );
         }
@@ -583,9 +590,9 @@ class _ItineraryListState extends State<ItineraryList> {
         final isSelected = itinerary == state.selectedItinerary;
 
         return TweenAnimationBuilder<double>(
-          key: ValueKey('itinerary-$itemIndex'),
+          key: ValueKey('itinerary-${itineraryIdentityKey(itinerary)}'),
           tween: Tween(begin: 0.0, end: 1.0),
-          duration: Duration(milliseconds: 200 + (itemIndex * 50)),
+          duration: Duration(milliseconds: 200 + (itemIndex.clamp(0, 6) * 50)),
           curve: Curves.easeOutCubic,
           builder: (context, value, child) {
             return Transform.translate(
@@ -967,13 +974,19 @@ class _EstimatedTimesBanner extends StatelessWidget {
 class _LoadMoreButton extends StatelessWidget {
   final String? cursor;
   final bool earlier;
+
+  /// Laedt gerade DIESE Richtung (Ladekreis statt Pfeil, Patch 59).
   final bool isLoading;
+
+  /// Irgendein Nachladen laeuft - beide Knoepfe gesperrt.
+  final bool isBusy;
   final VoidCallback onTap;
 
   const _LoadMoreButton({
     required this.cursor,
     required this.earlier,
     required this.isLoading,
+    required this.isBusy,
     required this.onTap,
   });
 
@@ -988,10 +1001,18 @@ class _LoadMoreButton extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       child: Center(
         child: TextButton.icon(
-          onPressed: isLoading ? null : onTap,
-          icon: Icon(
-            earlier ? Icons.expand_less_rounded : Icons.expand_more_rounded,
-          ),
+          onPressed: isBusy ? null : onTap,
+          icon: isLoading
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : Icon(
+                  earlier
+                      ? Icons.expand_less_rounded
+                      : Icons.expand_more_rounded,
+                ),
           label: Text(label),
         ),
       ),

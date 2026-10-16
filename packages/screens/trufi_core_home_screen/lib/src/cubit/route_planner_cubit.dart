@@ -25,6 +25,18 @@ const String tooCloseErrorKey = 'origin_destination_too_close';
 /// route to host, errno = 65) ..."), shown verbatim to the user.
 const String networkErrorKey = 'network_error';
 
+/// Stabile Identitaet einer Verbindung ueber Seiten/Neuladen hinweg
+/// (fahrplaner.de fork patch 59, T043): Abfahrtszeit + Linien/Trips je
+/// Bein. Fuer das Entfernen von Dubletten beim Zusammenfuehren und als
+/// Widget-Schluessel der Karten (vorher Listenposition - nach dem
+/// Voranstellen frueherer Verbindungen blendeten dadurch ALLE Karten neu
+/// ein).
+String itineraryIdentityKey(routing.Itinerary itinerary) => [
+  itinerary.startTime.millisecondsSinceEpoch,
+  for (final leg in itinerary.legs)
+    leg.tripId ?? '${leg.mode}:${leg.startTime.millisecondsSinceEpoch}',
+].join('|');
+
 /// Number of itineraries requested per [RoutePlannerCubit.loadMoreItineraries]
 /// call. fahrplaner.de fork patch (04.10.2026, Kapitel 3.27, see
 /// FAHRPLANER_PATCHES.md): fetchPlan() defaults to 5 itineraries (sized for
@@ -379,14 +391,21 @@ class RoutePlannerCubit extends Cubit<RoutePlannerState> {
   /// list stays consistent.
   Future<void> loadMoreItineraries({required bool earlier}) async {
     final currentPlan = state.plan;
-    if (currentPlan == null || state.isLoading) return;
+    if (currentPlan == null || state.isLoading || state.isLoadingMore) return;
     final cursor = earlier
         ? currentPlan.previousPageCursor
         : currentPlan.nextPageCursor;
     if (cursor == null) return;
     if (state.fromPlace == null || state.toPlace == null) return;
 
-    emit(state.copyWith(isLoading: true));
+    // T043 (Patch 59): eigener Ladezustand je Richtung statt isLoading -
+    // die Liste bleibt dabei stehen, statt durch die Lade-Animation ersetzt
+    // zu werden.
+    emit(
+      earlier
+          ? state.copyWith(isLoadingEarlier: true)
+          : state.copyWith(isLoadingLater: true),
+    );
     try {
       final rawPlan = await _requestService.fetchPlan(
         from: state.fromPlace!,
@@ -415,8 +434,16 @@ class RoutePlannerCubit extends Cubit<RoutePlannerState> {
       // nach dem Merge explizit nach startTime neu sortieren - nur fuer
       // diesen Pagination-Pfad, die Kostensortierung der einzelnen Suche
       // bleibt unveraendert.
-      final merged = [...existing, ...fetched]
-        ..sort((a, b) => a.startTime.compareTo(b.startTime));
+      // fahrplaner.de fork patch 59 (T043): Dubletten entfernen, bevor
+      // sortiert wird - OTP-Seiten koennen sich an den Raendern des
+      // Suchfensters ueberschneiden, dieselbe Verbindung stand dann doppelt
+      // in der Liste. Bereits vorhandene Eintraege gewinnen (behalten ihre
+      // Identitaet, z. B. fuer die Auswahl).
+      final seen = <String>{};
+      final merged = [
+        for (final itinerary in [...existing, ...fetched])
+          if (seen.add(itineraryIdentityKey(itinerary))) itinerary,
+      ]..sort((a, b) => a.startTime.compareTo(b.startTime));
 
       final mergedPlan = _groupPlanItineraries(
         currentPlan.copyWith(
@@ -431,11 +458,18 @@ class RoutePlannerCubit extends Cubit<RoutePlannerState> {
       );
 
       await _repository.savePlan(mergedPlan);
-      emit(state.copyWith(plan: mergedPlan, isLoading: false));
+      emit(
+        state.copyWith(
+          plan: mergedPlan,
+          isLoadingEarlier: false,
+          isLoadingLater: false,
+        ),
+      );
     } catch (e) {
       emit(
         state.copyWith(
-          isLoading: false,
+          isLoadingEarlier: false,
+          isLoadingLater: false,
           error: _isNetworkError(e) ? networkErrorKey : e.toString(),
         ),
       );

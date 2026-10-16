@@ -24,6 +24,16 @@ class RoutePlannerState extends Equatable {
   /// planen.
   final bool preferFewerTransfers;
 
+  /// fahrplaner.de fork patch 59 (16.10.2026, T043): "Frühere/spätere
+  /// Verbindungen" laden, OHNE [isLoading] zu setzen - [isLoading] ersetzt
+  /// in `ItineraryList` die ganze Liste durch die Lade-Animation, die Liste
+  /// wurde danach neu aufgebaut und sprang an den Anfang. Getrennt je
+  /// Richtung, damit nur der jeweilige Knopf einen Ladekreis zeigt.
+  final bool isLoadingEarlier;
+  final bool isLoadingLater;
+
+  bool get isLoadingMore => isLoadingEarlier || isLoadingLater;
+
   const RoutePlannerState({
     this.fromPlace,
     this.toPlace,
@@ -34,6 +44,8 @@ class RoutePlannerState extends Equatable {
     this.timeMode = TimeMode.leaveNow,
     this.dateTime,
     this.preferFewerTransfers = false,
+    this.isLoadingEarlier = false,
+    this.isLoadingLater = false,
   });
 
   RoutePlannerState copyWith({
@@ -46,6 +58,8 @@ class RoutePlannerState extends Equatable {
     TimeMode? timeMode,
     DateTime? dateTime,
     bool? preferFewerTransfers,
+    bool? isLoadingEarlier,
+    bool? isLoadingLater,
   }) {
     return RoutePlannerState(
       fromPlace: fromPlace ?? this.fromPlace,
@@ -57,6 +71,8 @@ class RoutePlannerState extends Equatable {
       timeMode: timeMode ?? this.timeMode,
       dateTime: dateTime ?? this.dateTime,
       preferFewerTransfers: preferFewerTransfers ?? this.preferFewerTransfers,
+      isLoadingEarlier: isLoadingEarlier ?? this.isLoadingEarlier,
+      isLoadingLater: isLoadingLater ?? this.isLoadingLater,
     );
   }
 
@@ -135,6 +151,8 @@ class RoutePlannerState extends Equatable {
     timeMode,
     dateTime,
     preferFewerTransfers,
+    isLoadingEarlier,
+    isLoadingLater,
   ];
 }
 

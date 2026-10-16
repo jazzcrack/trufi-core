@@ -1338,6 +1338,14 @@ Nutzer-Fund (15.10.2026, Build 57): während einer laufenden Fahrt zeigte "Ganze
 
 Tests: zwei neue Fälle in `itinerary_detail_current_leg_test.dart` (Host-Callback schlägt Fahrplanzeit, Linien-Deckkraft erledigt/kommend; spätes Aufklappen). 92 Tests grün.
 
+### 59. "Frühere/spätere Verbindungen": Liste bleibt stehen statt neu zu laden (T043)
+
+Nutzer-Fund (15.10.2026, Build 57): jedes Nachladen lud scheinbar die ganze Liste neu und sprang an den Anfang. Ursache: `loadMoreItineraries()` setzte dasselbe `isLoading` wie eine neue Suche - `ItineraryList` ersetzt dann die komplette Liste durch `_buildShimmerLoading()`, nach dem Laden wurde sie neu aufgebaut (Scrollposition weg). Zusätzlich: Karten-Schlüssel nach Listenposition (`group-$index`) - nach dem Voranstellen früherer Verbindungen blendeten alle Karten neu ein; und überlappende OTP-Seiten konnten dieselbe Verbindung doppelt liefern.
+
+**Fix:** `RoutePlannerState.isLoadingEarlier`/`isLoadingLater` (+ `isLoadingMore`) statt `isLoading` im Nachlade-Pfad - die Liste bleibt stehen, nur der jeweilige Knopf zeigt einen Ladekreis, beide sind solange gesperrt. Neue `itineraryIdentityKey()` (Abfahrt + Trip-IDs je Bein): entfernt Dubletten vor dem chronologischen Sortieren (vorhandene Einträge gewinnen) und dient als Karten-Schlüssel. Einblende-Verzögerung auf 6 Stufen gedeckelt (bei angehängten Karten sonst sekundenlang).
+
+Tests: neu `load_more_keeps_position_test.dart` (nie `isLoading` beim Nachladen; Dubletten entfernt; Widget-Test: Liste und Scrollposition bleiben während und nach dem Laden). 95 Tests grün.
+
 ## Sync-Strategie: wie künftige Upstream-Änderungen reinkommen
 
 Ziel: Trufi-Core-Updates (neue Features, Bugfixes) weiter bekommen,
