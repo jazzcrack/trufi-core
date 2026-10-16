@@ -34,6 +34,13 @@ class RoutePlannerState extends Equatable {
 
   bool get isLoadingMore => isLoadingEarlier || isLoadingLater;
 
+  /// fahrplaner.de fork patch 60 (16.10.2026, T059): das letzte Nachladen
+  /// in dieser Richtung fand - auch nach automatischem Ueberspringen leerer
+  /// Zeitfenster - keine neue Verbindung. Die Liste zeigt dann einen
+  /// Hinweis statt kommentarlos nichts zu tun.
+  final bool earlierFoundNothing;
+  final bool laterFoundNothing;
+
   const RoutePlannerState({
     this.fromPlace,
     this.toPlace,
@@ -46,6 +53,8 @@ class RoutePlannerState extends Equatable {
     this.preferFewerTransfers = false,
     this.isLoadingEarlier = false,
     this.isLoadingLater = false,
+    this.earlierFoundNothing = false,
+    this.laterFoundNothing = false,
   });
 
   RoutePlannerState copyWith({
@@ -60,6 +69,8 @@ class RoutePlannerState extends Equatable {
     bool? preferFewerTransfers,
     bool? isLoadingEarlier,
     bool? isLoadingLater,
+    bool? earlierFoundNothing,
+    bool? laterFoundNothing,
   }) {
     return RoutePlannerState(
       fromPlace: fromPlace ?? this.fromPlace,
@@ -73,6 +84,8 @@ class RoutePlannerState extends Equatable {
       preferFewerTransfers: preferFewerTransfers ?? this.preferFewerTransfers,
       isLoadingEarlier: isLoadingEarlier ?? this.isLoadingEarlier,
       isLoadingLater: isLoadingLater ?? this.isLoadingLater,
+      earlierFoundNothing: earlierFoundNothing ?? this.earlierFoundNothing,
+      laterFoundNothing: laterFoundNothing ?? this.laterFoundNothing,
     );
   }
 
@@ -153,6 +166,8 @@ class RoutePlannerState extends Equatable {
     preferFewerTransfers,
     isLoadingEarlier,
     isLoadingLater,
+    earlierFoundNothing,
+    laterFoundNothing,
   ];
 }
 

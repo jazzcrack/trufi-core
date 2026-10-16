@@ -475,6 +475,7 @@ class _ItineraryListState extends State<ItineraryList> {
             earlier: true,
             isLoading: state.isLoadingEarlier,
             isBusy: state.isLoadingMore,
+            foundNothing: state.earlierFoundNothing,
             onTap: () => cubit.loadMoreItineraries(earlier: true),
           );
         }
@@ -484,6 +485,7 @@ class _ItineraryListState extends State<ItineraryList> {
             earlier: false,
             isLoading: state.isLoadingLater,
             isBusy: state.isLoadingMore,
+            foundNothing: state.laterFoundNothing,
             onTap: () => cubit.loadMoreItineraries(earlier: false),
           );
         }
@@ -573,6 +575,7 @@ class _ItineraryListState extends State<ItineraryList> {
             earlier: true,
             isLoading: state.isLoadingEarlier,
             isBusy: state.isLoadingMore,
+            foundNothing: state.earlierFoundNothing,
             onTap: () => cubit.loadMoreItineraries(earlier: true),
           );
         }
@@ -582,6 +585,7 @@ class _ItineraryListState extends State<ItineraryList> {
             earlier: false,
             isLoading: state.isLoadingLater,
             isBusy: state.isLoadingMore,
+            foundNothing: state.laterFoundNothing,
             onTap: () => cubit.loadMoreItineraries(earlier: false),
           );
         }
@@ -980,6 +984,9 @@ class _LoadMoreButton extends StatelessWidget {
 
   /// Irgendein Nachladen laeuft - beide Knoepfe gesperrt.
   final bool isBusy;
+
+  /// Letztes Nachladen in dieser Richtung fand nichts (Patch 60, T059).
+  final bool foundNothing;
   final VoidCallback onTap;
 
   const _LoadMoreButton({
@@ -988,33 +995,71 @@ class _LoadMoreButton extends StatelessWidget {
     required this.isLoading,
     required this.isBusy,
     required this.onTap,
+    this.foundNothing = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    if (cursor == null) return const SizedBox.shrink();
+    final theme = Theme.of(context);
+    // fahrplaner.de fork patch 60 (T059): sichtbare Rueckmeldung, wenn auch
+    // nach dem Ueberspringen leerer Zeitfenster nichts kam - vorher tat der
+    // Knopf scheinbar nichts. Bewusst deutsche Festtexte (Patch-23-Muster).
+    final hint = foundNothing
+        ? Padding(
+            padding: const EdgeInsets.only(top: 2),
+            child: Text(
+              cursor == null
+                  ? (earlier
+                        ? 'Keine früheren Verbindungen gefunden.'
+                        : 'Keine späteren Verbindungen gefunden.')
+                  : (earlier
+                        ? 'In diesem Zeitraum keine früheren Verbindungen - '
+                              'erneut tippen sucht weiter zurück.'
+                        : 'In diesem Zeitraum keine späteren Verbindungen - '
+                              'erneut tippen sucht weiter.'),
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          )
+        : null;
+    if (cursor == null) {
+      return hint == null
+          ? const SizedBox.shrink()
+          : Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+              child: hint,
+            );
+    }
     final l10n = HomeScreenLocalizations.of(context);
     final label = earlier
         ? l10n.loadEarlierConnections
         : l10n.loadLaterConnections;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-      child: Center(
-        child: TextButton.icon(
-          onPressed: isBusy ? null : onTap,
-          icon: isLoading
-              ? const SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : Icon(
-                  earlier
-                      ? Icons.expand_less_rounded
-                      : Icons.expand_more_rounded,
-                ),
-          label: Text(label),
-        ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Center(
+            child: TextButton.icon(
+              onPressed: isBusy ? null : onTap,
+              icon: isLoading
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : Icon(
+                      earlier
+                          ? Icons.expand_less_rounded
+                          : Icons.expand_more_rounded,
+                    ),
+              label: Text(label),
+            ),
+          ),
+          ?hint,
+        ],
       ),
     );
   }

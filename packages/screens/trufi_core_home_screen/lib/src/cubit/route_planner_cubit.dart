@@ -46,6 +46,10 @@ String itineraryIdentityKey(routing.Itinerary itinerary) => [
 /// default, not applied to it.
 const int loadMoreItinerariesPageSize = 10;
 
+/// Wie viele aufeinanderfolgende OTP-Seiten ein einzelnes "Mehr laden"
+/// hoechstens abruft, um leere Zeitfenster zu ueberspringen (Patch 60, T059).
+const int loadMoreMaxEmptyPages = 4;
+
 /// Best-effort classification of a routing-provider exception as a
 /// network/connectivity failure vs. anything else (bad request, server-side
 /// routing error, etc.), which keep surfacing as `e.toString()` - this is
@@ -403,56 +407,65 @@ class RoutePlannerCubit extends Cubit<RoutePlannerState> {
     // zu werden.
     emit(
       earlier
-          ? state.copyWith(isLoadingEarlier: true)
-          : state.copyWith(isLoadingLater: true),
+          ? state.copyWith(isLoadingEarlier: true, earlierFoundNothing: false)
+          : state.copyWith(isLoadingLater: true, laterFoundNothing: false),
     );
     try {
-      final rawPlan = await _requestService.fetchPlan(
-        from: state.fromPlace!,
-        to: state.toPlace!,
-        locale: _locale,
-        dateTime: DateTime.now(),
-        pageCursor: cursor,
-        // fahrplaner.de fork patch (04.10.2026, Kapitel 3.27, siehe
-        // FAHRPLANER_PATCHES.md): ohne dies faellt fetchPlan() auf den
-        // Erstsuche-Standard von 5 zurueck - "mehr laden" haette also
-        // immer nur 5 weitere Verbindungen ergaenzt, was sich wie eine
-        // feste Obergrenze anfuehlte.
-        numItineraries: loadMoreItinerariesPageSize,
-      );
-
-      final enriched = _enrichServiceHours(rawPlan);
       final existing = currentPlan.itineraries ?? [];
-      final fetched = enriched.itineraries ?? [];
-      // fahrplaner.de fork patch (04.10.2026, Kapitel 3.27, siehe
-      // FAHRPLANER_PATCHES.md): fetchPlan() sortiert jede einzelne Antwort
-      // per sortByGeneralizedCost() nach OTP-Kosten, nicht nach Zeit (siehe
-      // otp_28_routing_provider.dart) - das ist fuer eine einzelne Suche
-      // gewollt ("beste Option zuerst"), zerstoert aber beim Zusammenfuegen
-      // zweier UNABHAENGIG kostensortierter Seiten die chronologische
-      // Reihenfolge (z.B. 03:04 -> 05:06 -> 03:20 -> 07:45). Deshalb hier
-      // nach dem Merge explizit nach startTime neu sortieren - nur fuer
-      // diesen Pagination-Pfad, die Kostensortierung der einzelnen Suche
-      // bleibt unveraendert.
-      // fahrplaner.de fork patch 59 (T043): Dubletten entfernen, bevor
-      // sortiert wird - OTP-Seiten koennen sich an den Raendern des
-      // Suchfensters ueberschneiden, dieselbe Verbindung stand dann doppelt
-      // in der Liste. Bereits vorhandene Eintraege gewinnen (behalten ihre
-      // Identitaet, z. B. fuer die Auswahl).
-      final seen = <String>{};
-      final merged = [
-        for (final itinerary in [...existing, ...fetched])
-          if (seen.add(itineraryIdentityKey(itinerary))) itinerary,
-      ]..sort((a, b) => a.startTime.compareTo(b.startTime));
+      // fahrplaner.de fork patch 59 (T043): Dubletten entfernen - OTP-Seiten
+      // koennen sich an den Raendern des Suchfensters ueberschneiden.
+      // Bereits vorhandene Eintraege gewinnen (behalten ihre Identitaet).
+      final seen = {for (final it in existing) itineraryIdentityKey(it)};
+      final added = <routing.Itinerary>[];
+      String? nextCursor = cursor;
 
+      // fahrplaner.de fork patch 60 (16.10.2026, T059, Nutzer-Fund): eine
+      // OTP-Seite deckt nur ein Zeitfenster ab - liegt darin keine Fahrt
+      // (z. B. nachts), kam eine LEERE Seite zurueck und die Liste aenderte
+      // sich sichtbar nicht; erst der 3. Klick brachte eine viel spaetere
+      // Verbindung. Leere Fenster werden jetzt automatisch uebersprungen
+      // (hoechstens [loadMoreMaxEmptyPages] Mal), danach ein Hinweis.
+      for (var page = 0; page < loadMoreMaxEmptyPages; page++) {
+        final rawPlan = await _requestService.fetchPlan(
+          from: state.fromPlace!,
+          to: state.toPlace!,
+          locale: _locale,
+          dateTime: DateTime.now(),
+          pageCursor: nextCursor,
+          // fahrplaner.de fork patch (04.10.2026, Kapitel 3.27): ohne dies
+          // faellt fetchPlan() auf den Erstsuche-Standard von 5 zurueck.
+          numItineraries: loadMoreItinerariesPageSize,
+        );
+        final enriched = _enrichServiceHours(rawPlan);
+        for (final itinerary in enriched.itineraries ?? <routing.Itinerary>[]) {
+          if (seen.add(itineraryIdentityKey(itinerary))) added.add(itinerary);
+        }
+        nextCursor = earlier
+            ? enriched.previousPageCursor
+            : enriched.nextPageCursor;
+        if (added.isNotEmpty || nextCursor == null) break;
+      }
+
+      // fahrplaner.de fork patch (04.10.2026, Kapitel 3.27): jede einzelne
+      // Antwort ist nach OTP-Kosten sortiert - beim Zusammenfuegen deshalb
+      // explizit chronologisch neu sortieren.
+      final merged = [...existing, ...added]
+        ..sort((a, b) => a.startTime.compareTo(b.startTime));
+
+      // Plan neu konstruiert statt copyWith(): copyWith kann einen Cursor
+      // nicht auf null setzen ("?? this.nextPageCursor") - liefert OTP
+      // keinen weiteren Cursor (Suchfenster erschoepft), blieb bisher der
+      // ALTE stehen und jeder weitere Klick holte dieselbe Seite erneut
+      // (Patch 60, beim Test fuer T059 gefunden).
       final mergedPlan = _groupPlanItineraries(
-        currentPlan.copyWith(
+        routing.Plan(
+          from: currentPlan.from,
+          to: currentPlan.to,
           itineraries: merged,
-          nextPageCursor: earlier
-              ? currentPlan.nextPageCursor
-              : enriched.nextPageCursor,
+          type: currentPlan.type,
+          nextPageCursor: earlier ? currentPlan.nextPageCursor : nextCursor,
           previousPageCursor: earlier
-              ? enriched.previousPageCursor
+              ? nextCursor
               : currentPlan.previousPageCursor,
         ),
       );
@@ -463,6 +476,8 @@ class RoutePlannerCubit extends Cubit<RoutePlannerState> {
           plan: mergedPlan,
           isLoadingEarlier: false,
           isLoadingLater: false,
+          earlierFoundNothing: earlier && added.isEmpty,
+          laterFoundNothing: !earlier && added.isEmpty,
         ),
       );
     } catch (e) {

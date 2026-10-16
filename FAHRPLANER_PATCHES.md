@@ -1346,6 +1346,14 @@ Nutzer-Fund (15.10.2026, Build 57): jedes Nachladen lud scheinbar die ganze List
 
 Tests: neu `load_more_keeps_position_test.dart` (nie `isLoading` beim Nachladen; Dubletten entfernt; Widget-Test: Liste und Scrollposition bleiben während und nach dem Laden). 95 Tests grün.
 
+### 60. Nachladen überspringt leere Zeitfenster, zeigt Rückmeldung, leert erschöpfte Cursor (T059)
+
+Nutzer-Fund (16.10.2026, Build 59): in manchen Zeitfenstern brachte erst der 3. Klick auf "Spätere/Frühere Verbindungen" eine (viel spätere) Verbindung, davor passierte sichtbar nichts. Ursache: jede OTP-Seite deckt nur ein Zeitfenster ab; liegt darin keine Fahrt (z. B. nachts), kommt eine leere Seite zurück.
+
+**Fix:** `loadMoreItineraries()` ruft bei leerer Seite automatisch die nächste ab (höchstens `loadMoreMaxEmptyPages` = 4). Kommt auch dann nichts, setzt der Zustand `earlierFoundNothing`/`laterFoundNothing`, und `_LoadMoreButton` zeigt einen Hinweis ("In diesem Zeitraum keine späteren Verbindungen - erneut tippen sucht weiter" bzw. "Keine späteren Verbindungen gefunden." ohne weiteren Cursor). **Nebenbei gefundener echter Fehler:** der zusammengeführte Plan wurde per `Plan.copyWith()` gebaut, das einen Cursor nicht auf `null` setzen kann - lieferte OTP keinen weiteren Cursor, blieb der alte stehen und jeder Klick holte dieselbe Seite erneut. Plan wird jetzt direkt konstruiert.
+
+Tests: vier neue Fälle in `load_more_keeps_position_test.dart` (leere Seiten übersprungen, Hinweis nach Höchstzahl, Hinweis im Widget, Cursor wird geleert). 99 Tests grün.
+
 ## Sync-Strategie: wie künftige Upstream-Änderungen reinkommen
 
 Ziel: Trufi-Core-Updates (neue Features, Bugfixes) weiter bekommen,

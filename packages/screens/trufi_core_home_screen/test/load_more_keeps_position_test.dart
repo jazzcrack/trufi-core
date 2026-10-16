@@ -67,6 +67,30 @@ class _GatedPlanService implements RequestPlanService {
   }
 }
 
+/// Liefert fuer jeden Nachlade-Aufruf die naechste Seite aus [pages]
+/// (Patch 60, T059: leere Zeitfenster).
+class _SequencePlanService implements RequestPlanService {
+  _SequencePlanService({required this.initialPlan, required this.pages});
+
+  final routing.Plan initialPlan;
+  final List<routing.Plan> pages;
+  int pageCalls = 0;
+
+  @override
+  Future<routing.Plan> fetchPlan({
+    required TrufiLocation from,
+    required TrufiLocation to,
+    String? locale,
+    required DateTime dateTime,
+    bool arriveBy = false,
+    String? pageCursor,
+    int? numItineraries,
+  }) async {
+    if (pageCursor == null) return initialPlan;
+    return pages[pageCalls++];
+  }
+}
+
 routing.Itinerary _itinerary(int minute) {
   // In der Zukunft: der Cubit filtert bereits abgefahrene Verbindungen.
   final base = DateTime.now().add(const Duration(days: 1));
@@ -98,7 +122,7 @@ routing.Itinerary _itinerary(int minute) {
   );
 }
 
-Future<RoutePlannerCubit> _cubit(_GatedPlanService service) async {
+Future<RoutePlannerCubit> _cubit(RequestPlanService service) async {
   final cubit = RoutePlannerCubit(
     repository: _FakeRepository(),
     requestService: service,
@@ -222,5 +246,102 @@ void main() {
       offsetBefore,
     );
     expect(cubit.state.plan!.itineraries!.length, 10);
+  });
+
+  group('leere Zeitfenster (Patch 60, T059)', () {
+    test('ueberspringt leere Seiten automatisch - EIN Klick reicht', () async {
+      final service = _SequencePlanService(
+        initialPlan: initialPlan,
+        pages: [
+          routing.Plan(itineraries: const [], nextPageCursor: 'p2'),
+          routing.Plan(itineraries: const [], nextPageCursor: 'p3'),
+          routing.Plan(itineraries: [_itinerary(300)], nextPageCursor: 'p4'),
+        ],
+      );
+      final cubit = await _cubit(service);
+
+      await cubit.loadMoreItineraries(earlier: false);
+
+      expect(service.pageCalls, 3);
+      expect(cubit.state.plan!.itineraries!.length, 9);
+      expect(cubit.state.laterFoundNothing, isFalse);
+      expect(cubit.state.plan!.nextPageCursor, 'p4');
+      await cubit.close();
+    });
+
+    test('nach der Hoechstzahl leerer Seiten: Hinweis, Cursor bleibt fuer '
+        'den naechsten Versuch', () async {
+      final service = _SequencePlanService(
+        initialPlan: initialPlan,
+        pages: [
+          for (var i = 0; i < loadMoreMaxEmptyPages; i++)
+            routing.Plan(itineraries: const [], nextPageCursor: 'p$i'),
+        ],
+      );
+      final cubit = await _cubit(service);
+
+      await cubit.loadMoreItineraries(earlier: false);
+
+      expect(service.pageCalls, loadMoreMaxEmptyPages);
+      expect(cubit.state.laterFoundNothing, isTrue);
+      expect(cubit.state.plan!.nextPageCursor, isNotNull);
+      await cubit.close();
+    });
+
+    testWidgets('Liste zeigt den Hinweis statt kommentarlos nichts zu tun', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(1170, 2532);
+      tester.view.devicePixelRatio = 3;
+      addTearDown(tester.view.reset);
+      final service = _SequencePlanService(
+        initialPlan: routing.Plan(
+          itineraries: [_itinerary(0)],
+          nextPageCursor: 'later',
+        ),
+        pages: [routing.Plan(itineraries: const [])],
+      );
+      final cubit = await _cubit(service);
+      addTearDown(cubit.close);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          localizationsDelegates:
+              HomeScreenLocalizations.localizationsDelegates,
+          supportedLocales: HomeScreenLocalizations.supportedLocales,
+          locale: const Locale('de'),
+          home: Scaffold(
+            body: BlocProvider.value(
+              value: cubit,
+              child: const ItineraryList(),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byIcon(Icons.expand_more_rounded));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text('Keine späteren Verbindungen gefunden.'),
+        findsOneWidget,
+      );
+    });
+  });
+
+  test('kein weiterer Cursor von OTP: Cursor wird wirklich geleert', () async {
+    final service = _SequencePlanService(
+      initialPlan: initialPlan,
+      pages: [
+        routing.Plan(itineraries: [_itinerary(300)]),
+      ],
+    );
+    final cubit = await _cubit(service);
+
+    await cubit.loadMoreItineraries(earlier: false);
+
+    expect(cubit.state.plan!.nextPageCursor, isNull);
+    await cubit.close();
   });
 }
