@@ -129,6 +129,11 @@ class HomeScreenConfig {
   /// additive hook, `null` (the default) changes nothing.
   final Widget Function(BuildContext context)? belowSearchBuilder;
 
+  /// fahrplaner.de fork patch 62: Quelle fuer "passende Hausnummern" im
+  /// Hausnummer-Dialog (spaeter eigene Photon-Instanz). null = keine
+  /// Vorschlagsliste, die Eingabe wird ueber den Suchdienst aufgeloest.
+  final HouseNumberSuggestionSource? houseNumberSuggestionSource;
+
   /// Optional content positioned top-left ON THE MAP itself - for a status
   /// pill (e.g. "offline ready"/"no network"), shown ABOVE everything else
   /// so it survives even when the search sheet covers most of the screen.
@@ -216,6 +221,7 @@ class HomeScreenConfig {
     this.liveVehiclesInitiallyEnabled = false,
     this.showMapTypeButton = true,
     this.belowSearchBuilder,
+    this.houseNumberSuggestionSource,
     this.mapOverlayBuilder,
     this.resultsBuilder,
     this.sidePanelStyle,

@@ -46,6 +46,12 @@ class SearchLocation {
   /// Verhalten, generisches Pin-Icon).
   final SearchLocationType? locationType;
 
+  /// fahrplaner.de fork patch 62 (16.10.2026): ungefaehre Ausdehnung in
+  /// Metern (bei Strassen ~ Laenge, aus dem Begrenzungsrahmen des Geocoders)
+  /// - fuer den Hinweis "Ziel ist die Strassenmitte (Strasse ca. 650 m
+  /// lang)". Optional, null = unbekannt.
+  final double? extentMeters;
+
   const SearchLocation({
     required this.id,
     required this.displayName,
@@ -53,6 +59,7 @@ class SearchLocation {
     required this.latitude,
     required this.longitude,
     this.locationType,
+    this.extentMeters,
   });
 
   /// Returns a formatted display string combining name and address.
@@ -75,4 +82,26 @@ class SearchLocation {
 
   @override
   String toString() => 'SearchLocation(id: $id, displayName: $displayName)';
+}
+
+/// fahrplaner.de fork patch 62: Kennzeichnung "nur Strasse, ohne Hausnummer"
+/// in `TrufiLocation.type` (dort wird der Ort gespeichert und an den Planer
+/// uebergeben - `SearchLocationType` existiert dort nicht). Format
+/// `street` bzw. `street:<Meter>` mit der ungefaehren Strassenlaenge.
+const streetLocationTypePrefix = 'street';
+
+String streetLocationTypeTag(double? extentMeters) => extentMeters == null
+    ? streetLocationTypePrefix
+    : '$streetLocationTypePrefix:${extentMeters.round()}';
+
+/// Ist [type] (aus `TrufiLocation.type`) eine Strasse ohne Hausnummer?
+bool isStreetLocationType(String? type) =>
+    type == streetLocationTypePrefix ||
+    (type?.startsWith('$streetLocationTypePrefix:') ?? false);
+
+/// Ungefaehre Strassenlaenge aus [type], null wenn unbekannt.
+int? streetLengthFromLocationType(String? type) {
+  if (!isStreetLocationType(type)) return null;
+  final parts = type!.split(':');
+  return parts.length > 1 ? int.tryParse(parts[1]) : null;
 }

@@ -6,6 +6,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:trufi_core_interfaces/trufi_core_interfaces.dart'
     hide ITrufiMapEngine;
 import 'package:trufi_core_routing/trufi_core_routing.dart' as routing;
+import 'package:trufi_core_search_locations/trufi_core_search_locations.dart'
+    show isStreetLocationType, streetLengthFromLocationType;
 import 'package:trufi_core_utils/trufi_core_utils.dart';
 
 import '../cubit/route_planner_cubit.dart';
@@ -123,6 +125,11 @@ class ItineraryList extends StatefulWidget {
   /// App selbst erreichen (Speichern ist App-spezifisch).
   final void Function(routing.Itinerary itinerary)? onSaveTrip;
 
+  /// fahrplaner.de fork patch 62: Hinweis "Start/Ziel ist die
+  /// Strassenmitte" ueber den Verbindungen mit "+ Hausnummer ergaenzen".
+  /// null = kein Hinweis.
+  final void Function({required bool isOrigin})? onAddHouseNumber;
+
   const ItineraryList({
     super.key,
     this.onItineraryDetails,
@@ -133,6 +140,7 @@ class ItineraryList extends StatefulWidget {
     this.showDetailOnLoad = false,
     this.onDetailStateChanged,
     this.onShare,
+    this.onAddHouseNumber,
     this.onSaveTrip,
   });
 
@@ -142,6 +150,10 @@ class ItineraryList extends StatefulWidget {
 
 class _ItineraryListState extends State<ItineraryList> {
   routing.Itinerary? _detailItinerary;
+
+  /// Weggeklickter Strassenmitte-Hinweis - gilt nur fuer genau dieses
+  /// Start/Ziel-Paar, bei einer neuen Suche erscheint er wieder.
+  String? _dismissedStreetHintKey;
   bool _hasAutoShownDetail = false;
 
   /// fahrplaner.de fork patch (siehe FAHRPLANER_PATCHES.md, Nutzer-Fund
@@ -289,6 +301,32 @@ class _ItineraryListState extends State<ItineraryList> {
   void dispose() {
     _delayRefreshTimer?.cancel();
     super.dispose();
+  }
+
+  /// Erste Listenzeile: Strassenmitte-Hinweis (Patch 62) + bisheriger
+  /// "Fahrplan heisst..."-Hinweis.
+  Widget _topBanners(RoutePlannerState state, HomeScreenLocalizations l10n) {
+    final from = state.fromPlace;
+    final to = state.toPlace;
+    final key =
+        '${from?.description}|${from?.type}>${to?.description}|${to?.type}';
+    final showStreetHint =
+        widget.onAddHouseNumber != null &&
+        _dismissedStreetHintKey != key &&
+        (isStreetLocationType(from?.type) || isStreetLocationType(to?.type));
+    if (!showStreetHint) return _EstimatedTimesBanner(l10n: l10n);
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _StreetPrecisionBanner(
+          from: from,
+          to: to,
+          onAddHouseNumber: widget.onAddHouseNumber!,
+          onDismiss: () => setState(() => _dismissedStreetHintKey = key),
+        ),
+        _EstimatedTimesBanner(l10n: l10n),
+      ],
+    );
   }
 
   @override
@@ -468,7 +506,7 @@ class _ItineraryListState extends State<ItineraryList> {
       physics: widget.shrinkWrap ? const NeverScrollableScrollPhysics() : null,
       itemCount: groups.length + 3,
       itemBuilder: (context, index) {
-        if (index == 0) return _EstimatedTimesBanner(l10n: l10n);
+        if (index == 0) return _topBanners(state, l10n);
         if (index == 1) {
           return _LoadMoreButton(
             cursor: state.plan?.previousPageCursor,
@@ -568,7 +606,7 @@ class _ItineraryListState extends State<ItineraryList> {
       physics: widget.shrinkWrap ? const NeverScrollableScrollPhysics() : null,
       itemCount: itineraries.length + 3,
       itemBuilder: (context, index) {
-        if (index == 0) return _EstimatedTimesBanner(l10n: l10n);
+        if (index == 0) return _topBanners(state, l10n);
         if (index == 1) {
           return _LoadMoreButton(
             cursor: state.plan?.previousPageCursor,
@@ -975,6 +1013,142 @@ class _EstimatedTimesBanner extends StatelessWidget {
 /// cursor means either the current provider doesn't support paging (e.g.
 /// the offline GTFS planner) or OTP's search window is already exhausted
 /// in that direction, and there is no useful action to offer either way.
+/// "Ziel ist die Strassenmitte"-Hinweis (fahrplaner.de fork patch 62,
+/// App-Entwurf), fuer Start und/oder Ziel (Nutzerentscheidung).
+class _StreetPrecisionBanner extends StatelessWidget {
+  final TrufiLocation? from;
+  final TrufiLocation? to;
+  final void Function({required bool isOrigin}) onAddHouseNumber;
+  final VoidCallback onDismiss;
+
+  const _StreetPrecisionBanner({
+    required this.from,
+    required this.to,
+    required this.onAddHouseNumber,
+    required this.onDismiss,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final fromStreet = isStreetLocationType(from?.type);
+    final toStreet = isStreetLocationType(to?.type);
+    final muted = theme.textTheme.bodyMedium?.copyWith(
+      color: colorScheme.onSurfaceVariant,
+    );
+    final strong = muted?.copyWith(
+      color: colorScheme.onSurface,
+      fontWeight: FontWeight.w800,
+    );
+
+    String length(TrufiLocation? place) {
+      final meters = streetLengthFromLocationType(place?.type);
+      return meters == null || meters < 50
+          ? ''
+          : ' (Straße ca. $meters m lang)';
+    }
+
+    final TextSpan text;
+    if (fromStreet && toStreet) {
+      text = TextSpan(
+        style: muted,
+        children: [
+          const TextSpan(text: 'Start und Ziel sind die '),
+          TextSpan(text: 'Straßenmitte', style: strong),
+          const TextSpan(text: '. Mit Hausnummern werden die Fußwege genauer.'),
+        ],
+      );
+    } else {
+      final place = toStreet ? to : from;
+      text = TextSpan(
+        style: muted,
+        children: [
+          TextSpan(text: toStreet ? 'Ziel ist die ' : 'Start ist die '),
+          TextSpan(text: 'Straßenmitte', style: strong),
+          TextSpan(
+            text:
+                '${length(place)}. Mit Hausnummer wird der '
+                '${toStreet ? 'letzte' : 'erste'} Fußweg genauer.',
+          ),
+        ],
+      );
+    }
+
+    Widget addButton(String label, bool isOrigin) => Material(
+      color: colorScheme.surfaceContainerHighest,
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: () {
+          HapticFeedback.selectionClick();
+          onAddHouseNumber(isOrigin: isOrigin);
+        },
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.add_rounded, size: 20, color: colorScheme.primary),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: TextStyle(
+                  color: colorScheme.primary,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(16, 14, 8, 14),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: colorScheme.outlineVariant, width: 1.5),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(Icons.add_road_rounded, color: colorScheme.onSurfaceVariant),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text.rich(text),
+                  const SizedBox(height: 10),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      if (fromStreet && toStreet) ...[
+                        addButton('Hausnummer Start', true),
+                        addButton('Hausnummer Ziel', false),
+                      ] else
+                        addButton('Hausnummer ergänzen', fromStreet),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            IconButton(
+              tooltip: 'Hinweis ausblenden',
+              icon: const Icon(Icons.close_rounded),
+              onPressed: onDismiss,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _LoadMoreButton extends StatelessWidget {
   final String? cursor;
   final bool earlier;

@@ -1364,6 +1364,27 @@ Nutzer-Fund (16.10.2026, Build 59): Antippen einer Linienbadge in einer gesuchte
 
 Verifiziert: `trufi_core_routing` 195 Unit-Tests grün (`test/integration/` fragt externe Trufi-Server ab und schlägt unabhängig davon fehl - wie bisher nicht Teil der Prüfung).
 
+### 62. Hausnummer als eigener Vollbild-Dialog nach dem App-Entwurf (Schritt 1 des Hausnummer-Plans)
+
+Nutzer-Auftrag (16.10.2026) mit eigenem Entwurf (Hoch- und Querformat). Ersetzt das Bottom-Sheet aus Patch 46.
+
+- **`trufi_core_search_locations`:**
+  - neuer `HouseNumberScreen`/`showHouseNumberScreen()` (Vollbild, `fullscreenDialog`): Eingabefeld mit Straßen-Chip + Nummer (Textfeld mit Ziffernreihe, ohne Autokorrektur, Eingabetaste = übernehmen), echte Karte als reine Anzeige (`IgnorePointer`, Markierung mit Nummer; ohne `MapEngineManager` im Kontext entfällt sie), "Ohne Hausnummer · Straßenmitte als Ziel", passende Hausnummern als Knöpfe, großer Übernehmen-Knopf. Querformat: Eingabe + "Übernehmen" in einer Zeile, "Ohne Nr." + Nummern als Chip-Zeile, Kartenvorschau nur bei geschlossener Tastatur. Ergebnis als `HouseNumberResult` (`Located`/`WithoutNumber`/`NotFound`).
+  - `HouseNumberSuggestionSource`: austauschbare Quelle für echte Hausnummern (Schritt 2: eigene Photon-Instanz); ohne Quelle keine Vorschlagsliste, die Eingabe wird wie bisher per Freitext-Suche aufgelöst.
+  - Suchliste: "+ Nr." mit Trenner statt des Icons aus Patch 46 (Tooltip unverändert), Hinweiszeile "Straße antippen genügt …", sobald Straßen-Treffer dabei sind.
+  - `SearchLocation.extentMeters` (ungefähre Straßenlänge) und `streetLocationTypeTag()`/`isStreetLocationType()`/`streetLengthFromLocationType()`: "nur Straße" + Länge in `TrufiLocation.type` (`street:650`).
+  - `SearchLocationBar.onAddHouseNumber`: "+ Nr."-Pille im Start-/Zielfeld, wenn der Ort nur eine Straße ist (Hoch- und Querformat).
+- **`trufi_core_home_screen`:**
+  - `_searchLocationToTrufiLocation()` behielt `locationType` bisher nicht - jetzt `type: street:<m>`, und zurück.
+  - `_resolveHouseNumber()` nutzt den neuen Dialog; bei `NotFound` bleibt der Kartenpicker-Rückfall.
+  - neuer `_addHouseNumberTo(isOrigin)` für "+ Nr." an Start/Ziel und den Hinweis, danach neue Suche.
+  - `ItineraryList.onAddHouseNumber`: Hinweis "Ziel ist die Straßenmitte (Straße ca. 650 m lang) … + Hausnummer ergänzen" über den Verbindungen, für Start und/oder Ziel, wegklickbar je Start/Ziel-Paar.
+  - `HomeScreenConfig.houseNumberSuggestionSource`.
+
+Nicht möglich wie im Entwurf: eine hervorgehobene Straßenlinie in der Vorschau - die Suche liefert pro Straße nur einen Punkt, keine Geometrie.
+
+Tests: `house_number_screen_test.dart` (4), `street_location_type_test.dart` (3), `street_precision_banner_test.dart` (2); bestehende Hausnummer-Tests unverändert grün. `trufi_core_home_screen` 101 Tests grün; `trufi_core_search_locations`-Widget-/Unit-Tests grün (die bekannten Live-Netz-Integrationstests unverändert ausgenommen).
+
 ## Sync-Strategie: wie künftige Upstream-Änderungen reinkommen
 
 Ziel: Trufi-Core-Updates (neue Features, Bugfixes) weiter bekommen,

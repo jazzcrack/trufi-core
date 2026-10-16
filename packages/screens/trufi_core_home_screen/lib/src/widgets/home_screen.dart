@@ -796,114 +796,69 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
-  /// "+ Hausnummer" (fahrplaner.de fork patch, siehe FAHRPLANER_PATCHES.md,
-  /// Nutzer-Fund: nach einem Straßen-Treffer eine Hausnummer zu ergänzen
-  /// war muehsam). Fragt die Hausnummer per Bottom-Sheet ab, versucht dann
-  /// EINE verfeinerte Freitext-Anfrage (Straße+Hausnummer+Ort) ueber
-  /// denselben Suchdienst - liefert die eine echte Adresse, ist die Sache
-  /// erledigt. Findet OSM dafuer keinen Hausnummern-Knoten (bestaetigter
-  /// Realfall), faellt es auf den bereits bestehenden Kartenpicker zurueck,
-  /// vorzentriert auf die Straße statt auf [MapEngineManager.defaultCenter]
-  /// - [_resolvePickedLocation] geocodiert das Ergebnis bereits zurueck.
+  /// "+ Nr." (fahrplaner.de fork patch 62, ersetzt das Bottom-Sheet aus
+  /// Patch 46): Vollbild-Dialog [showHouseNumberScreen]. Ist die Nummer in
+  /// den Kartendaten nicht bekannt (bestaetigter Realfall, OSM-Luecke),
+  /// bleibt wie bisher der Kartenpicker als Rueckfall - vorzentriert auf die
+  /// Strasse, das Ergebnis wird zurueck-geocodiert.
   Future<SearchLocation?> _resolveHouseNumber(
     SearchLocation street,
     SearchLocationsCubit searchLocationsCubit,
     HomeScreenLocalizations l10n,
   ) async {
-    final houseNumber = await _showHouseNumberSheet(street);
-    if (houseNumber == null || houseNumber.isEmpty) return null;
-    if (!mounted) return null;
-
-    final streetLocality = street.address;
-    final composedQuery = streetLocality != null && streetLocality.isNotEmpty
-        ? '${street.displayName} $houseNumber, $streetLocality'
-        : '${street.displayName} $houseNumber';
-
-    try {
-      final refined = await searchLocationsCubit.searchLocationService.search(
-        composedQuery,
-      );
-      final precise = refined
-          .where((r) => r.locationType == SearchLocationType.address)
-          .firstOrNull;
-      if (precise != null) return precise;
-    } catch (_) {
-      // Anfrage fehlgeschlagen (z. B. Netzwerk) - faellt unten auf den
-      // Kartenpicker zurueck, statt den Rider ganz ohne Ergebnis zu lassen.
-    }
-
-    if (!mounted) return null;
-    final result = await Navigator.push<MapLocationResult>(
+    final result = await showHouseNumberScreen(
       context,
-      MaterialPageRoute(
-        builder: (context) => ChooseOnMapScreen(
-          configuration: ChooseOnMapConfiguration(
-            title: 'Punkt für Hausnummer $houseNumber setzen',
-            initialLatitude: street.latitude,
-            initialLongitude: street.longitude,
-            initialZoom: widget.config.chooseLocationZoom,
-            confirmButtonText: l10n.confirmLocation,
-          ),
-        ),
-      ),
+      street: street,
+      searchService: searchLocationsCubit.searchLocationService,
+      suggestionSource: widget.config.houseNumberSuggestionSource,
     );
-    if (result == null) return null;
-    return _resolvePickedLocation(result.latitude, result.longitude);
-  }
-
-  /// Leichtgewichtiger Bottom-Sheet statt eines Vollbild-Flows - der Rider
-  /// hat die Straße bereits gefunden, es fehlt nur noch eine Zahl.
-  Future<String?> _showHouseNumberSheet(SearchLocation street) {
-    final controller = TextEditingController();
-    return showModalBottomSheet<String>(
-      context: context,
-      isScrollControlled: true,
-      builder: (sheetContext) {
-        return Padding(
-          padding: EdgeInsets.only(
-            left: 20,
-            right: 20,
-            top: 20,
-            bottom: 20 + MediaQuery.of(sheetContext).viewInsets.bottom,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Hausnummer zu "${street.displayName}" hinzufügen',
-                style: Theme.of(
-                  sheetContext,
-                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+    if (!mounted) return null;
+    switch (result) {
+      case null:
+        return null;
+      case HouseNumberLocated(:final location):
+        return location;
+      case HouseNumberWithoutNumber(:final street):
+        return street;
+      case HouseNumberNotFound(:final number):
+        final picked = await Navigator.push<MapLocationResult>(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ChooseOnMapScreen(
+              configuration: ChooseOnMapConfiguration(
+                title: 'Punkt für Hausnummer $number setzen',
+                initialLatitude: street.latitude,
+                initialLongitude: street.longitude,
+                initialZoom: widget.config.chooseLocationZoom,
+                confirmButtonText: l10n.confirmLocation,
               ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: controller,
-                autofocus: true,
-                keyboardType: TextInputType.text,
-                textCapitalization: TextCapitalization.none,
-                decoration: const InputDecoration(
-                  labelText: 'Hausnummer',
-                  border: OutlineInputBorder(),
-                ),
-                onSubmitted: (value) =>
-                    Navigator.of(sheetContext).pop(value.trim()),
-              ),
-              const SizedBox(height: 16),
-              SizedBox(
-                width: double.infinity,
-                height: 48,
-                child: FilledButton(
-                  onPressed: () =>
-                      Navigator.of(sheetContext).pop(controller.text.trim()),
-                  child: const Text('Weiter'),
-                ),
-              ),
-            ],
+            ),
           ),
         );
-      },
+        if (picked == null) return null;
+        return _resolvePickedLocation(picked.latitude, picked.longitude);
+    }
+  }
+
+  /// "+ Nr." an Start/Ziel bzw. im Hinweis ueber den Verbindungen
+  /// (fahrplaner.de fork patch 62): Hausnummer fuer einen bereits
+  /// gewaehlten Strassen-Ort ergaenzen, danach neu suchen.
+  Future<void> _addHouseNumberTo({required bool isOrigin}) async {
+    final cubit = context.read<RoutePlannerCubit>();
+    final place = isOrigin ? cubit.state.fromPlace : cubit.state.toPlace;
+    if (place == null) return;
+    final street = _trufiLocationToSearchLocation(place);
+    final refined = await _resolveHouseNumber(
+      street,
+      context.read<SearchLocationsCubit>(),
+      HomeScreenLocalizations.of(context),
     );
+    if (refined == null || !mounted) return;
+    if (isOrigin) {
+      await _onOriginSelected(refined);
+    } else {
+      await _onDestinationSelected(refined);
+    }
   }
 
   Future<void> _onOriginSelected(SearchLocation location) async {
@@ -2044,6 +1999,7 @@ class _HomeScreenState extends State<HomeScreen>
                                           onReset: _onReset,
                                           onClearLocation: _onClearLocation,
                                           onMenuPressed: widget.onMenuPressed,
+                                          onAddHouseNumber: _addHouseNumberTo,
                                         ),
                                         // fahrplaner.de fork patch (15.10.2026,
                                         // T046/T047): diese Zeile gehoert zum
@@ -2311,6 +2267,7 @@ class _HomeScreenState extends State<HomeScreen>
         ),
         // Itinerary list - shrinkWrap: true because it's inside a scrollable bottom sheet
         ItineraryList(
+          onAddHouseNumber: _addHouseNumberTo,
           shrinkWrap: true,
           showDetailOnLoad: _showDetailOnLoad,
           onDetailStateChanged: (isShowing) {
@@ -2609,6 +2566,7 @@ class _HomeScreenState extends State<HomeScreen>
                       onReset: _onReset,
                       onClearLocation: _onClearLocation,
                       onMenuPressed: widget.onMenuPressed,
+                      onAddHouseNumber: _addHouseNumberTo,
                     ),
                     // "Jetzt losfahren"/"Optionen"-Zeile - gleiche Logik
                     // wie in der schmalen Ansicht oben (dortiger Kommentar,
@@ -2669,6 +2627,7 @@ class _HomeScreenState extends State<HomeScreen>
                   Flexible(
                     flex: 1,
                     child: ItineraryList(
+                      onAddHouseNumber: _addHouseNumberTo,
                       showDetailOnLoad: _showDetailOnLoad,
                       onDetailStateChanged: (isShowing) {
                         if (!isShowing) {
@@ -2710,6 +2669,7 @@ class _HomeScreenState extends State<HomeScreen>
                 else
                   Expanded(
                     child: ItineraryList(
+                      onAddHouseNumber: _addHouseNumberTo,
                       showDetailOnLoad: _showDetailOnLoad,
                       onDetailStateChanged: (isShowing) {
                         if (!isShowing) {
@@ -3122,12 +3082,17 @@ class _HomeScreenState extends State<HomeScreen>
 
 // Helper functions to convert between location types
 SearchLocation _trufiLocationToSearchLocation(TrufiLocation location) {
+  // fahrplaner.de fork patch 62: "nur Strasse" (+ Laenge) aus
+  // TrufiLocation.type zurueckgewinnen - steuert "+ Nr." und den Hinweis.
+  final isStreet = isStreetLocationType(location.type);
   return SearchLocation(
     id: '${location.latitude}_${location.longitude}',
     displayName: location.description,
     address: location.address,
     latitude: location.latitude,
     longitude: location.longitude,
+    locationType: isStreet ? SearchLocationType.street : null,
+    extentMeters: streetLengthFromLocationType(location.type)?.toDouble(),
   );
 }
 
@@ -3137,6 +3102,11 @@ TrufiLocation _searchLocationToTrufiLocation(SearchLocation location) {
     latitude: location.latitude,
     longitude: location.longitude,
     address: location.address,
+    // fahrplaner.de fork patch 62: Strasse ohne Hausnummer kennzeichnen
+    // (vorher ging locationType hier verloren).
+    type: location.locationType == SearchLocationType.street
+        ? streetLocationTypeTag(location.extentMeters)
+        : null,
   );
 }
 

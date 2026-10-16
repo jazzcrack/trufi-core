@@ -588,6 +588,23 @@ class _LocationSearchScreenState extends State<LocationSearchScreen>
                     ),
                   ],
 
+                  // fahrplaner.de fork patch 62: Hinweis zur optionalen
+                  // Hausnummer, sobald Strassen-Treffer dabei sind.
+                  if (_query.isNotEmpty &&
+                      widget.onAddHouseNumber != null &&
+                      _searchResults.any(
+                        (r) => r.locationType == SearchLocationType.street,
+                      )) ...[
+                    _HouseNumberHint(
+                      example: _searchResults
+                          .firstWhere(
+                            (r) => r.locationType == SearchLocationType.street,
+                          )
+                          .displayName,
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+
                   // Search Results
                   if (_query.isNotEmpty) ...[
                     _SectionTitle(
@@ -643,12 +660,7 @@ class _LocationSearchScreenState extends State<LocationSearchScreen>
                                 : (widget.onAddHouseNumber != null &&
                                       location.locationType ==
                                           SearchLocationType.street)
-                                ? IconButton(
-                                    tooltip: 'Hausnummer hinzufügen',
-                                    icon: Icon(
-                                      Icons.add_location_alt_outlined,
-                                      color: colorScheme.primary,
-                                    ),
+                                ? _AddHouseNumberButton(
                                     onPressed: () =>
                                         _handleAddHouseNumber(location),
                                   )
@@ -1327,6 +1339,99 @@ class _ModernLocationTile extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// "+ Nr." am Strassen-Treffer (fahrplaner.de fork patch 62, nach dem
+/// App-Entwurf): senkrechter Trenner, darunter "+" und "Nr." - ersetzt das
+/// fruehere, leicht zu uebersehende Icon aus Patch 46.
+class _AddHouseNumberButton extends StatelessWidget {
+  final VoidCallback onPressed;
+  const _AddHouseNumberButton({required this.onPressed});
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(width: 1, height: 44, color: colorScheme.outlineVariant),
+        Tooltip(
+          message: 'Hausnummer hinzufügen',
+          child: InkWell(
+            borderRadius: BorderRadius.circular(12),
+            onTap: onPressed,
+            child: SizedBox(
+              width: 60,
+              height: 52,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.add_rounded, color: colorScheme.primary),
+                  Text(
+                    'Nr.',
+                    style: TextStyle(
+                      color: colorScheme.primary,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Hinweiszeile ueber den Treffern (fahrplaner.de fork patch 62).
+class _HouseNumberHint extends StatelessWidget {
+  final String example;
+  const _HouseNumberHint({required this.example});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final muted = theme.textTheme.bodyMedium?.copyWith(
+      color: theme.colorScheme.onSurfaceVariant,
+    );
+    final strong = muted?.copyWith(
+      color: theme.colorScheme.onSurface,
+      fontWeight: FontWeight.w700,
+    );
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(
+          Icons.info_outline_rounded,
+          size: 20,
+          color: theme.colorScheme.onSurfaceVariant,
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text.rich(
+            TextSpan(
+              style: muted,
+              children: [
+                const TextSpan(
+                  text:
+                      'Straße antippen genügt. Hausnummer optional: gleich '
+                      'mittippen (',
+                ),
+                TextSpan(text: '$example 12', style: strong),
+                const TextSpan(text: ') oder mit '),
+                TextSpan(
+                  text: '+ Nr.',
+                  style: strong?.copyWith(color: theme.colorScheme.primary),
+                ),
+                const TextSpan(text: ' ergänzen.'),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

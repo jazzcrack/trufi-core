@@ -45,6 +45,7 @@ export 'src/widgets/search_location_field.dart';
 export 'src/widgets/search_location_buttons.dart';
 export 'src/widgets/choose_on_map_screen.dart';
 export 'src/widgets/location_search_screen.dart';
+export 'src/widgets/house_number_screen.dart';
 
 // Services
 export 'src/services/search_location_service.dart';

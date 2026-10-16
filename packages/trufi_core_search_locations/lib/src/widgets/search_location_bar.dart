@@ -58,6 +58,10 @@ class SearchLocationBar extends StatelessWidget {
   /// Set to false when the SearchBar is inside a panel/container that already has its own shadow.
   final bool showShadow;
 
+  /// fahrplaner.de fork patch 62: "+ Nr." an einem Start/Ziel, das nur eine
+  /// Strasse ist (ohne Hausnummer) - oeffnet beim Host den Hausnummer-Dialog.
+  final void Function({required bool isOrigin})? onAddHouseNumber;
+
   const SearchLocationBar({
     super.key,
     required this.state,
@@ -72,6 +76,7 @@ class SearchLocationBar extends StatelessWidget {
     this.onRoutingSettings,
     this.showMenuButton = true,
     this.showShadow = true,
+    this.onAddHouseNumber,
   });
 
   @override
@@ -156,6 +161,9 @@ class SearchLocationBar extends StatelessWidget {
                     // Origin field with clear button
                     _LocationFieldWithClear(
                       isOrigin: true,
+                      onAddHouseNumber: onAddHouseNumber == null
+                          ? null
+                          : () => onAddHouseNumber!(isOrigin: true),
                       hintText:
                           configuration.originHintText ??
                           SearchLocationsLocalizations.of(context).selectOrigin,
@@ -173,6 +181,9 @@ class SearchLocationBar extends StatelessWidget {
                     // Destination field with clear button
                     _LocationFieldWithClear(
                       isOrigin: false,
+                      onAddHouseNumber: onAddHouseNumber == null
+                          ? null
+                          : () => onAddHouseNumber!(isOrigin: false),
                       hintText:
                           configuration.destinationHintText ??
                           SearchLocationsLocalizations.of(
@@ -273,6 +284,9 @@ class SearchLocationBar extends StatelessWidget {
         Expanded(
           child: _LocationFieldModernWithClear(
             isOrigin: true,
+            onAddHouseNumber: onAddHouseNumber == null
+                ? null
+                : () => onAddHouseNumber!(isOrigin: true),
             hintText:
                 configuration.originHintText ??
                 SearchLocationsLocalizations.of(context).selectOrigin,
@@ -315,6 +329,9 @@ class SearchLocationBar extends StatelessWidget {
         Expanded(
           child: _LocationFieldModernWithClear(
             isOrigin: false,
+            onAddHouseNumber: onAddHouseNumber == null
+                ? null
+                : () => onAddHouseNumber!(isOrigin: false),
             hintText:
                 configuration.destinationHintText ??
                 SearchLocationsLocalizations.of(context).selectDestination,
@@ -387,6 +404,7 @@ class _LocationFieldWithClear extends StatelessWidget {
   final SearchLocation? value;
   final VoidCallback onTap;
   final VoidCallback? onClear;
+  final VoidCallback? onAddHouseNumber;
   final ThemeData theme;
 
   const _LocationFieldWithClear({
@@ -395,6 +413,7 @@ class _LocationFieldWithClear extends StatelessWidget {
     required this.value,
     required this.onTap,
     this.onClear,
+    this.onAddHouseNumber,
     required this.theme,
   });
 
@@ -434,9 +453,49 @@ class _LocationFieldWithClear extends StatelessWidget {
                         ),
                 ),
               ),
+              if (onAddHouseNumber != null &&
+                  value?.locationType == SearchLocationType.street) ...[
+                _AddNumberPill(onPressed: onAddHouseNumber!),
+                const SizedBox(width: 6),
+              ],
               if (hasValue && onClear != null)
                 _ClearButton(onPressed: onClear!),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// "+ Nr."-Pille im Feld (fahrplaner.de fork patch 62, App-Entwurf).
+class _AddNumberPill extends StatelessWidget {
+  final VoidCallback onPressed;
+  const _AddNumberPill({required this.onPressed});
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Tooltip(
+      message: 'Hausnummer ergänzen',
+      child: Material(
+        color: colorScheme.primaryContainer,
+        borderRadius: BorderRadius.circular(10),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(10),
+          onTap: () {
+            HapticFeedback.selectionClick();
+            onPressed();
+          },
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            child: Text(
+              '+ Nr.',
+              style: TextStyle(
+                color: colorScheme.onPrimaryContainer,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
           ),
         ),
       ),
@@ -519,6 +578,7 @@ class _LocationFieldModernWithClear extends StatelessWidget {
   final SearchLocation? value;
   final VoidCallback onTap;
   final VoidCallback? onClear;
+  final VoidCallback? onAddHouseNumber;
   final ThemeData theme;
   final Widget? leadingWidget;
 
@@ -528,6 +588,7 @@ class _LocationFieldModernWithClear extends StatelessWidget {
     required this.value,
     required this.onTap,
     this.onClear,
+    this.onAddHouseNumber,
     required this.theme,
     this.leadingWidget,
   });
@@ -607,6 +668,11 @@ class _LocationFieldModernWithClear extends StatelessWidget {
                 ),
               ),
               // Clear button
+              if (onAddHouseNumber != null &&
+                  value?.locationType == SearchLocationType.street) ...[
+                _AddNumberPill(onPressed: onAddHouseNumber!),
+                const SizedBox(width: 6),
+              ],
               if (hasValue && onClear != null)
                 _ClearButton(onPressed: onClear!),
             ],
