@@ -1394,6 +1394,14 @@ Nutzer-Fund (16.10.2026, Build 61): nach Eingabe einer Hausnummer erschien immer
 
 Tests: Dialog-Test für den neuen Ablauf, Tests für Anfrage, Trefferprüfung und Schätzung; `trufi_core_search_locations` Widget-/Unit 179, `trufi_core_home_screen` 101 grün.
 
+### 64. Hausnummer: mehrere Anfrage-Varianten, Büro/Geschäft an der Adresse zählt (Nutzer-Fund)
+
+Nutzer-Fund (16.10.2026): "Schleusenstraße 22, Bremerhaven" wurde als nicht verzeichnet gemeldet, obwohl OSM die Nummer kennt. Live geprüft: Nominatim verlangt, dass JEDER Teil einer Freitext-Anfrage passt - "Schleusenstraße 22, Lehe, Bremerhaven, …" (abweichender Stadtteil) liefert 0 Treffer, "Schleusenstraße 22, Bremerhaven" sofort das Haus UND ein Büro ("Logotomie", `office`).
+
+**Fix:** `houseNumberQueries()` - volle Adresszeile, dann "Straße Nr, <je einer der ersten beiden Adressteile>", zuletzt "Straße Nr" (höchstens 4 Anfragen, Abbruch beim ersten echten Treffer). `isHouseNumberMatch()` akzeptiert jetzt auch POIs, deren Adresse genau "Straße Nr" ist (nur Straßen/Haltestellen nie).
+
+Tests: Dialog-Test mit genau diesem Fall (erste beiden Varianten leer, dritte findet das Büro); 180 Tests grün.
+
 ## Sync-Strategie: wie künftige Upstream-Änderungen reinkommen
 
 Ziel: Trufi-Core-Updates (neue Features, Bugfixes) weiter bekommen,

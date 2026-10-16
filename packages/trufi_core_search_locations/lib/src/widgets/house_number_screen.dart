@@ -105,6 +105,36 @@ String houseNumberQuery(SearchLocation street, String number) {
   return rest.isEmpty ? head : '$head, ${rest.join(', ')}';
 }
 
+/// Anfragen in absteigender Genauigkeit (fahrplaner.de fork patch 64,
+/// Nutzer-Fund "Schleusenstrasse 22 nicht gefunden"): Nominatim verlangt,
+/// dass JEDER Teil der Freitext-Anfrage passt - weicht z. B. der Stadtteil
+/// der Strasse von dem des Hauses ab, findet die volle Anfrage nichts,
+/// "Strasse Nummer, Stadt" aber schon. Erst die volle Adresszeile, dann je
+/// ein einzelner Teil daraus, zuletzt nur "Strasse Nummer". Ohne Dubletten,
+/// hoechstens [maxQueries].
+List<String> houseNumberQueries(
+  SearchLocation street,
+  String number, {
+  int maxQueries = 4,
+}) {
+  final streetKey = _normalizeName(street.displayName);
+  final rest = (street.address ?? '')
+      .split(',')
+      .map((part) => part.trim())
+      .where((part) => part.isNotEmpty && _normalizeName(part) != streetKey)
+      .toList();
+  final head = '${street.displayName} $number';
+  // Laender-/Bundeslandnamen allein grenzen kaum ein - Stadt/Stadtteil
+  // zuerst: in "Mitte, Bremerhaven, Bremen, Deutschland" sind die ersten
+  // beiden die nuetzlichen.
+  final queries = <String>{
+    houseNumberQuery(street, number),
+    for (final part in rest.take(2)) '$head, $part',
+    head,
+  };
+  return queries.take(maxQueries).toList();
+}
+
 /// Ist [result] wirklich "Strasse Nummer"? Ein Suchdienst liefert bei
 /// unbekannter Nummer gern die Strasse selbst oder ein anderes Haus -
 /// das darf nicht als Treffer gelten.
@@ -113,7 +143,13 @@ bool isHouseNumberMatch(
   SearchLocation street,
   String number,
 ) {
-  if (result.locationType != SearchLocationType.address) return false;
+  // Auch ein Geschaeft/Buero AN dieser Adresse zaehlt (live: unter
+  // "Schleusenstrasse 22" ist neben dem Haus ein Buero erfasst) - nur
+  // Strassen und Haltestellen nicht.
+  if (result.locationType == SearchLocationType.street ||
+      result.locationType == SearchLocationType.stop) {
+    return false;
+  }
   final wanted = _normalizeName(houseNumberLabel(street, number));
   final candidates = [result.displayName, result.address ?? ''];
   return candidates.any((text) {
@@ -288,15 +324,16 @@ class _HouseNumberScreenState extends State<HouseNumberScreen> {
     // Uebereinstimmung von Strasse UND Nummer.
     setState(() => _resolving = true);
     SearchLocation? precise;
-    try {
-      final results = await widget.searchService.search(
-        houseNumberQuery(widget.street, number),
-      );
-      precise = results
-          .where((r) => isHouseNumberMatch(r, widget.street, number))
-          .firstOrNull;
-    } catch (_) {
-      precise = null;
+    for (final query in houseNumberQueries(widget.street, number)) {
+      try {
+        final results = await widget.searchService.search(query);
+        precise = results
+            .where((r) => isHouseNumberMatch(r, widget.street, number))
+            .firstOrNull;
+      } catch (_) {
+        precise = null;
+      }
+      if (precise != null || !mounted) break;
     }
     if (!mounted) return;
     if (precise != null) {

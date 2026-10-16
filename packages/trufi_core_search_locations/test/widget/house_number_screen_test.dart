@@ -24,12 +24,19 @@ class _FakeSource implements HouseNumberSuggestionSource {
 }
 
 class _FakeSearch implements SearchLocationService {
-  String? lastQuery;
+  final List<String> queries = [];
+
+  /// Antwortet nur auf genau diese Anfrage (sonst leer) - wie Nominatim,
+  /// das bei einem unpassenden Adressteil nichts findet.
+  final Map<String, List<SearchLocation>> answers;
+  _FakeSearch([this.answers = const {}]);
+
+  String? get lastQuery => queries.isEmpty ? null : queries.last;
 
   @override
   Future<List<SearchLocation>> search(String query) async {
-    lastQuery = query;
-    return const [];
+    queries.add(query);
+    return answers[query] ?? const [];
   }
 
   @override
@@ -177,8 +184,11 @@ void main() {
     await tester.tap(find.text('Oststraße 99 übernehmen'));
     await tester.pumpAndSettle();
 
-    // Anfrage ohne doppelte Strasse (Patch 63)
-    expect(search.lastQuery, 'Oststraße 99, Bremerhaven-Fischereihafen');
+    // Anfragen ohne doppelte Strasse (Patch 63), mehrere Varianten (64)
+    expect(search.queries, [
+      'Oststraße 99, Bremerhaven-Fischereihafen',
+      'Oststraße 99',
+    ]);
     expect(result, isNull, reason: 'Dialog bleibt offen');
     expect(find.textContaining('nicht verzeichnet'), findsOneWidget);
 
@@ -284,5 +294,64 @@ void main() {
     expect(find.text('Übernehmen'), findsOneWidget);
     expect(find.text('Ohne Nr.'), findsOneWidget);
     expect(find.text('Ohne Hausnummer'), findsNothing);
+  });
+
+  testWidgets('Schleusenstrasse 22: volle Anfrage leer, "Strasse Nr, Stadt" '
+      'findet ein Buero an der Adresse -> uebernommen (Patch 64)', (
+    tester,
+  ) async {
+    _portrait(tester);
+    const street = SearchLocation(
+      id: 'way:9',
+      displayName: 'Schleusenstraße',
+      address: 'Schleusenstraße, Lehe, Bremerhaven, Bremen, Deutschland',
+      latitude: 53.549,
+      longitude: 8.583,
+      locationType: SearchLocationType.street,
+    );
+    final search = _FakeSearch({
+      'Schleusenstraße 22, Bremerhaven': [
+        const SearchLocation(
+          id: 'node:1',
+          displayName: 'Logotomie',
+          address:
+              'Schleusenstraße 22, Mitte, Bremerhaven, Bremen, Deutschland',
+          latitude: 53.5493,
+          longitude: 8.5834,
+          locationType: SearchLocationType.poi,
+        ),
+      ],
+    });
+    HouseNumberResult? result;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Builder(
+          builder: (context) => ElevatedButton(
+            onPressed: () async => result = await showHouseNumberScreen(
+              context,
+              street: street,
+              searchService: search,
+            ),
+            child: const Text('open'),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('open'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), '22');
+    await tester.pump();
+    await tester.tap(find.text('Schleusenstraße 22 übernehmen'));
+    await tester.pumpAndSettle();
+
+    expect(search.queries, [
+      'Schleusenstraße 22, Lehe, Bremerhaven, Bremen, Deutschland',
+      'Schleusenstraße 22, Lehe',
+      'Schleusenstraße 22, Bremerhaven',
+    ]);
+    final located = result! as HouseNumberLocated;
+    expect(located.approximate, isFalse);
+    expect(located.location.displayName, 'Schleusenstraße 22');
+    expect(located.location.latitude, 53.5493);
   });
 }
