@@ -1330,6 +1330,14 @@ Neuer statischer Einhängepunkt `StartNavigationAlertsHook` (`itinerary_detail_s
 
 Test: neuer Fall in `itinerary_detail_redesign_test.dart` (Zeile ersetzt, kein `Switch` mehr, Start liefert den Hook-Wert). 90 Tests grün.
 
+### 58. "Ganze Fahrt": Linie füllt sich bis zur aktuellen Position (T041)
+
+Nutzer-Fund (15.10.2026, Build 57): während einer laufenden Fahrt zeigte "Ganze Fahrt" weiterhin keinen Fortschritt. Ursachen: (1) nur der kleine 6-px-Punkt je Zwischenhalt wechselte zwischen gefüllt/Ring, die Linie selbst war überall gleich blass; (2) "erledigt" kam aus reiner Fahrplanzeit OHNE Verspätung; (3) ein Bein klappte nur in `initState()` auf - wurde es erst später zum aktuellen, blieben die Zwischenhalte zugeklappt.
+
+**Fix (`itinerary_detail_screen.dart`):** neuer optionaler `ItineraryDetailContent.isStopPassed` (`bool? Function(routing.Place)`), mit dem der Host während der Fahrt aus dem echten GPS-/`NavigationState` antwortet (`null` = nicht zuordenbar → Fahrplanzeit). Zeit-Variante rechnet jetzt `leg.arrivalDelay` mit ein. Linie je Zwischenhalt: erledigt kräftig, kommend blass (`_upcomingAlpha` 0.3); bei gesetztem `currentLegIndex` sind auch alle späteren Abschnitte (Bein- und Halt-Linien) blass, frühere komplett erledigt. `_LegItem.didUpdateWidget()` klappt ein später aktuell werdendes Bein auf. Planungsphase (`currentLegIndex == null`) unverändert.
+
+Tests: zwei neue Fälle in `itinerary_detail_current_leg_test.dart` (Host-Callback schlägt Fahrplanzeit, Linien-Deckkraft erledigt/kommend; spätes Aufklappen). 92 Tests grün.
+
 ## Sync-Strategie: wie künftige Upstream-Änderungen reinkommen
 
 Ziel: Trufi-Core-Updates (neue Features, Bugfixes) weiter bekommen,

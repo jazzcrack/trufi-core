@@ -69,6 +69,13 @@ class ItineraryDetailContent extends StatelessWidget {
   /// Kapitel 3.67/3.68 im Hauptprojekt).
   final int? currentLegIndex;
 
+  /// fahrplaner.de fork patch 58 (16.10.2026, T041): beantwortet waehrend
+  /// einer aktiven Fahrt, ob ein Zwischenhalt des AKTUELLEN Beins schon
+  /// passiert ist - aus dem echten GPS-/NavigationState des Hosts statt
+  /// reiner Fahrplanzeit. Ohne Callback, oder wenn er `null` liefert (Halt
+  /// nicht zuordenbar): Fahrplanzeit inkl. Verspaetung des Beins.
+  final bool? Function(routing.Place stop)? isStopPassed;
+
   /// fahrplaner.de fork patch (see FAHRPLANER_PATCHES.md, Patch 41,
   /// Querformat Q5): kompaktere Zeitstrahl-Zeilenhoehe (siehe
   /// [_PlaceItem]) und eine einzeilige Wecken+Fahrt-starten-Leiste (siehe
@@ -88,6 +95,7 @@ class ItineraryDetailContent extends StatelessWidget {
     this.onShare,
     this.onSaveTrip,
     this.currentLegIndex,
+    this.isStopPassed,
     this.compact = false,
   });
 
@@ -132,6 +140,7 @@ class ItineraryDetailContent extends StatelessWidget {
           l10n: l10n,
           onRouteTap: onRouteTap,
           currentLegIndex: currentLegIndex,
+          isStopPassed: isStopPassed,
           compact: compact,
         ),
       ],
@@ -909,11 +918,17 @@ class _StartNavigationBarState extends State<_StartNavigationBar> {
   }
 }
 
+/// Deckkraft kommender Abschnitte/Halte waehrend einer aktiven Fahrt
+/// (fahrplaner.de fork patch 58, T041) - derselbe Wert wie die bisher schon
+/// blasse Zwischenhalt-Linie.
+const double _upcomingAlpha = 0.3;
+
 class _VerticalTimeline extends StatelessWidget {
   final routing.Itinerary itinerary;
   final HomeScreenLocalizations l10n;
   final void Function(String routeCode)? onRouteTap;
   final int? currentLegIndex;
+  final bool? Function(routing.Place stop)? isStopPassed;
 
   /// fahrplaner.de fork patch (see FAHRPLANER_PATCHES.md, Patch 41) -
   /// durchgereicht an [_PlaceItem], siehe dessen Kopfkommentar.
@@ -924,6 +939,7 @@ class _VerticalTimeline extends StatelessWidget {
     required this.l10n,
     this.onRouteTap,
     this.currentLegIndex,
+    this.isStopPassed,
     this.compact = false,
   });
 
@@ -932,6 +948,17 @@ class _VerticalTimeline extends StatelessWidget {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final legs = itinerary.legs;
+    // fahrplaner.de fork patch 58 (T041): waehrend einer aktiven Fahrt
+    // (currentLegIndex gesetzt) sind kommende Abschnitte blass - die Linie
+    // "fuellt sich" sichtbar bis zur aktuellen Position. In der Planung
+    // (null) unveraendert alles kraeftig.
+    final current = currentLegIndex;
+    Color legColor(int i) {
+      final color = _getLegColor(legs[i], colorScheme);
+      return current != null && i > current
+          ? color.withValues(alpha: _upcomingAlpha)
+          : color;
+    }
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -944,7 +971,7 @@ class _VerticalTimeline extends StatelessWidget {
                 place: legs[i].fromPlace,
                 dotColor: const Color(0xFFE91E63),
                 isOrigin: true,
-                lineColorBelow: _getLegColor(legs[i], colorScheme),
+                lineColorBelow: legColor(i),
                 time: legs[i].fromPlace?.departureTime,
                 compact: compact,
               ),
@@ -953,9 +980,11 @@ class _VerticalTimeline extends StatelessWidget {
             _LegItem(
               leg: legs[i],
               l10n: l10n,
-              lineColor: _getLegColor(legs[i], colorScheme),
+              lineColor: legColor(i),
               onRouteTap: onRouteTap,
               isCurrentLeg: i == currentLegIndex,
+              isPastLeg: current != null && i < current,
+              isStopPassed: isStopPassed,
             ),
 
             // Destination / Transfer
@@ -963,12 +992,10 @@ class _VerticalTimeline extends StatelessWidget {
               place: legs[i].toPlace,
               dotColor: i == legs.length - 1
                   ? const Color(0xFFE91E63) // Destination
-                  : _getLegColor(legs[i + 1], colorScheme), // Transfer
+                  : legColor(i + 1), // Transfer
               isDestination: i == legs.length - 1,
-              lineColorAbove: _getLegColor(legs[i], colorScheme),
-              lineColorBelow: i < legs.length - 1
-                  ? _getLegColor(legs[i + 1], colorScheme)
-                  : null,
+              lineColorAbove: legColor(i),
+              lineColorBelow: i < legs.length - 1 ? legColor(i + 1) : null,
               time: legs[i].toPlace?.arrivalTime,
               // Redesign Oktober 2026 (docs/design/HANDOFF.md Abschnitt
               // 3.3): "durchgestrichene Zeit + neue Zeit bei Verspätung" -
@@ -1118,8 +1145,9 @@ class _PlaceItem extends StatelessWidget {
                 : () => copyToClipboard(
                     context,
                     name,
-                    confirmation: HomeScreenLocalizations.of(context)
-                        .copiedToClipboard,
+                    confirmation: HomeScreenLocalizations.of(
+                      context,
+                    ).copiedToClipboard,
                   ),
             child: Text(
               name,
@@ -1344,12 +1372,21 @@ class _LegItem extends StatefulWidget {
   /// Verhalten).
   final bool isCurrentLeg;
 
+  /// fahrplaner.de fork patch 58 (T041): Bein liegt vor dem aktuellen -
+  /// alle Zwischenhalte erledigt.
+  final bool isPastLeg;
+
+  /// Siehe ItineraryDetailContent.isStopPassed.
+  final bool? Function(routing.Place stop)? isStopPassed;
+
   const _LegItem({
     required this.leg,
     required this.l10n,
     required this.lineColor,
     this.onRouteTap,
     this.isCurrentLeg = false,
+    this.isPastLeg = false,
+    this.isStopPassed,
   });
 
   @override
@@ -1367,6 +1404,18 @@ class _LegItemState extends State<_LegItem> {
     // genau die Zwischenhalte, die den Fortschritt belegen, sollen nicht
     // hinter einem zusaetzlichen Tap versteckt sein.
     _isExpanded = widget.isCurrentLeg;
+  }
+
+  @override
+  void didUpdateWidget(covariant _LegItem oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // fahrplaner.de fork patch 58 (T041): wird ein Bein erst SPAETER zum
+    // aktuellen (Fortschritt waehrend die Ansicht offen ist, oder der
+    // Index kam erst nach dem ersten Build), ebenfalls aufklappen - vorher
+    // nur in initState().
+    if (widget.isCurrentLeg && !oldWidget.isCurrentLeg) {
+      _isExpanded = true;
+    }
   }
 
   void _handleRouteTap() {
@@ -1746,17 +1795,34 @@ class _LegItemState extends State<_LegItem> {
     // Ankunftszeit je Halt), kein Live-GPS (siehe
     // ItineraryDetailContent.currentLegIndex). Auf allen anderen Beinen
     // unveraendert immer gefuellt, wie bisher.
+    //
+    // fahrplaner.de fork patch 58 (T041): (1) waehrend der aktiven Fahrt
+    // entscheidet bevorzugt der Host per [isStopPassed] (echter GPS-Stand);
+    // (2) die Zeit-Variante rechnet jetzt die Verspaetung des Beins mit ein;
+    // (3) auch die LINIE je Zwischenhalt fuellt sich (erledigt = kraeftig,
+    // kommend = blass), nicht nur der kleine Punkt - genau das war beim
+    // Nutzer "weiterhin nicht sichtbar".
     final now = widget.isCurrentLeg ? DateTime.now() : null;
+    final delay = widget.leg.arrivalDelay ?? Duration.zero;
+    final showsProgress = widget.isCurrentLeg || widget.isPastLeg;
 
     return Column(
       children: [
         for (final stop in stops)
           Builder(
             builder: (context) {
-              final passed =
-                  now == null ||
-                  stop.arrivalTime == null ||
-                  now.isAfter(stop.arrivalTime!);
+              final passed = widget.isPastLeg
+                  ? true
+                  : now == null
+                  ? true
+                  : widget.isStopPassed?.call(stop) ??
+                        (stop.arrivalTime == null ||
+                            now.isAfter(stop.arrivalTime!.add(delay)));
+              final lineAlpha = !showsProgress
+                  ? _upcomingAlpha
+                  : passed
+                  ? 1.0
+                  : _upcomingAlpha;
               return SizedBox(
                 height: 28,
                 child: Row(
@@ -1772,7 +1838,9 @@ class _LegItemState extends State<_LegItem> {
                           // Vertical line
                           Container(
                             width: 4,
-                            color: widget.lineColor.withValues(alpha: 0.3),
+                            color: widget.lineColor.withValues(
+                              alpha: widget.lineColor.a * lineAlpha,
+                            ),
                           ),
                           // Small bullet - gefuellt (erledigt) oder Ring
                           // (kommend), siehe Kommentar oben.

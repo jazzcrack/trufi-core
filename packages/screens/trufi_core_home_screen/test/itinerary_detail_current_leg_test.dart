@@ -101,4 +101,82 @@ void main() {
       },
     );
   });
+  group('Fortschrittslinie (Patch 58, T041)', () {
+    // Halte bewusst in der ZUKUNFT: reine Fahrplanzeit wuerde beide als
+    // "kommend" zeigen - der Host-Callback muss gewinnen.
+    final future = DateTime.now().add(const Duration(hours: 1));
+    final twoStops = routing.Itinerary(
+      legs: [
+        _transitLeg(
+          shortName: 'RS2',
+          start: future,
+          end: future.add(const Duration(minutes: 20)),
+          intermediatePlaces: [
+            routing.Place(
+              name: 'Halt A',
+              lat: 0,
+              lon: 0,
+              arrivalTime: future.add(const Duration(minutes: 5)),
+            ),
+            routing.Place(
+              name: 'Halt B',
+              lat: 0,
+              lon: 0,
+              arrivalTime: future.add(const Duration(minutes: 10)),
+            ),
+          ],
+        ),
+      ],
+      startTime: future,
+      endTime: future.add(const Duration(minutes: 20)),
+      walkTime: Duration.zero,
+      duration: const Duration(minutes: 20),
+      walkDistance: 0,
+    );
+
+    double lineAlphaNextTo(WidgetTester tester, String stopName) {
+      final row = find.ancestor(
+        of: find.text(stopName),
+        matching: find.byType(Row),
+      );
+      final line = find.descendant(
+        of: row.first,
+        matching: find.byWidgetPredicate(
+          (w) => w is Container && w.constraints?.maxWidth == 4,
+        ),
+      );
+      return tester.widget<Container>(line.first).color!.a;
+    }
+
+    testWidgets('erledigte Halte: kraeftige Linie, kommende: blass - '
+        'isStopPassed des Hosts schlaegt die Fahrplanzeit', (tester) async {
+      await tester.pumpWidget(
+        host(
+          ItineraryDetailContent(
+            itinerary: twoStops,
+            currentLegIndex: 0,
+            isStopPassed: (stop) => stop.name == 'Halt A',
+          ),
+        ),
+      );
+
+      expect(lineAlphaNextTo(tester, 'Halt A'), closeTo(1.0, 0.01));
+      expect(lineAlphaNextTo(tester, 'Halt B'), closeTo(0.3, 0.01));
+    });
+
+    testWidgets('wird ein Bein erst spaeter aktuell, klappt es trotzdem auf', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        host(ItineraryDetailContent(itinerary: twoStops)),
+      );
+      expect(find.text('Halt A'), findsNothing);
+
+      await tester.pumpWidget(
+        host(ItineraryDetailContent(itinerary: twoStops, currentLegIndex: 0)),
+      );
+      await tester.pump();
+      expect(find.text('Halt A'), findsOneWidget);
+    });
+  });
 }
