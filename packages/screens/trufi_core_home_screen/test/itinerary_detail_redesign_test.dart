@@ -309,5 +309,37 @@ void main() {
         expect(received, isFalse);
       },
     );
+
+    testWidgets(
+      'StartNavigationAlertsHook ersetzt die Wecken-Zeile und liefert den '
+      'Wecken-Wert beim Start (Patch 57, T040)',
+      (tester) async {
+        StartNavigationAlertsHook.builder =
+            (context, itinerary, {required compact}) =>
+                const Text('App-Benachrichtigungen');
+        StartNavigationAlertsHook.wakeAtDestinationFor = (_) => true;
+        addTearDown(() {
+          StartNavigationAlertsHook.builder = null;
+          StartNavigationAlertsHook.wakeAtDestinationFor = null;
+        });
+
+        bool? received;
+        await tester.pumpWidget(
+          host(
+            ItineraryDetailContent(
+              itinerary: itinerary,
+              onStartNavigation: (wake) => received = wake,
+            ),
+          ),
+        );
+
+        expect(find.text('App-Benachrichtigungen'), findsOneWidget);
+        expect(find.text('Vor dem Aussteigen wecken'), findsNothing);
+        expect(find.byType(Switch), findsNothing);
+
+        await tester.tap(find.text('Fahrt starten'));
+        expect(received, isTrue);
+      },
+    );
   });
 }

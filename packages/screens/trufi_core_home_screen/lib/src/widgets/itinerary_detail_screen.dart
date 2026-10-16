@@ -663,6 +663,31 @@ class ItineraryDetailContent extends StatelessWidget {
 }
 
 /// Vertical timeline showing all legs with icons on the left.
+/// fahrplaner.de fork patch 57 (15.10.2026, T040): globaler Einhaengepunkt,
+/// ueber den die App die Wecken-Zeile im "Fahrt starten"-Bereich durch ihre
+/// eigene Benachrichtigungs-Zeile ersetzt (gemeinsamer Dialog fuer "Vor
+/// Abfahrt erinnern" + "Vor dem Aussteigen wecken" an allen drei Stellen).
+/// Statisch statt eines weiteren Konstruktor-Parameters, weil der Bereich
+/// ueber fuenf verschiedene Wege (Liste, Detail, Querformat, Gemerkt, Live-
+/// Detail) erreicht wird - jeder davon muesste ihn sonst einzeln
+/// durchreichen. Ohne gesetzten [builder] bleibt alles wie bisher.
+class StartNavigationAlertsHook {
+  StartNavigationAlertsHook._();
+
+  /// Ersetzt die Wecken-Zeile (Hochformat) bzw. den Wecken-Schalter
+  /// ([compact], Querformat).
+  static Widget Function(
+    BuildContext context,
+    routing.Itinerary itinerary, {
+    required bool compact,
+  })?
+  builder;
+
+  /// Liefert beim Tippen auf "Fahrt starten" den Wecken-Wert fuer
+  /// `onStartNavigation`, wenn [builder] gesetzt ist.
+  static bool Function(routing.Itinerary itinerary)? wakeAtDestinationFor;
+}
+
 /// "Vor dem Aussteigen wecken"-Schalter + "Fahrt starten"-Knopf (Redesign
 /// Oktober 2026, docs/design/HANDOFF.md Abschnitt 3.3, Referenz
 /// `Verbindung.dc.html`). Eigenes StatefulWidget: haelt den Schalter-
@@ -694,6 +719,16 @@ class _StartNavigationBar extends StatefulWidget {
 class _StartNavigationBarState extends State<_StartNavigationBar> {
   bool _wakeAtDestination = false;
 
+  void _start() {
+    HapticFeedback.lightImpact();
+    final resolver = StartNavigationAlertsHook.wakeAtDestinationFor;
+    widget.onStartNavigation(
+      StartNavigationAlertsHook.builder != null && resolver != null
+          ? resolver(widget.itinerary)
+          : _wakeAtDestination,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -711,43 +746,48 @@ class _StartNavigationBarState extends State<_StartNavigationBar> {
           ),
           child: Row(
             children: [
-              // Wecken-Schalter ohne die zweizeilige Erklaerung (kein
-              // Platz neben "Fahrt starten" in einer Zeile) - Tooltip
-              // ersetzt den fehlenden Erklaertext.
-              Tooltip(
-                message: destinationName.isNotEmpty
-                    ? 'Vor dem Aussteigen wecken (kurz vor $destinationName)'
-                    : 'Vor dem Aussteigen wecken',
-                child: InkWell(
-                  onTap: () =>
-                      setState(() => _wakeAtDestination = !_wakeAtDestination),
-                  borderRadius: BorderRadius.circular(12),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.notifications_active_rounded,
-                        size: 20,
-                        color: colorScheme.onSurfaceVariant,
-                      ),
-                      Switch(
-                        value: _wakeAtDestination,
-                        onChanged: (value) =>
-                            setState(() => _wakeAtDestination = value),
-                      ),
-                    ],
+              if (StartNavigationAlertsHook.builder != null)
+                StartNavigationAlertsHook.builder!(
+                  context,
+                  widget.itinerary,
+                  compact: true,
+                )
+              else
+                // Wecken-Schalter ohne die zweizeilige Erklaerung (kein
+                // Platz neben "Fahrt starten" in einer Zeile) - Tooltip
+                // ersetzt den fehlenden Erklaertext.
+                Tooltip(
+                  message: destinationName.isNotEmpty
+                      ? 'Vor dem Aussteigen wecken (kurz vor $destinationName)'
+                      : 'Vor dem Aussteigen wecken',
+                  child: InkWell(
+                    onTap: () => setState(
+                      () => _wakeAtDestination = !_wakeAtDestination,
+                    ),
+                    borderRadius: BorderRadius.circular(12),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.notifications_active_rounded,
+                          size: 20,
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                        Switch(
+                          value: _wakeAtDestination,
+                          onChanged: (value) =>
+                              setState(() => _wakeAtDestination = value),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-              ),
               const SizedBox(width: 8),
               Expanded(
                 child: SizedBox(
                   height: 44,
                   child: FilledButton.icon(
-                    onPressed: () {
-                      HapticFeedback.lightImpact();
-                      widget.onStartNavigation(_wakeAtDestination);
-                    },
+                    onPressed: _start,
                     icon: const Icon(Icons.navigation_rounded, size: 18),
                     label: const Text(
                       'Fahrt starten',
@@ -781,71 +821,75 @@ class _StartNavigationBarState extends State<_StartNavigationBar> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            InkWell(
-              onTap: () =>
-                  setState(() => _wakeAtDestination = !_wakeAtDestination),
-              borderRadius: BorderRadius.circular(12),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 4),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: colorScheme.primaryContainer,
-                        borderRadius: BorderRadius.circular(12),
+            if (StartNavigationAlertsHook.builder != null)
+              StartNavigationAlertsHook.builder!(
+                context,
+                widget.itinerary,
+                compact: false,
+              )
+            else
+              InkWell(
+                onTap: () =>
+                    setState(() => _wakeAtDestination = !_wakeAtDestination),
+                borderRadius: BorderRadius.circular(12),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: colorScheme.primaryContainer,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Icon(
+                          Icons.notifications_active_rounded,
+                          size: 20,
+                          color: colorScheme.onPrimaryContainer,
+                        ),
                       ),
-                      child: Icon(
-                        Icons.notifications_active_rounded,
-                        size: 20,
-                        color: colorScheme.onPrimaryContainer,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Vor dem Aussteigen wecken',
-                            style: TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w700,
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Vor dem Aussteigen wecken',
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w700,
+                              ),
                             ),
-                          ),
-                          Text(
-                            destinationName.isNotEmpty
-                                ? 'Kurz vor $destinationName. Braucht nur '
-                                      'für diese Fahrt den Standort '
-                                      '„Immer".'
-                                : 'Braucht nur für diese Fahrt den '
-                                      'Standort „Immer".',
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: colorScheme.onSurfaceVariant,
+                            Text(
+                              destinationName.isNotEmpty
+                                  ? 'Kurz vor $destinationName. Braucht nur '
+                                        'für diese Fahrt den Standort '
+                                        '„Immer".'
+                                  : 'Braucht nur für diese Fahrt den '
+                                        'Standort „Immer".',
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: colorScheme.onSurfaceVariant,
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
-                    ),
-                    Switch(
-                      value: _wakeAtDestination,
-                      onChanged: (value) =>
-                          setState(() => _wakeAtDestination = value),
-                    ),
-                  ],
+                      Switch(
+                        value: _wakeAtDestination,
+                        onChanged: (value) =>
+                            setState(() => _wakeAtDestination = value),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ),
             const SizedBox(height: 12),
             SizedBox(
               width: double.infinity,
               height: 54,
               child: FilledButton.icon(
-                onPressed: () {
-                  HapticFeedback.lightImpact();
-                  widget.onStartNavigation(_wakeAtDestination);
-                },
+                onPressed: _start,
                 icon: const Icon(Icons.navigation_rounded),
                 label: const Text(
                   'Fahrt starten',
@@ -1074,9 +1118,8 @@ class _PlaceItem extends StatelessWidget {
                 : () => copyToClipboard(
                     context,
                     name,
-                    confirmation: HomeScreenLocalizations.of(
-                      context,
-                    ).copiedToClipboard,
+                    confirmation: HomeScreenLocalizations.of(context)
+                        .copiedToClipboard,
                   ),
             child: Text(
               name,

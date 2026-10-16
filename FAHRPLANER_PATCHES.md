@@ -1322,6 +1322,14 @@ Beim Simulator-Abgleich von Patch 55 gefunden: beide Knöpfe standen trotz `Wrap
 
 Test: der T046/T047-Test in `chip_tap_target_test.dart` prüft jetzt zusätzlich "beide in einer Zeile" in einem 550er-Hochformat (im 800x600-Standard läuft das schmale Querformat-Seitenpanel, wo der Umbruch gewollt ist). Gegenprobe: mit wieder eingesetztem `Align` schlägt er fehl. 89 Tests grün.
 
+### 57. `StartNavigationAlertsHook`: App ersetzt die Wecken-Zeile im "Fahrt starten"-Bereich (T040)
+
+Nutzer-Fund (15.10.2026): drei Benachrichtigungs-Einstiege ("Vor Abfahrt erinnern" in Gemerkt, "Vor dem Aussteigen wecken" im Fahrt-starten-Bereich, "Wecken" in der laufenden Fahrt) hatten drei getrennte Zustände und je nur einen Typ. Ziel: EIN gemeinsamer App-Dialog mit beiden Typen an allen drei Stellen.
+
+Neuer statischer Einhängepunkt `StartNavigationAlertsHook` (`itinerary_detail_screen.dart`, mit exportiert): `builder` ersetzt die Wecken-Zeile (Hochformat) bzw. den Wecken-Schalter (Querformat, `compact`), `wakeAtDestinationFor` liefert beim Tippen auf "Fahrt starten" den Wecken-Wert für `onStartNavigation`. Statisch statt Konstruktor-Parameter, weil der Bereich über fünf Wege erreicht wird (Liste, Detail, Querformat, Gemerkt, Live-Detail) - jeder müsste ihn sonst einzeln durchreichen. Ohne gesetzten `builder` unverändert.
+
+Test: neuer Fall in `itinerary_detail_redesign_test.dart` (Zeile ersetzt, kein `Switch` mehr, Start liefert den Hook-Wert). 90 Tests grün.
+
 ## Sync-Strategie: wie künftige Upstream-Änderungen reinkommen
 
 Ziel: Trufi-Core-Updates (neue Features, Bugfixes) weiter bekommen,
