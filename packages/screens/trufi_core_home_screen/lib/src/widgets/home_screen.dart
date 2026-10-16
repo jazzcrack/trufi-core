@@ -796,11 +796,12 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
-  /// "+ Nr." (fahrplaner.de fork patch 62, ersetzt das Bottom-Sheet aus
-  /// Patch 46): Vollbild-Dialog [showHouseNumberScreen]. Ist die Nummer in
-  /// den Kartendaten nicht bekannt (bestaetigter Realfall, OSM-Luecke),
-  /// bleibt wie bisher der Kartenpicker als Rueckfall - vorzentriert auf die
-  /// Strasse, das Ergebnis wird zurueck-geocodiert.
+  /// "+ Nr." (fahrplaner.de fork patch 62/63): Vollbild-Dialog
+  /// [showHouseNumberScreen]. Seit Patch 63 KEIN Kartenpicker-Rueckfall
+  /// mehr (Nutzer-Fund: der Pin stand immer an derselben Stelle, und "mit
+  /// dem Setzen der Hausnummer sollte alles klar sein") - eine nicht
+  /// verzeichnete Nummer erklaert der Dialog selbst und uebernimmt sie auf
+  /// Bestaetigung mit geschaetzter Position bzw. Strassenmitte.
   Future<SearchLocation?> _resolveHouseNumber(
     SearchLocation street,
     SearchLocationsCubit searchLocationsCubit,
@@ -812,32 +813,11 @@ class _HomeScreenState extends State<HomeScreen>
       searchService: searchLocationsCubit.searchLocationService,
       suggestionSource: widget.config.houseNumberSuggestionSource,
     );
-    if (!mounted) return null;
-    switch (result) {
-      case null:
-        return null;
-      case HouseNumberLocated(:final location):
-        return location;
-      case HouseNumberWithoutNumber(:final street):
-        return street;
-      case HouseNumberNotFound(:final number):
-        final picked = await Navigator.push<MapLocationResult>(
-          context,
-          MaterialPageRoute(
-            builder: (context) => ChooseOnMapScreen(
-              configuration: ChooseOnMapConfiguration(
-                title: 'Punkt für Hausnummer $number setzen',
-                initialLatitude: street.latitude,
-                initialLongitude: street.longitude,
-                initialZoom: widget.config.chooseLocationZoom,
-                confirmButtonText: l10n.confirmLocation,
-              ),
-            ),
-          ),
-        );
-        if (picked == null) return null;
-        return _resolvePickedLocation(picked.latitude, picked.longitude);
-    }
+    return switch (result) {
+      null => null,
+      HouseNumberLocated(:final location) => location,
+      HouseNumberWithoutNumber(:final street) => street,
+    };
   }
 
   /// "+ Nr." an Start/Ziel bzw. im Hinweis ueber den Verbindungen

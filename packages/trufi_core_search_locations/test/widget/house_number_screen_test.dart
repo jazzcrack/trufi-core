@@ -150,9 +150,8 @@ void main() {
     expect(located.locationType, SearchLocationType.address);
   });
 
-  testWidgets('unbekannte Nummer: Suche ohne Treffer -> NotFound', (
-    tester,
-  ) async {
+  testWidgets('unbekannte Nummer: Dialog bleibt offen, erklaert, "Trotzdem '
+      'übernehmen" liefert die Strassenmitte als ungefaehr', (tester) async {
     _portrait(tester);
     final search = _FakeSearch();
     HouseNumberResult? result;
@@ -178,9 +177,100 @@ void main() {
     await tester.tap(find.text('Oststraße 99 übernehmen'));
     await tester.pumpAndSettle();
 
+    // Anfrage ohne doppelte Strasse (Patch 63)
     expect(search.lastQuery, 'Oststraße 99, Bremerhaven-Fischereihafen');
-    expect(result, isA<HouseNumberNotFound>());
-    expect((result! as HouseNumberNotFound).number, '99');
+    expect(result, isNull, reason: 'Dialog bleibt offen');
+    expect(find.textContaining('nicht verzeichnet'), findsOneWidget);
+
+    await tester.tap(find.text('Trotzdem übernehmen'));
+    await tester.pumpAndSettle();
+
+    expect(result, isA<HouseNumberLocated>());
+    final located = result! as HouseNumberLocated;
+    expect(located.approximate, isTrue);
+    expect(located.location.displayName, 'Oststraße 99');
+    expect(located.location.latitude, _street.latitude);
+    expect(located.location.locationType, SearchLocationType.street);
+  });
+
+  group('Patch 63 Hilfsfunktionen', () {
+    const street = SearchLocation(
+      id: 'w',
+      displayName: 'Am Neuen Hafen',
+      address: 'Am Neuen Hafen, Mitte, Bremerhaven, Bremen, Deutschland',
+      latitude: 53.55,
+      longitude: 8.57,
+      locationType: SearchLocationType.street,
+    );
+
+    test('Anfrage ohne doppelte Strasse (live: sonst 0 Treffer)', () {
+      expect(
+        houseNumberQuery(street, '5'),
+        'Am Neuen Hafen 5, Mitte, Bremerhaven, Bremen, Deutschland',
+      );
+    });
+
+    test('nur echter Treffer zaehlt - nicht die Strasse, nicht ein '
+        'anderes Haus', () {
+      SearchLocation hit(String name, String address, SearchLocationType t) =>
+          SearchLocation(
+            id: name,
+            displayName: name,
+            address: address,
+            latitude: 0,
+            longitude: 0,
+            locationType: t,
+          );
+      expect(
+        isHouseNumberMatch(
+          hit(
+            'Am Neuen Hafen',
+            'Am Neuen Hafen 5, Mitte, Bremerhaven',
+            SearchLocationType.address,
+          ),
+          street,
+          '5',
+        ),
+        isTrue,
+      );
+      expect(
+        isHouseNumberMatch(
+          hit(
+            'Am Neuen Hafen',
+            'Am Neuen Hafen, Mitte, Bremerhaven',
+            SearchLocationType.street,
+          ),
+          street,
+          '22',
+        ),
+        isFalse,
+      );
+      expect(
+        isHouseNumberMatch(
+          hit(
+            'Am Neuen Hafen',
+            'Am Neuen Hafen 5, Mitte',
+            SearchLocationType.address,
+          ),
+          street,
+          '55',
+        ),
+        isFalse,
+      );
+    });
+
+    test('Schaetzung zwischen Nachbarn derselben Strassenseite', () {
+      const known = [
+        HouseNumberSuggestion(number: '20', latitude: 1.0, longitude: 1.0),
+        HouseNumberSuggestion(number: '21', latitude: 9.0, longitude: 9.0),
+        HouseNumberSuggestion(number: '24', latitude: 3.0, longitude: 3.0),
+      ];
+      final estimate = estimateHouseNumberPosition('22', known)!;
+      expect(estimate.latitude, closeTo(2.0, 1e-9)); // Mitte 20..24
+      expect(estimateHouseNumberPosition('30', known)!.latitude, 3.0);
+      expect(estimateHouseNumberPosition('22', const []), isNull);
+      expect(estimateHouseNumberPosition('a', known), isNull);
+    });
   });
 
   testWidgets('Querformat: Übernehmen in der Eingabezeile, "Ohne Nr." als '

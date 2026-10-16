@@ -1385,6 +1385,15 @@ Nicht möglich wie im Entwurf: eine hervorgehobene Straßenlinie in der Vorschau
 
 Tests: `house_number_screen_test.dart` (4), `street_location_type_test.dart` (3), `street_precision_banner_test.dart` (2); bestehende Hausnummer-Tests unverändert grün. `trufi_core_home_screen` 101 Tests grün; `trufi_core_search_locations`-Widget-/Unit-Tests grün (die bekannten Live-Netz-Integrationstests unverändert ausgenommen).
 
+### 63. Hausnummer: Anfrage repariert, kein Kartenwähler-Rückfall mehr (Nutzer-Fund zu Patch 62)
+
+Nutzer-Fund (16.10.2026, Build 61): nach Eingabe einer Hausnummer erschien immer der Kartenwähler "Punkt für Hausnummer 22 setzen", der Pin stand stets an derselben Stelle der Straße (Titel zudem abgeschnitten). Zwei Ursachen:
+
+1. **Anfrage kaputt (eigener Fehler aus Patch 62):** die Adresszeile eines Straßen-Treffers enthält die Straße selbst ("Am Neuen Hafen, Mitte, Bremerhaven, …") - angehängt stand die Straße doppelt in der Anfrage. Live gegen Nominatim geprüft: so **0 Treffer**, auch für vorhandene Nummern; ohne Doppelung findet "Am Neuen Hafen 5, Mitte, …" das Haus. Fix: `houseNumberQuery()` lässt die Straße aus der Adresszeile weg; `isHouseNumberMatch()` akzeptiert nur Treffer, deren Straße UND Nummer übereinstimmen (Nominatim liefert bei unbekannter Nummer die Straße selbst).
+2. **Falscher Rückfall:** fehlt die Nummer in OSM (live: "Am Neuen Hafen 1/5" vorhanden, "10/22" nicht), landete der Nutzer im Kartenwähler. Jetzt bleibt der Dialog offen und erklärt "Hausnummer 22 ist in den Kartendaten nicht verzeichnet"; "Trotzdem übernehmen" liefert `HouseNumberLocated(approximate: true)` - Position geschätzt zwischen den nächsten bekannten Nummern derselben Straßenseite (`estimateHouseNumberPosition()`, braucht eine `HouseNumberSuggestionSource`), sonst die Straßenmitte (dann bleibt der Ort als "Straße" gekennzeichnet, der Straßenmitte-Hinweis also ehrlich bestehen). `HouseNumberNotFound` entfällt, `home_screen.dart` braucht keinen Kartenwähler-Rückfall mehr.
+
+Tests: Dialog-Test für den neuen Ablauf, Tests für Anfrage, Trefferprüfung und Schätzung; `trufi_core_search_locations` Widget-/Unit 179, `trufi_core_home_screen` 101 grün.
+
 ## Sync-Strategie: wie künftige Upstream-Änderungen reinkommen
 
 Ziel: Trufi-Core-Updates (neue Features, Bugfixes) weiter bekommen,

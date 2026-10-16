@@ -46,23 +46,20 @@ sealed class HouseNumberResult {
   const HouseNumberResult();
 }
 
-/// Eine konkrete Adresse wurde gefunden.
+/// Eine konkrete Adresse. [approximate] = die Nummer ist in den
+/// Kartendaten nicht verzeichnet, die Position ist geschaetzt (zwischen
+/// bekannten Nachbarnummern) bzw. die Strassenmitte - vom Nutzer
+/// ausdruecklich so bestaetigt ("Trotzdem uebernehmen").
 class HouseNumberLocated extends HouseNumberResult {
   final SearchLocation location;
-  const HouseNumberLocated(this.location);
+  final bool approximate;
+  const HouseNumberLocated(this.location, {this.approximate = false});
 }
 
 /// Bewusst ohne Hausnummer - die Strasse selbst (Strassenmitte) ist das Ziel.
 class HouseNumberWithoutNumber extends HouseNumberResult {
   final SearchLocation street;
   const HouseNumberWithoutNumber(this.street);
-}
-
-/// Die eingegebene Nummer ist in den Kartendaten nicht bekannt - der
-/// Aufrufer entscheidet (z. B. Punkt auf der Karte setzen lassen).
-class HouseNumberNotFound extends HouseNumberResult {
-  final String number;
-  const HouseNumberNotFound(this.number);
 }
 
 /// Oeffnet den Dialog als Vollbild-Seite.
@@ -88,6 +85,77 @@ Future<HouseNumberResult?> showHouseNumberScreen(
 String houseNumberLabel(SearchLocation street, String number) =>
     '${street.displayName} $number';
 
+String _normalizeName(String value) =>
+    value.toLowerCase().replaceAll(RegExp(r'[\s\-]+'), '');
+
+/// Freitext-Anfrage fuer "Strasse Nummer" (fahrplaner.de fork patch 63,
+/// echter Nutzer-Fund): die Adresszeile eines Strassen-Treffers enthaelt die
+/// Strasse selbst ("Am Neuen Hafen, Mitte, Bremerhaven, ...") - Patch 62
+/// haengte sie unveraendert an, die Strasse stand doppelt in der Anfrage und
+/// Nominatim fand NIE eine Hausnummer (live geprueft: 0 Treffer, ohne die
+/// Doppelung "Am Neuen Hafen 5" sofort).
+String houseNumberQuery(SearchLocation street, String number) {
+  final streetKey = _normalizeName(street.displayName);
+  final rest = (street.address ?? '')
+      .split(',')
+      .map((part) => part.trim())
+      .where((part) => part.isNotEmpty && _normalizeName(part) != streetKey)
+      .toList();
+  final head = '${street.displayName} $number';
+  return rest.isEmpty ? head : '$head, ${rest.join(', ')}';
+}
+
+/// Ist [result] wirklich "Strasse Nummer"? Ein Suchdienst liefert bei
+/// unbekannter Nummer gern die Strasse selbst oder ein anderes Haus -
+/// das darf nicht als Treffer gelten.
+bool isHouseNumberMatch(
+  SearchLocation result,
+  SearchLocation street,
+  String number,
+) {
+  if (result.locationType != SearchLocationType.address) return false;
+  final wanted = _normalizeName(houseNumberLabel(street, number));
+  final candidates = [result.displayName, result.address ?? ''];
+  return candidates.any((text) {
+    final first = _normalizeName(text.split(',').first);
+    return first == wanted;
+  });
+}
+
+/// Geschaetzte Position einer in den Kartendaten fehlenden Hausnummer:
+/// linear zwischen den naechsten bekannten Nummern DERSELBEN Strassenseite
+/// (gleiche Paritaet), sonst die naechste bekannte, sonst null.
+({double latitude, double longitude})? estimateHouseNumberPosition(
+  String number,
+  List<HouseNumberSuggestion> known,
+) {
+  final target = int.tryParse(RegExp(r'^\d+').stringMatch(number) ?? '');
+  if (target == null) return null;
+  final numbered = [
+    for (final k in known)
+      if (int.tryParse(RegExp(r'^\d+').stringMatch(k.number) ?? '')
+          case final n?)
+        (n: n, s: k),
+  ];
+  final sameSide = numbered.where((e) => e.n.isEven == target.isEven).toList();
+  final pool = sameSide.isNotEmpty ? sameSide : numbered;
+  if (pool.isEmpty) return null;
+  final lower = pool.where((e) => e.n < target).toList()
+    ..sort((a, b) => b.n.compareTo(a.n));
+  final higher = pool.where((e) => e.n > target).toList()
+    ..sort((a, b) => a.n.compareTo(b.n));
+  if (lower.isNotEmpty && higher.isNotEmpty) {
+    final a = lower.first, b = higher.first;
+    final t = (target - a.n) / (b.n - a.n);
+    return (
+      latitude: a.s.latitude + (b.s.latitude - a.s.latitude) * t,
+      longitude: a.s.longitude + (b.s.longitude - a.s.longitude) * t,
+    );
+  }
+  final nearest = (lower.isNotEmpty ? lower : higher).first.s;
+  return (latitude: nearest.latitude, longitude: nearest.longitude);
+}
+
 class HouseNumberScreen extends StatefulWidget {
   final SearchLocation street;
   final SearchLocationService searchService;
@@ -112,6 +180,13 @@ class _HouseNumberScreenState extends State<HouseNumberScreen> {
   bool _loadingSuggestions = false;
   bool _resolving = false;
   int _requestSerial = 0;
+
+  /// Die zuletzt gesuchte, in den Kartendaten NICHT gefundene Nummer -
+  /// der Dialog bleibt dann offen und erklaert das (Patch 63).
+  String? _notFoundNumber;
+
+  bool get _confirmingApproximate =>
+      _notFoundNumber != null && _notFoundNumber == _number;
 
   String get _number => _controller.text.trim();
 
@@ -139,7 +214,9 @@ class _HouseNumberScreenState extends State<HouseNumberScreen> {
   }
 
   void _onChanged(String _) {
-    setState(() {});
+    setState(() {
+      if (_notFoundNumber != _number) _notFoundNumber = null;
+    });
     _debounce?.cancel();
     _debounce = Timer(
       const Duration(milliseconds: 250),
@@ -202,28 +279,80 @@ class _HouseNumberScreenState extends State<HouseNumberScreen> {
       );
       return;
     }
-    // Keine bekannte Nummer ausgewaehlt: wie bisher (Patch 46) EINE
-    // verfeinerte Freitext-Anfrage "Strasse Nummer, Ort".
+    if (_confirmingApproximate) {
+      await _submitApproximate(number);
+      return;
+    }
+    // Keine bekannte Nummer ausgewaehlt: EINE verfeinerte Freitext-Anfrage
+    // (Patch 63: ohne die doppelte Strasse), Treffer nur bei echter
+    // Uebereinstimmung von Strasse UND Nummer.
     setState(() => _resolving = true);
     SearchLocation? precise;
     try {
-      final locality = widget.street.address;
-      final query = locality != null && locality.isNotEmpty
-          ? '${widget.street.displayName} $number, $locality'
-          : '${widget.street.displayName} $number';
-      final results = await widget.searchService.search(query);
+      final results = await widget.searchService.search(
+        houseNumberQuery(widget.street, number),
+      );
       precise = results
-          .where((r) => r.locationType == SearchLocationType.address)
+          .where((r) => isHouseNumberMatch(r, widget.street, number))
           .firstOrNull;
     } catch (_) {
       precise = null;
     }
     if (!mounted) return;
+    if (precise != null) {
+      setState(() => _resolving = false);
+      Navigator.of(context).pop(
+        HouseNumberLocated(
+          SearchLocation(
+            id: precise.id,
+            displayName: houseNumberLabel(widget.street, number),
+            address: widget.street.address,
+            latitude: precise.latitude,
+            longitude: precise.longitude,
+            locationType: SearchLocationType.address,
+          ),
+        ),
+      );
+      return;
+    }
+    // Nicht verzeichnet: NICHT mehr in den Kartenwaehler (Nutzer-Fund:
+    // "mit dem Setzen der Hausnummer sollte alles klar sein"), sondern
+    // offen bleiben und erklaeren - "Trotzdem uebernehmen" bestaetigt.
+    setState(() {
+      _resolving = false;
+      _notFoundNumber = number;
+    });
+  }
+
+  Future<void> _submitApproximate(String number) async {
+    setState(() => _resolving = true);
+    List<HouseNumberSuggestion> known = _suggestions;
+    final source = widget.suggestionSource;
+    if (source != null) {
+      try {
+        known = await source.suggest(widget.street, '');
+      } catch (_) {}
+    }
+    if (!mounted) return;
+    final estimate = estimateHouseNumberPosition(number, known);
     setState(() => _resolving = false);
     Navigator.of(context).pop(
-      precise != null
-          ? HouseNumberLocated(precise)
-          : HouseNumberNotFound(number),
+      HouseNumberLocated(
+        SearchLocation(
+          id: 'house:${widget.street.id}:$number',
+          displayName: houseNumberLabel(widget.street, number),
+          address: widget.street.address,
+          latitude: estimate?.latitude ?? widget.street.latitude,
+          longitude: estimate?.longitude ?? widget.street.longitude,
+          // Ohne Schaetzung ist die Position die Strassenmitte - dann
+          // bleibt es fuer Planer und Hinweis eine "Strasse".
+          locationType: estimate == null
+              ? SearchLocationType.street
+              : SearchLocationType.address,
+          extentMeters: estimate == null ? widget.street.extentMeters : null,
+        ),
+        approximate: true,
+      ),
     );
   }
 
@@ -270,6 +399,13 @@ class _HouseNumberScreenState extends State<HouseNumberScreen> {
                 height: 150,
               ),
               const SizedBox(height: 12),
+              if (_confirmingApproximate) ...[
+                _NotFoundNotice(
+                  number: _notFoundNumber!,
+                  canEstimate: widget.suggestionSource != null,
+                ),
+                const SizedBox(height: 12),
+              ],
               _WithoutNumberRow(onTap: _withoutNumber),
               ..._buildSuggestionsSection(context),
             ],
@@ -279,7 +415,9 @@ class _HouseNumberScreenState extends State<HouseNumberScreen> {
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
             child: _SubmitButton(
-              label: '${houseNumberLabel(widget.street, _number)} übernehmen',
+              label: _confirmingApproximate
+                  ? 'Trotzdem übernehmen'
+                  : '${houseNumberLabel(widget.street, _number)} übernehmen',
               loading: _resolving,
               onTap: _submit,
               expand: true,
@@ -305,7 +443,9 @@ class _HouseNumberScreenState extends State<HouseNumberScreen> {
               Expanded(child: _buildInputField(context, compactChip: false)),
               const SizedBox(width: 12),
               _SubmitButton(
-                label: 'Übernehmen',
+                label: _confirmingApproximate
+                    ? 'Trotzdem übernehmen'
+                    : 'Übernehmen',
                 loading: _resolving,
                 onTap: _submit,
                 expand: false,
@@ -334,6 +474,13 @@ class _HouseNumberScreenState extends State<HouseNumberScreen> {
             ),
           ),
           const SizedBox(height: 10),
+          if (_confirmingApproximate) ...[
+            _NotFoundNotice(
+              number: _notFoundNumber!,
+              canEstimate: widget.suggestionSource != null,
+            ),
+            const SizedBox(height: 10),
+          ],
           if (keyboardOpen)
             Text(
               'Kartenvorschau entfällt quer – sie erscheint, sobald die '
@@ -513,6 +660,47 @@ class _HouseNumberScreenState extends State<HouseNumberScreen> {
           ],
         ),
     ];
+  }
+}
+
+/// "Nicht in den Kartendaten" (Patch 63) - ehrlich statt Kartenwaehler.
+class _NotFoundNotice extends StatelessWidget {
+  final String number;
+  final bool canEstimate;
+  const _NotFoundNotice({required this.number, required this.canEstimate});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: colorScheme.tertiaryContainer,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            Icons.info_outline_rounded,
+            color: colorScheme.onTertiaryContainer,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'Hausnummer $number ist in den Kartendaten nicht verzeichnet. '
+              '${canEstimate ? 'Beim Übernehmen wird die Position zwischen den '
+                        'bekannten Nachbarnummern geschätzt.' : 'Beim Übernehmen ist das Ziel die Straßenmitte.'} '
+              'Oder eine andere Nummer eingeben.',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: colorScheme.onTertiaryContainer,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 
