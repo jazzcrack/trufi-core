@@ -88,6 +88,22 @@ class PlannerIndexLoadInfo {
   }
 }
 
+/// Input for [TrufiPlannerDataSource._loadSnapshotFileInIsolate]
+/// (fahrplaner.de fork patch 66).
+class _SnapshotFileRequest {
+  final String path;
+  final String fingerprint;
+  final double transferRadiusMeters;
+  final int sameNameRouteLimit;
+
+  const _SnapshotFileRequest({
+    required this.path,
+    required this.fingerprint,
+    required this.transferRadiusMeters,
+    required this.sameNameRouteLimit,
+  });
+}
+
 /// Input for [_loadOrBuildInIsolate] (for isolate communication).
 class _GtfsLoadRequest {
   final Uint8List bytes;
@@ -281,7 +297,67 @@ class TrufiPlannerDataSource implements ServiceHoursLookup {
     }
   }
 
+  /// fahrplaner.de fork patch 66: decode a downloaded snapshot file in a
+  /// worker isolate - no GTFS parse, no index build.
+  Future<void> _preloadSnapshotFile() async {
+    final sw = Stopwatch()..start();
+    final result = await compute(
+      _loadSnapshotFileInIsolate,
+      _SnapshotFileRequest(
+        path: config.snapshotFile!,
+        fingerprint: config.snapshotFingerprint!,
+        transferRadiusMeters: config.transferRadiusMeters,
+        sameNameRouteLimit: config.sameNameRouteLimit,
+      ),
+    );
+    final bundle = result.bundle;
+    _localData = bundle.data;
+    _scheduleIndex = bundle.scheduleIndex;
+    _lastIndexLoad = result.info;
+    (_client as LocalPlannerClient).loadFromParsed(
+      data: bundle.data,
+      spatialIndex: bundle.spatialIndex,
+      routeIndex: bundle.routeIndex,
+    );
+    debugPrint(
+      'TrufiPlannerDataSource: snapshot file ${config.snapshotFile} loaded in '
+      '${sw.elapsedMilliseconds}ms — ${result.info}',
+    );
+  }
+
+  static _GtfsLoadResult _loadSnapshotFileInIsolate(_SnapshotFileRequest r) {
+    final sw = Stopwatch()..start();
+    final bytes = readPlannerSnapshotFileSync(r.path);
+    if (bytes == null) {
+      throw StateError('planner snapshot not readable: ${r.path}');
+    }
+    final readMs = sw.elapsedMilliseconds;
+    String? rejected;
+    final bundle = PlannerIndexCodec.decode(
+      bytes,
+      fingerprint: r.fingerprint,
+      transferRadiusMeters: r.transferRadiusMeters,
+      sameNameRouteLimit: r.sameNameRouteLimit,
+      onReject: (reason) => rejected = reason,
+    );
+    if (bundle == null) {
+      throw StateError('planner snapshot rejected: $rejected');
+    }
+    return _GtfsLoadResult(
+      bundle: bundle,
+      info: PlannerIndexLoadInfo(
+        source: PlannerIndexSource.cache,
+        fingerprint: r.fingerprint,
+        totalMs: sw.elapsedMilliseconds,
+        readMs: readMs,
+        decodeMs: sw.elapsedMilliseconds - readMs,
+        snapshotBytes: bytes.length,
+      ),
+    );
+  }
+
   Future<void> _preloadLocal() async {
+    if (config.snapshotFile != null) return _preloadSnapshotFile();
     debugPrint(
       'TrufiPlannerDataSource: Preloading local from ${config.gtfsAsset}',
     );

@@ -6,6 +6,8 @@ Future<String?> plannerIndexCachePath(String gtfsAsset) async => null;
 
 Uint8List? readPlannerIndexSync(String path) => null;
 
+Uint8List? readPlannerSnapshotFileSync(String path) => null;
+
 Future<void> writePlannerIndex(String path, Uint8List bytes) async {}
 
 Future<void> deletePlannerIndex(String path) async {}

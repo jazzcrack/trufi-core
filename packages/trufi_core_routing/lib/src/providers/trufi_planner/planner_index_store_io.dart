@@ -25,6 +25,18 @@ Future<String?> plannerIndexCachePath(String gtfsAsset) async {
   return '${dir.path}/trufi_planner/$base-$key.idx';
 }
 
+/// fahrplaner.de fork patch 66: a snapshot shipped as a download (regional
+/// timetable package, `.idx.gz`). Gunzips when the name ends in `.gz`.
+Uint8List? readPlannerSnapshotFileSync(String path) {
+  final bytes = readPlannerIndexSync(path);
+  if (bytes == null || !path.endsWith('.gz')) return bytes;
+  try {
+    return Uint8List.fromList(gzip.decode(bytes));
+  } catch (_) {
+    return null;
+  }
+}
+
 Uint8List? readPlannerIndexSync(String path) {
   try {
     final file = File(path);

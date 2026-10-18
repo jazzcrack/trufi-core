@@ -1419,6 +1419,20 @@ feste Abschnitte kommen aus der angezeigten Verbindung statt aus der ersten
 Option (vorher blieb nach Wahl eines späteren Busses die Bahn der ersten
 Option stehen), Symbol nach Verkehrsmittel statt immer Bus.
 
+### 66. Planer-Index aus einer Datei laden (Fahrplan-Regionalpakete, T104, 18.10.2026)
+
+`trufi_core_routing/.../trufi_planner/`: neuer Konstruktor
+`TrufiPlannerConfig.localSnapshot(snapshotFile:, snapshotFingerprint:)`.
+`TrufiPlannerDataSource` dekodiert dann einen fertigen `PlannerIndexCodec`-
+Schnappschuss (`.idx` oder `.idx.gz`) im Worker-Isolat statt ein GTFS-Asset zu
+parsen und zu indizieren - der Server baut die Schnappschüsse je Region
+(Fahrplaner-Repo `backend/region-snapshot`), die App lädt sie herunter.
+Fehlende Datei, falscher Fingerabdruck oder andere Formatversion ergeben
+Status `error` (kein stiller Neubau - es gibt kein GTFS dazu); die App fällt
+dann auf ihr gebündeltes Asset zurück. `isLocal` ist auch im Schnappschuss-
+Modus wahr. Lesen über `readPlannerSnapshotFileSync` (io: gunzip bei `.gz`,
+web: null). Test `test/unit/trufi_planner_snapshot_file_test.dart`.
+
 ## Sync-Strategie: wie künftige Upstream-Änderungen reinkommen
 
 Ziel: Trufi-Core-Updates (neue Features, Bugfixes) weiter bekommen,

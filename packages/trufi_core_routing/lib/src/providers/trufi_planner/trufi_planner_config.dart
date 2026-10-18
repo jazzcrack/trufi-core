@@ -19,11 +19,20 @@ class TrufiPlannerConfig {
   /// Path to GTFS ZIP file in assets (local mode only).
   final String? gtfsAsset;
 
+  /// fahrplaner.de fork patch 66: a ready-built planner index snapshot on
+  /// disk (e.g. a downloaded regional timetable package, `.idx` or
+  /// `.idx.gz`), loaded instead of building from [gtfsAsset]. Local mode.
+  final String? snapshotFile;
+
+  /// Fingerprint the snapshot was encoded with (the GTFS it was built
+  /// from); [PlannerIndexCodec.decode] rejects any other.
+  final String? snapshotFingerprint;
+
   /// URL of trufi-server-planner (remote mode only).
   final String? serverUrl;
 
   /// Whether this is a local (offline) configuration.
-  bool get isLocal => gtfsAsset != null;
+  bool get isLocal => gtfsAsset != null || snapshotFile != null;
 
   /// Whether this is a remote (online) configuration.
   bool get isRemote => serverUrl != null;
@@ -162,7 +171,31 @@ class TrufiPlannerConfig {
          fallbackVehicleSpeedKmh > 0,
          'fallbackVehicleSpeedKmh must be > 0',
        ),
-       serverUrl = null;
+       serverUrl = null,
+       snapshotFile = null,
+       snapshotFingerprint = null;
+
+  /// fahrplaner.de fork patch 66: local configuration from a ready-built
+  /// snapshot file (see [snapshotFile]). Loading fails (status `error`)
+  /// when the file is missing, corrupt or from another format version -
+  /// the host app then falls back to its bundled asset.
+  const TrufiPlannerConfig.localSnapshot({
+    required String this.snapshotFile,
+    required String this.snapshotFingerprint,
+    this.providerId,
+    this.displayName,
+    this.description,
+    this.maxWalkingDistance = 800,
+    this.walkSpeed = 1.2,
+    this.maxTransfers = 1,
+    this.maxStopCandidates = 150,
+    this.transferRadiusMeters = 100,
+    this.sameNameRouteLimit = 3,
+    this.fallbackVehicleSpeedKmh =
+        GtfsRoutingService.defaultFallbackVehicleSpeedKmh,
+  }) : gtfsAsset = null,
+       serverUrl = null,
+       persistIndex = false;
 
   /// Create a remote (online) configuration using server URL.
   ///
@@ -180,6 +213,8 @@ class TrufiPlannerConfig {
     this.maxStopCandidates = 150,
   }) : assert(maxTransfers >= 0, 'maxTransfers must be >= 0'),
        gtfsAsset = null,
+       snapshotFile = null,
+       snapshotFingerprint = null,
        transferRadiusMeters = 100,
        sameNameRouteLimit = 3,
        persistIndex = false,

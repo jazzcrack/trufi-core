@@ -18,6 +18,11 @@ import 'planner_index_store_stub.dart'
 Future<String?> plannerIndexCachePath(String gtfsAsset) =>
     impl.plannerIndexCachePath(gtfsAsset);
 
+/// fahrplaner.de fork patch 66: read a downloaded snapshot file
+/// (gunzipped when it ends in `.gz`); null when missing or unreadable.
+Uint8List? readPlannerSnapshotFileSync(String path) =>
+    impl.readPlannerSnapshotFileSync(path);
+
 /// The whole snapshot file, or null when it does not exist or cannot be
 /// read. Synchronous on purpose: it runs inside the loading isolate.
 Uint8List? readPlannerIndexSync(String path) => impl.readPlannerIndexSync(path);
