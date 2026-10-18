@@ -1491,6 +1491,14 @@ COMPULSORY`, Modus `ODM`, route_type 715/1501). `trufi_core_home_screen`
 nur nach Anmeldung“ mit Buchungshinweis (bzw. allgemeinem Hinweis), Texte
 de/en/es in `home_screen_*.arb`.
 
+### 73. Standort in der Mitte des sichtbaren Kartenteils (Nutzer-Fund 18.10.2026)
+
+`HomeScreen._myLocationCameraPosition`: Hochkant verschiebt
+`_shiftForBottomSheet` das Kameraziel um die halbe vom Bottom-Sheet
+verdeckte Höhe (aktuelle Sheet-Größe × Kartenhöhe, Web-Mercator mit
+512-px-Kacheln) nach Süden - gilt für den Standort-Knopf und den
+automatischen Sprung aus Patch 68. Vorher lag der Standort unter dem Sheet.
+
 ## Sync-Strategie: wie künftige Upstream-Änderungen reinkommen
 
 Ziel: Trufi-Core-Updates (neue Features, Bugfixes) weiter bekommen,

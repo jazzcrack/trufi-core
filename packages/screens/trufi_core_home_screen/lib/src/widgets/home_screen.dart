@@ -125,6 +125,10 @@ class _HomeScreenState extends State<HomeScreen>
   // Sheet snap positions
   static const double _sheetMinHeightPx = 240;
   static const double _sheetMidSize = 0.35;
+
+  // Patch 73: zuletzt gemessene Kartenfläche (für _shiftForBottomSheet).
+  double? _mapAreaHeight;
+  bool _isWideLayout = false;
   static const double _sheetMaxSize = 0.85;
   double _cachedSheetMinSize = 0.15;
 
@@ -1263,7 +1267,31 @@ class _HomeScreenState extends State<HomeScreen>
     final adjusted =
         widget.config.cameraTargetAdjuster?.call(context, target, zoom) ??
         target;
-    return TrufiCameraPosition(target: adjusted, zoom: zoom);
+    return TrufiCameraPosition(
+      target: _shiftForBottomSheet(adjusted, zoom),
+      zoom: zoom,
+    );
+  }
+
+  /// fahrplaner.de fork patch 73 (Nutzer-Fund 18.10.2026): Hochkant
+  /// verdeckt das Bottom-Sheet den unteren Teil der Karte - die Kamera
+  /// zentrierte aber auf die GESAMTE Kartenfläche, der Standort lag dann
+  /// unter dem Sheet. Das Ziel wird um die halbe verdeckte Höhe nach Süden
+  /// verschoben, damit der Punkt in der Mitte des sichtbaren Teils landet.
+  /// MapLibre rechnet mit 512-px-Kacheln (Web-Mercator).
+  LatLng _shiftForBottomSheet(LatLng target, double zoom) {
+    final height = _mapAreaHeight;
+    if (_isWideLayout || height == null || !_sheetController.isAttached) {
+      return target;
+    }
+    final coveredPx = _sheetController.size * height;
+    final worldPx = 512 * math.pow(2, zoom);
+    final latRad = target.latitude * math.pi / 180;
+    final y = (1 - math.log(math.tan(latRad) + 1 / math.cos(latRad)) / math.pi) / 2;
+    final shiftedY = y + (coveredPx / 2) / worldPx;
+    final n = math.pi * (1 - 2 * shiftedY);
+    final lat = 180 / math.pi * math.atan((math.exp(n) - math.exp(-n)) / 2);
+    return LatLng(lat, target.longitude);
   }
 
   Future<void> _onMyLocationPressed() async {
@@ -1823,6 +1851,8 @@ class _HomeScreenState extends State<HomeScreen>
               builder: (context, constraints) {
                 // Responsive layout: use side panel for wide screens (>=600px)
                 final isWideScreen = constraints.maxWidth >= 600;
+                _isWideLayout = isWideScreen;
+                _mapAreaHeight = constraints.maxHeight;
                 // fahrplaner.de fork patch (Patch 42): see
                 // HomeScreenConfig.sidePanelStyle doc comment.
                 final panelStyle = widget.config.sidePanelStyle?.call(context);
