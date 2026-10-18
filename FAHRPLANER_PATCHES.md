@@ -1443,6 +1443,17 @@ den nächsten Morgen und „Frühere Verbindungen“ bis in den Vortag - ohne Da
 stand „18:26“ direkt über „06:27“. Wochentage ohne intl-Gebietsschema-Daten
 formatiert. Test `test/unit/itinerary_day_label_test.dart`.
 
+### 68. Karte springt einmal auf den ersten GPS-Fix (Nutzer-Fund 18.10.2026)
+
+`trufi_core_home_screen/lib/src/widgets/home_screen.dart`: die Startkamera
+ist `MapEngineManager.defaultCenter` (Host: GPS beim App-Start mit Zeitlimit,
+sonst Region-Mitte). Kam der GPS-Fix später, zeigte die Karte weiter die
+Region-Mitte, nur der Standortpunkt erschien irgendwo. Jetzt zentriert
+`_maybeAutoCenterOnLocation` EINMAL auf den ersten Fix (Tracking-Start bzw.
+Standort-Update) - nicht, wenn eine Route angezeigt wird, der Nutzer die
+Karte bewegt hat (Mittelpunkt > 100 m von Start-/letzter Automatik-Position)
+oder der Standort < 300 m vom Mittelpunkt liegt.
+
 ## Sync-Strategie: wie künftige Upstream-Änderungen reinkommen
 
 Ziel: Trufi-Core-Updates (neue Features, Bugfixes) weiter bekommen,

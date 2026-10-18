@@ -102,6 +102,11 @@ class _HomeScreenState extends State<HomeScreen>
 
   // Declarative layer state
   TrufiCameraPosition? _initialCamera;
+
+  /// fahrplaner.de fork patch 68: einmal auf den ersten GPS-Fix zentriert,
+  /// oder der Nutzer hat die Karte selbst bewegt - dann nie automatisch.
+  bool _autoCenteredOnLocation = false;
+  TrufiCameraPosition? _lastProgrammaticCamera;
   TrufiCameraPosition? _cameraTarget; // Driven camera position (for fit/move)
   TrufiCameraPosition? _currentCamera; // Last reported camera position
   List<TrufiMarker> _routeMarkers = const [];
@@ -555,6 +560,7 @@ class _HomeScreenState extends State<HomeScreen>
         if (location != null) {
           final position = LatLng(location.latitude, location.longitude);
           _updateMyLocationMarkers(position, location.accuracy);
+          _maybeAutoCenterOnLocation(position);
         }
       }
     }
@@ -615,6 +621,28 @@ class _HomeScreenState extends State<HomeScreen>
     super.dispose();
   }
 
+  /// fahrplaner.de fork patch 68 (Nutzer-Fund 18.10.2026): die Karte
+  /// startete an der Position vom App-Start (GPS mit Zeitlimit, sonst
+  /// Region-Mitte) und blieb dort - der spätere GPS-Fix setzte nur den
+  /// Standortpunkt. Jetzt springt sie EINMAL dorthin, solange keine Route
+  /// angezeigt wird, der Nutzer die Karte nicht bewegt hat und der Standort
+  /// mehr als 300 m vom Kartenmittelpunkt liegt.
+  void _maybeAutoCenterOnLocation(LatLng position) {
+    if (_autoCenteredOnLocation || _mapController == null) return;
+    final cubit = context.read<RoutePlannerCubit>();
+    if (cubit.state.plan != null) {
+      _autoCenteredOnLocation = true; // Route sichtbar: nicht wegspringen
+      return;
+    }
+    final center = (_currentCamera ?? _initialCamera)?.target;
+    _autoCenteredOnLocation = true;
+    if (center != null &&
+        const Distance().as(LengthUnit.Meter, center, position) < 300) {
+      return;
+    }
+    _moveCameraTracked(_myLocationCameraPosition(position));
+  }
+
   /// Called when location updates from the GPS tracking
   void _onLocationUpdate() {
     if (!mounted) return;
@@ -622,6 +650,7 @@ class _HomeScreenState extends State<HomeScreen>
     final location = _locationService.currentLocation;
     if (location != null) {
       final position = LatLng(location.latitude, location.longitude);
+      _maybeAutoCenterOnLocation(position);
 
       // Update my location marker on map
       _updateMyLocationMarkers(position, location.accuracy);
@@ -1183,6 +1212,15 @@ class _HomeScreenState extends State<HomeScreen>
 
   /// Called when the map reports a camera change.
   void _onCameraChanged(TrufiCameraPosition position) {
+    // Als Geste werten, wenn sich der Mittelpunkt merklich von der Start-
+    // bzw. letzten automatischen Position entfernt hat - manche Plattformen
+    // melden beim Start ein "Kamera steht" ohne Bewegung.
+    final reference = (_lastProgrammaticCamera ?? _initialCamera)?.target;
+    if (reference != null &&
+        const Distance().as(LengthUnit.Meter, reference, position.target) >
+            100) {
+      _autoCenteredOnLocation = true;
+    }
     _currentCamera = position;
     // Update out-of-focus state
     if (_fitCameraUtil != null && _pendingFitPoints != null) {
@@ -1209,6 +1247,7 @@ class _HomeScreenState extends State<HomeScreen>
   /// keyboard, a rotation) would hand it back to [TrufiMap], snapping the
   /// view away from the location the user asked for (#995).
   void _moveCameraTracked(TrufiCameraPosition position) {
+    _lastProgrammaticCamera = position;
     _currentCamera = position;
     _cameraTarget = null;
     _mapController?.moveCamera(position);
