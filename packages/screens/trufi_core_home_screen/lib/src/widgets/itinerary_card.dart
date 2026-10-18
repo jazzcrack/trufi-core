@@ -89,6 +89,14 @@ class ItineraryCard extends StatelessWidget {
                     const SizedBox(height: 8),
                     _buildTransferWarningRow(theme),
                   ],
+                  // fahrplaner.de fork patch 72 (T095): Bedarfsverkehr
+                  // deutlich kennzeichnen statt wie einen Linienbus zeigen.
+                  for (final leg in itinerary.legs.where(
+                    (l) => l.bookingRequired == true,
+                  )) ...[
+                    const SizedBox(height: 8),
+                    _buildBookingRow(theme, l10n, leg),
+                  ],
                   const SizedBox(height: 8),
                   // Bottom row: Distance, walking, and details button
                   _buildFooterRow(theme, l10n),
@@ -395,6 +403,48 @@ class ItineraryCard extends StatelessWidget {
                 color: color,
                 fontWeight: FontWeight.w700,
               ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBookingRow(
+    ThemeData theme,
+    HomeScreenLocalizations l10n,
+    routing.Leg leg,
+  ) {
+    const color = Color(0xFF9A4A00); // --late, siehe fahrplaner_theme.dart
+    final info = leg.bookingInfo;
+    return Container(
+      padding: const EdgeInsets.only(top: 10),
+      decoration: BoxDecoration(
+        border: Border(top: BorderSide(color: theme.dividerColor)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.phone_in_talk_rounded, size: 16, color: color),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  l10n.bookingRequiredLine(leg.displayName),
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: color,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                Text(
+                  info != null && info.isNotEmpty
+                      ? info
+                      : l10n.bookingRequiredHint,
+                  style: theme.textTheme.bodySmall,
+                ),
+              ],
             ),
           ),
         ],

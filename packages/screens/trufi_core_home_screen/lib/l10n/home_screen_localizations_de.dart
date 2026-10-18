@@ -511,4 +511,13 @@ class HomeScreenLocalizationsDe extends HomeScreenLocalizations {
   @override
   String get serverErrorMessage =>
       'Die Verbindungssuche ist gerade nicht erreichbar (Wartung oder Störung beim Server). Bitte in ein bis zwei Minuten erneut versuchen.';
+
+  @override
+  String bookingRequiredLine(String line) {
+    return '$line: fährt nur nach Anmeldung';
+  }
+
+  @override
+  String get bookingRequiredHint =>
+      'Vor der Fahrt beim Verkehrsunternehmen anmelden (Telefon/App).';
 }

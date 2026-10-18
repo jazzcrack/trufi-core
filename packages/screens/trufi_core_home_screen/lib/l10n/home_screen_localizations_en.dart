@@ -510,4 +510,13 @@ class HomeScreenLocalizationsEn extends HomeScreenLocalizations {
   @override
   String get serverErrorMessage =>
       'Trip planning is currently unavailable (server maintenance or outage). Please try again in a minute or two.';
+
+  @override
+  String bookingRequiredLine(String line) {
+    return '$line: only runs if booked in advance';
+  }
+
+  @override
+  String get bookingRequiredHint =>
+      'Book with the operator before you travel (phone/app).';
 }

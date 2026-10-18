@@ -39,6 +39,8 @@ class Leg extends Equatable {
     this.departureDelay,
     this.arrivalDelay,
     this.tripId,
+    this.bookingRequired,
+    this.bookingInfo,
   });
 
   final String mode;
@@ -89,6 +91,14 @@ class Leg extends Equatable {
   /// NavigationCubit.refreshCurrentLegDelay() im trufi_core_navigation-
   /// Paket). Null fuer Fussweg-/Fahrrad-Abschnitte ohne Trip.
   final String? tripId;
+
+  /// Fahrt nur nach Anmeldung (Rufbus, Anruf-Sammeltaxi, AST), fahrplaner.de
+  /// fork patch 72 (T095). Gesetzt vom Routing-Anbieter (MOTIS
+  /// `reservation: COMPULSORY`, Modus `ODM`, route_type 715/1501).
+  final bool? bookingRequired;
+
+  /// Buchungshinweis (Frist, Telefon, Web), wenn bekannt - Freitext.
+  final String? bookingInfo;
 
   /// Returns the transport mode enum.
   TransportMode get transportMode =>
@@ -153,6 +163,8 @@ class Leg extends Equatable {
       arrivalDelay:
           _parseDelayFromLegTime(json['end']) ?? json.getDuration('arrivalDelay'),
       tripId: json['tripId'] as String?,
+      bookingRequired: json['bookingRequired'] as bool?,
+      bookingInfo: json['bookingInfo'] as String?,
     );
   }
 
@@ -219,6 +231,8 @@ class Leg extends Equatable {
       'departureDelay': departureDelay?.inSeconds,
       'arrivalDelay': arrivalDelay?.inSeconds,
       'tripId': tripId,
+      if (bookingRequired != null) 'bookingRequired': bookingRequired,
+      if (bookingInfo != null) 'bookingInfo': bookingInfo,
     };
   }
 
@@ -249,6 +263,8 @@ class Leg extends Equatable {
     Duration? departureDelay,
     Duration? arrivalDelay,
     String? tripId,
+    bool? bookingRequired,
+    String? bookingInfo,
   }) {
     return Leg(
       mode: mode ?? this.mode,
@@ -277,6 +293,8 @@ class Leg extends Equatable {
       departureDelay: departureDelay ?? this.departureDelay,
       arrivalDelay: arrivalDelay ?? this.arrivalDelay,
       tripId: tripId ?? this.tripId,
+      bookingRequired: bookingRequired ?? this.bookingRequired,
+      bookingInfo: bookingInfo ?? this.bookingInfo,
     );
   }
 
@@ -314,6 +332,7 @@ class Leg extends Equatable {
     headsign,
     tripPatternId,
     tripId,
+    bookingRequired,
   ];
 }
 

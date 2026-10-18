@@ -182,5 +182,7 @@
   "delayLateMinutes": "+{minutes} min",
   "tripCanceled": "Cancelado",
   "networkErrorMessage": "Sin conexión a internet. La búsqueda de rutas necesita conexión; las salidas de un horario descargado y los viajes guardados siguen funcionando.",
-  "serverErrorMessage": "La búsqueda de rutas no está disponible en este momento (mantenimiento o fallo del servidor). Inténtalo de nuevo en uno o dos minutos."
+  "serverErrorMessage": "La búsqueda de rutas no está disponible en este momento (mantenimiento o fallo del servidor). Inténtalo de nuevo en uno o dos minutos.",
+  "bookingRequiredLine": "{line}: solo con reserva previa",
+  "bookingRequiredHint": "Reserve con el operador antes de viajar (teléfono/app)."
 }

@@ -732,5 +732,18 @@
   "serverErrorMessage": "Trip planning is currently unavailable (server maintenance or outage). Please try again in a minute or two.",
   "@serverErrorMessage": {
     "description": "fahrplaner.de fork patch 70: routing server unreachable or answered with an error (5xx, refused, timeout)."
+  },
+  "bookingRequiredLine": "{line}: only runs if booked in advance",
+  "bookingRequiredHint": "Book with the operator before you travel (phone/app).",
+  "@bookingRequiredLine": {
+    "description": "fahrplaner.de fork patch 72 (T095): on-demand leg (Rufbus/AST) in the itinerary card.",
+    "placeholders": {
+      "line": {
+        "type": "String"
+      }
+    }
+  },
+  "@bookingRequiredHint": {
+    "description": "fahrplaner.de fork patch 72: shown when no specific booking info is known."
   }
 }

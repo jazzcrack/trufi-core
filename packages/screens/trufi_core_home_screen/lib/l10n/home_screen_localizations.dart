@@ -948,6 +948,18 @@ abstract class HomeScreenLocalizations {
   /// In en, this message translates to:
   /// **'Trip planning is currently unavailable (server maintenance or outage). Please try again in a minute or two.'**
   String get serverErrorMessage;
+
+  /// fahrplaner.de fork patch 72 (T095): on-demand leg (Rufbus/AST) in the itinerary card.
+  ///
+  /// In en, this message translates to:
+  /// **'{line}: only runs if booked in advance'**
+  String bookingRequiredLine(String line);
+
+  /// fahrplaner.de fork patch 72: shown when no specific booking info is known.
+  ///
+  /// In en, this message translates to:
+  /// **'Book with the operator before you travel (phone/app).'**
+  String get bookingRequiredHint;
 }
 
 class _HomeScreenLocalizationsDelegate

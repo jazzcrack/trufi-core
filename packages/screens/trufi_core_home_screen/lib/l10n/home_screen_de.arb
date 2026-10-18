@@ -182,5 +182,7 @@
   "delayLateMinutes": "+{minutes} Min",
   "tripCanceled": "Fällt aus",
   "networkErrorMessage": "Keine Internetverbindung. Die Verbindungssuche braucht Netz – Abfahrten aus einem heruntergeladenen Fahrplan und gemerkte Fahrten funktionieren weiter.",
-  "serverErrorMessage": "Die Verbindungssuche ist gerade nicht erreichbar (Wartung oder Störung beim Server). Bitte in ein bis zwei Minuten erneut versuchen."
+  "serverErrorMessage": "Die Verbindungssuche ist gerade nicht erreichbar (Wartung oder Störung beim Server). Bitte in ein bis zwei Minuten erneut versuchen.",
+  "bookingRequiredLine": "{line}: fährt nur nach Anmeldung",
+  "bookingRequiredHint": "Vor der Fahrt beim Verkehrsunternehmen anmelden (Telefon/App)."
 }

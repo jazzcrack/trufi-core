@@ -511,4 +511,13 @@ class HomeScreenLocalizationsEs extends HomeScreenLocalizations {
   @override
   String get serverErrorMessage =>
       'La búsqueda de rutas no está disponible en este momento (mantenimiento o fallo del servidor). Inténtalo de nuevo en uno o dos minutos.';
+
+  @override
+  String bookingRequiredLine(String line) {
+    return '$line: solo con reserva previa';
+  }
+
+  @override
+  String get bookingRequiredHint =>
+      'Reserve con el operador antes de viajar (teléfono/app).';
 }

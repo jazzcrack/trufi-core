@@ -1481,6 +1481,16 @@ beim Server) …“. Test `test/unit/routing_error_key_test.dart`.
 „bus“ erschien sonst roh); `TransportDetailOptions.showMapTypeButton` (Standard
 true) - Hosts mit fest an Hell/Dunkel gekoppeltem Kartenstil setzen false.
 
+### 72. Bedarfsverkehr kennzeichnen (T095, 18.10.2026)
+
+`trufi_core_routing` `Leg`: neue optionale Felder `bookingRequired` und
+`bookingInfo` (mit `fromJson`/`toJson`/`copyWith`, gemerkte Fahrten behalten
+sie). Gesetzt vom Routing-Anbieter der App (MOTIS: `reservation:
+COMPULSORY`, Modus `ODM`, route_type 715/1501). `trufi_core_home_screen`
+`ItineraryCard`: je Abschnitt mit Anmeldepflicht eine Zeile „{Linie}: fährt
+nur nach Anmeldung“ mit Buchungshinweis (bzw. allgemeinem Hinweis), Texte
+de/en/es in `home_screen_*.arb`.
+
 ## Sync-Strategie: wie künftige Upstream-Änderungen reinkommen
 
 Ziel: Trufi-Core-Updates (neue Features, Bugfixes) weiter bekommen,
