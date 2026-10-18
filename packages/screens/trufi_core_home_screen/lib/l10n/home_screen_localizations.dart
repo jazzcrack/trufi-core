@@ -940,8 +940,14 @@ abstract class HomeScreenLocalizations {
   /// Shown instead of a raw exception message when fetchPlan() fails for a connectivity reason (no internet, server unreachable, timeout) - fahrplaner.de fork patch, see FAHRPLANER_PATCHES.md
   ///
   /// In en, this message translates to:
-  /// **'No connection to the routing server. Please check your internet connection and try again.'**
+  /// **'No internet connection. Trip planning needs a connection – departures from a downloaded timetable and saved trips keep working.'**
   String get networkErrorMessage;
+
+  /// fahrplaner.de fork patch 70: routing server unreachable or answered with an error (5xx, refused, timeout).
+  ///
+  /// In en, this message translates to:
+  /// **'Trip planning is currently unavailable (server maintenance or outage). Please try again in a minute or two.'**
+  String get serverErrorMessage;
 }
 
 class _HomeScreenLocalizationsDelegate

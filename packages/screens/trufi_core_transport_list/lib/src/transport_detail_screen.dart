@@ -2005,7 +2005,8 @@ class _RouteMapViewState extends State<_RouteMapView> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  if (mapEngineManager.engines.length > 1) ...[
+                  if (TransportDetailOptions.showMapTypeButton &&
+                      mapEngineManager.engines.length > 1) ...[
                     MapTypeButton.fromEngines(
                       engines: mapEngineManager.engines,
                       currentEngineIndex: mapEngineManager.currentIndex,
@@ -2225,18 +2226,31 @@ class _RouteIdentity extends StatelessWidget {
 /// produces) to its localized label, passing unknown values through so
 /// backend-provided names still show.
 String _localizedModeName(String? modeName, TransportListLocalizations l10n) {
-  return switch (modeName) {
+  // fahrplaner.de fork patch 71: ohne Groß-/Kleinschreibung und Leerzeichen
+  // vergleichen - GtfsRouteType.name liefert "bus"/"cableTram", OTP "BUS";
+  // vorher erschien dann der Rohwert ("bus") statt "Bus".
+  final key = modeName?.toLowerCase().replaceAll(RegExp(r'[\s_]'), '');
+  return switch (key) {
     null => l10n.defaultModeBus,
-    'Tram' => l10n.modeTram,
-    'Subway' => l10n.modeSubway,
-    'Rail' => l10n.modeRail,
-    'Bus' => l10n.modeBus,
-    'Ferry' => l10n.modeFerry,
-    'Cable Tram' => l10n.modeCableTram,
-    'Aerial Lift' => l10n.modeAerialLift,
-    'Funicular' => l10n.modeFunicular,
-    'Trolleybus' => l10n.modeTrolleybus,
-    'Monorail' => l10n.modeMonorail,
-    _ => modeName,
+    'tram' => l10n.modeTram,
+    'subway' => l10n.modeSubway,
+    'rail' => l10n.modeRail,
+    'bus' => l10n.modeBus,
+    'ferry' => l10n.modeFerry,
+    'cabletram' => l10n.modeCableTram,
+    'aeriallift' || 'gondola' => l10n.modeAerialLift,
+    'funicular' => l10n.modeFunicular,
+    'trolleybus' => l10n.modeTrolleybus,
+    'monorail' => l10n.modeMonorail,
+    _ => modeName!,
   };
+}
+
+/// fahrplaner.de fork patch 71: Kartenstil-Umschalter in der Liniendetail-
+/// ansicht. Hosts, deren Kartenstil fest dem Hell-/Dunkelmodus folgt (zwei
+/// Engines, aber keine echte Wahl), setzen das beim Start auf false.
+class TransportDetailOptions {
+  TransportDetailOptions._();
+
+  static bool showMapTypeButton = true;
 }

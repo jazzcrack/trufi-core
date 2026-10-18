@@ -506,5 +506,9 @@ class HomeScreenLocalizationsEs extends HomeScreenLocalizations {
 
   @override
   String get networkErrorMessage =>
-      'Sin conexión con el servidor de rutas. Comprueba tu conexión a internet e inténtalo de nuevo.';
+      'Sin conexión a internet. La búsqueda de rutas necesita conexión; las salidas de un horario descargado y los viajes guardados siguen funcionando.';
+
+  @override
+  String get serverErrorMessage =>
+      'La búsqueda de rutas no está disponible en este momento (mantenimiento o fallo del servidor). Inténtalo de nuevo en uno o dos minutos.';
 }

@@ -2462,6 +2462,9 @@ class _HomeScreenState extends State<HomeScreen>
   String _resolveError(String? error, HomeScreenLocalizations l10n) {
     if (error == noRoutesErrorKey) return l10n.noRoutesFoundShort;
     if (error == tooCloseErrorKey) return l10n.originDestinationTooClose;
+    // fahrplaner.de fork patch 70: nie den rohen Schlüssel zeigen.
+    if (error == networkErrorKey) return l10n.networkErrorMessage;
+    if (error == serverErrorKey) return l10n.serverErrorMessage;
     return error ?? l10n.errorNoRoutes;
   }
 
@@ -2469,6 +2472,8 @@ class _HomeScreenState extends State<HomeScreen>
   String _resolveErrorLong(String? error, HomeScreenLocalizations l10n) {
     if (error == noRoutesErrorKey) return l10n.noRoutesFound;
     if (error == tooCloseErrorKey) return l10n.originDestinationTooClose;
+    if (error == networkErrorKey) return l10n.networkErrorMessage;
+    if (error == serverErrorKey) return l10n.serverErrorMessage;
     return error ?? l10n.errorNoRoutes;
   }
 

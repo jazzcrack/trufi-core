@@ -1464,6 +1464,23 @@ Datenquelle halten, neu laden. Schlägt das Laden fehl, bleibt der alte Stand
 aktiv und der Fehler wird weitergegeben. Nur lokale Konfigurationen. Die App
 braucht damit keinen Neustart nach dem ersten Regions-Download.
 
+### 70. Verständliche Fehlermeldung bei gestörtem Routing-Server (Nutzer-Fund 18.10.2026)
+
+`trufi_core_home_screen`: der Fehler-Dialog auf der Karte (`_resolveError`/
+`_resolveErrorLong`) zeigte den rohen Schlüssel „network_error“. Jetzt werden
+`network_error` (Gerät offline) und neu `server_error` (HTTP 5xx, abgelehnte
+Verbindung, Zeitüberschreitung - typisch beim Deploy) übersetzt; Einordnung
+über `routingErrorKey()` im Cubit. Texte de/en/es: „Keine Internetverbindung …“
+bzw. „Die Verbindungssuche ist gerade nicht erreichbar (Wartung oder Störung
+beim Server) …“. Test `test/unit/routing_error_key_test.dart`.
+
+### 71. Liniendetail: Verkehrsmittel übersetzt, Kartenstil-Umschalter abschaltbar (Nutzer-Fund 18.10.2026)
+
+`trufi_core_transport_list/.../transport_detail_screen.dart`:
+`_localizedModeName` vergleicht ohne Groß-/Kleinschreibung (GTFS-Routentyp
+„bus“ erschien sonst roh); `TransportDetailOptions.showMapTypeButton` (Standard
+true) - Hosts mit fest an Hell/Dunkel gekoppeltem Kartenstil setzen false.
+
 ## Sync-Strategie: wie künftige Upstream-Änderungen reinkommen
 
 Ziel: Trufi-Core-Updates (neue Features, Bugfixes) weiter bekommen,

@@ -25,6 +25,30 @@ const String tooCloseErrorKey = 'origin_destination_too_close';
 /// route to host, errno = 65) ..."), shown verbatim to the user.
 const String networkErrorKey = 'network_error';
 
+/// fahrplaner.de fork patch 70: the routing server answered with an error or
+/// not at all (5xx, refused, timeout) - unlike [networkErrorKey] (device
+/// offline) the rider can do nothing but retry shortly.
+const String serverErrorKey = 'server_error';
+
+/// fahrplaner.de fork patch 70: Fehlerart für die Anzeige - [serverErrorKey],
+/// [networkErrorKey] oder null (Rohtext anzeigen).
+String? routingErrorKey(Object error) {
+  if (_isServerError(error)) return serverErrorKey;
+  if (_isNetworkError(error)) return networkErrorKey;
+  return null;
+}
+
+bool _isServerError(Object error) {
+  final text = error.toString().toLowerCase();
+  return RegExp(r'http (5\d\d)|statuscode: 5\d\d|\b50[234]\b').hasMatch(text) ||
+      text.contains('bad gateway') ||
+      text.contains('service unavailable') ||
+      text.contains('connection refused') ||
+      text.contains('connection reset') ||
+      text.contains('zeitüberschreitung') ||
+      text.contains('timeoutexception');
+}
+
 /// Stabile Identitaet einer Verbindung ueber Seiten/Neuladen hinweg
 /// (fahrplaner.de fork patch 59, T043): Abfahrtszeit + Linien/Trips je
 /// Bein. Fuer das Entfernen von Dubletten beim Zusammenfuehren und als
@@ -375,7 +399,7 @@ class RoutePlannerCubit extends Cubit<RoutePlannerState> {
       emit(
         state.copyWith(
           isLoading: false,
-          error: _isNetworkError(e) ? networkErrorKey : e.toString(),
+          error: routingErrorKey(e) ?? e.toString(),
         ),
       );
     }
@@ -485,7 +509,7 @@ class RoutePlannerCubit extends Cubit<RoutePlannerState> {
         state.copyWith(
           isLoadingEarlier: false,
           isLoadingLater: false,
-          error: _isNetworkError(e) ? networkErrorKey : e.toString(),
+          error: routingErrorKey(e) ?? e.toString(),
         ),
       );
     }

@@ -506,5 +506,9 @@ class HomeScreenLocalizationsDe extends HomeScreenLocalizations {
 
   @override
   String get networkErrorMessage =>
-      'Keine Verbindung zum Routing-Server. Bitte Internetverbindung prüfen und erneut versuchen.';
+      'Keine Internetverbindung. Die Verbindungssuche braucht Netz – Abfahrten aus einem heruntergeladenen Fahrplan und gemerkte Fahrten funktionieren weiter.';
+
+  @override
+  String get serverErrorMessage =>
+      'Die Verbindungssuche ist gerade nicht erreichbar (Wartung oder Störung beim Server). Bitte in ein bis zwei Minuten erneut versuchen.';
 }

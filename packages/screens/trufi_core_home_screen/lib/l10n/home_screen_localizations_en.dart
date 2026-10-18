@@ -505,5 +505,9 @@ class HomeScreenLocalizationsEn extends HomeScreenLocalizations {
 
   @override
   String get networkErrorMessage =>
-      'No connection to the routing server. Please check your internet connection and try again.';
+      'No internet connection. Trip planning needs a connection – departures from a downloaded timetable and saved trips keep working.';
+
+  @override
+  String get serverErrorMessage =>
+      'Trip planning is currently unavailable (server maintenance or outage). Please try again in a minute or two.';
 }
