@@ -1433,6 +1433,16 @@ dann auf ihr gebündeltes Asset zurück. `isLocal` ist auch im Schnappschuss-
 Modus wahr. Lesen über `readPlannerSnapshotFileSync` (io: gunzip bei `.gz`,
 web: null). Test `test/unit/trufi_planner_snapshot_file_test.dart`.
 
+### 67. Tageszeile in der Verbindungsliste (Nutzer-Fund 18.10.2026)
+
+`trufi_core_home_screen/lib/src/widgets/itinerary_list.dart`: vor einer
+Verbindung, die auf einen anderen Tag fällt als die vorige (bzw. als erste
+nicht heute ist), steht eine Zeile „Morgen, Mo. 19.10.“ / „Gestern, Sa. 17.10.“
+/ „Mi. 21.10.“. Bei dünnem Takt reichten die ersten fünf Verbindungen bis in
+den nächsten Morgen und „Frühere Verbindungen“ bis in den Vortag - ohne Datum
+stand „18:26“ direkt über „06:27“. Wochentage ohne intl-Gebietsschema-Daten
+formatiert. Test `test/unit/itinerary_day_label_test.dart`.
+
 ## Sync-Strategie: wie künftige Upstream-Änderungen reinkommen
 
 Ziel: Trufi-Core-Updates (neue Features, Bugfixes) weiter bekommen,

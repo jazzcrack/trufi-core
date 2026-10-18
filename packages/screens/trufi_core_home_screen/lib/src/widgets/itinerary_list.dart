@@ -529,6 +529,13 @@ class _ItineraryListState extends State<ItineraryList> {
         }
         final groupIndex = index - 2;
         final group = groups[groupIndex];
+        final dayLabel = itineraryDayLabel(
+          group.representative.startTime,
+          groupIndex == 0
+              ? null
+              : groups[groupIndex - 1].representative.startTime,
+          locale: Localizations.localeOf(context).languageCode,
+        );
         final containsSelection = group.alternatives.contains(
           state.selectedItinerary,
         );
@@ -555,6 +562,7 @@ class _ItineraryListState extends State<ItineraryList> {
           },
           child: Column(
             children: [
+              if (dayLabel != null) _DayHeader(dayLabel),
               ItineraryCard(
                 itinerary: face,
                 isSelected: containsSelection,
@@ -630,6 +638,11 @@ class _ItineraryListState extends State<ItineraryList> {
         final itemIndex = index - 2;
         final itinerary = itineraries[itemIndex];
         final isSelected = itinerary == state.selectedItinerary;
+        final dayLabel = itineraryDayLabel(
+          itinerary.startTime,
+          itemIndex == 0 ? null : itineraries[itemIndex - 1].startTime,
+          locale: Localizations.localeOf(context).languageCode,
+        );
 
         return TweenAnimationBuilder<double>(
           key: ValueKey('itinerary-${itineraryIdentityKey(itinerary)}'),
@@ -642,30 +655,35 @@ class _ItineraryListState extends State<ItineraryList> {
               child: Opacity(opacity: value, child: child),
             );
           },
-          child: ItineraryCard(
-            itinerary: itinerary,
-            isSelected: isSelected,
-            // fahrplaner.de fork patch - see the grouped list's onTap above
-            // for the rationale (viewing details must not silently change
-            // the persisted selection).
-            onTap: () {
-              // Show details inline or use custom callback
-              if (widget.onItineraryDetails != null) {
-                widget.onItineraryDetails!(itinerary);
-              } else {
-                _showDetails(itinerary);
-              }
-            },
-            onDetailsTap: null,
-            onStartNavigation:
-                widget.onStartNavigation != null &&
-                    widget.locationService != null
-                ? () => widget.onStartNavigation!(
-                    context,
-                    itinerary,
-                    widget.locationService!,
-                  )
-                : null,
+          child: Column(
+            children: [
+              if (dayLabel != null) _DayHeader(dayLabel),
+              ItineraryCard(
+                itinerary: itinerary,
+                isSelected: isSelected,
+                // fahrplaner.de fork patch - see the grouped list's onTap above
+                // for the rationale (viewing details must not silently change
+                // the persisted selection).
+                onTap: () {
+                  // Show details inline or use custom callback
+                  if (widget.onItineraryDetails != null) {
+                    widget.onItineraryDetails!(itinerary);
+                  } else {
+                    _showDetails(itinerary);
+                  }
+                },
+                onDetailsTap: null,
+                onStartNavigation:
+                    widget.onStartNavigation != null &&
+                        widget.locationService != null
+                    ? () => widget.onStartNavigation!(
+                        context,
+                        itinerary,
+                        widget.locationService!,
+                      )
+                    : null,
+              ),
+            ],
           ),
         );
       },
@@ -1233,6 +1251,76 @@ class _LoadMoreButton extends StatelessWidget {
             ),
           ),
           ?hint,
+        ],
+      ),
+    );
+  }
+}
+
+/// fahrplaner.de fork patch 67 (18.10.2026, Nutzer-Fund): Tageszeile in der
+/// Verbindungsliste. Bei dünnem Takt (Sonntagabend) reichen schon die ersten
+/// fünf Verbindungen bis in den nächsten Morgen, "Frühere Verbindungen" bis
+/// in den Vortag - ohne Datum stand "18:26" direkt über "06:27".
+/// [previous] null = erster Eintrag: nur anzeigen, wenn er nicht heute ist.
+@visibleForTesting
+String? itineraryDayLabel(
+  DateTime start,
+  DateTime? previous, {
+  DateTime? now,
+  String locale = 'de',
+}) {
+  final local = start.toLocal();
+  final day = DateTime(local.year, local.month, local.day);
+  final today = () {
+    final n = (now ?? DateTime.now()).toLocal();
+    return DateTime(n.year, n.month, n.day);
+  }();
+  if (previous == null) {
+    if (day == today) return null;
+  } else {
+    final p = previous.toLocal();
+    if (DateTime(p.year, p.month, p.day) == day) return null;
+  }
+  final diff = day.difference(today).inDays;
+  final de = locale.startsWith('de');
+  // Bewusst ohne intl-DateFormat: dessen Gebietsschema-Daten müssten erst
+  // geladen sein (initializeDateFormatting), sonst Ausnahme in der Liste.
+  const deDays = ['Mo.', 'Di.', 'Mi.', 'Do.', 'Fr.', 'Sa.', 'So.'];
+  const enDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  String two(int v) => v.toString().padLeft(2, '0');
+  final date = de
+      ? '${deDays[day.weekday - 1]} ${two(day.day)}.${two(day.month)}.'
+      : '${enDays[day.weekday - 1]} ${day.day}/${day.month}';
+  final relative = switch (diff) {
+    0 => de ? 'Heute' : 'Today',
+    1 => de ? 'Morgen' : 'Tomorrow',
+    -1 => de ? 'Gestern' : 'Yesterday',
+    _ => null,
+  };
+  return relative == null ? date : '$relative, $date';
+}
+
+class _DayHeader extends StatelessWidget {
+  final String label;
+
+  const _DayHeader(this.label);
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 4),
+      child: Row(
+        children: [
+          Text(
+            label,
+            style: theme.textTheme.labelLarge?.copyWith(
+              color: theme.colorScheme.primary,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(child: Divider(color: theme.colorScheme.outlineVariant)),
         ],
       ),
     );
