@@ -30,6 +30,16 @@ import '../models/transport_mode.dart';
 /// from the same stop (product rule, Sam 2026-08-12: "agrupar las
 /// redundantes, o sea que tienen el mismo bus principal").
 ///
+/// fahrplaner.de fork patch 65 (18.10.2026, Nutzer-Fund): in Fahrplan-
+/// Netzen ist dieselbe Linie zu einer anderen Zeit eine ANDERE Verbindung.
+/// Ohne Zeitbedingung landeten alle "Bus 508 + RS2" eines Tages in einer
+/// Karte - "spaetere Verbindungen" schienen nichts zu laden, und der
+/// Optionen-Umschalter mischte Fahrten verschiedener Stunden. Die
+/// Hauptfahrt (bzw. bei der Spiegelregel die letzte Fahrt) muss deshalb
+/// innerhalb von [sameDepartureWindow] abfahren (ankommen) - praktisch:
+/// dasselbe Fahrzeug. Upstream (Cochabamba, Taktverkehr ohne Fahrplan)
+/// gruppiert zeitunabhaengig; mit `sameDepartureWindow: null` bleibt das so.
+///
 /// Grouping only changes presentation, never ranking (#965): groups keep the
 /// incoming order of their best member, and `groups.first.representative` is
 /// always `itineraries.first` so the cubit's initial selection still points
@@ -37,6 +47,7 @@ import '../models/transport_mode.dart';
 List<ItineraryGroup> groupItineraries(
   List<Itinerary> itineraries, {
   double sameRouteToleranceMeters = 500,
+  Duration? sameDepartureWindow = const Duration(minutes: 2),
 }) {
   if (itineraries.isEmpty) return const [];
 
@@ -64,6 +75,7 @@ List<ItineraryGroup> groupItineraries(
       if (profiles[a].matches(
         profiles[b],
         sameRouteToleranceMeters: sameRouteToleranceMeters,
+        sameDepartureWindow: sameDepartureWindow,
       )) {
         parent[find(b)] = find(a);
       }
@@ -110,6 +122,7 @@ List<ItineraryGroup> groupItineraries(
       if (!profiles[a].mirrorMatches(
         profiles[b],
         sameRouteToleranceMeters: sameRouteToleranceMeters,
+        sameDepartureWindow: sameDepartureWindow,
       )) {
         continue;
       }
@@ -271,6 +284,7 @@ class _TransitProfile {
   bool matches(
     _TransitProfile other, {
     required double sameRouteToleranceMeters,
+    Duration? sameDepartureWindow,
   }) {
     if (slots.length != other.slots.length) return false;
     if (slots.isEmpty) {
@@ -280,6 +294,11 @@ class _TransitProfile {
     // Same main bus = same group. The connections after it are the group's
     // interchangeable options — no constraint on them: they board where the
     // main leg drops you and end near the destination by construction.
+    if (sameDepartureWindow != null &&
+        slots.first.startTime.difference(other.slots.first.startTime).abs() >
+            sameDepartureWindow) {
+      return false;
+    }
     return _mainLegMatches(
       slots.first,
       other.slots.first,
@@ -294,8 +313,14 @@ class _TransitProfile {
   bool mirrorMatches(
     _TransitProfile other, {
     required double sameRouteToleranceMeters,
+    Duration? sameDepartureWindow,
   }) {
     if (slots.length != other.slots.length || slots.length < 2) return false;
+    if (sameDepartureWindow != null &&
+        slots.last.endTime.difference(other.slots.last.endTime).abs() >
+            sameDepartureWindow) {
+      return false;
+    }
 
     // Same-named main buses are the MAIN pass's jurisdiction: if it kept
     // them apart (boarding beyond tolerance = different lines/directions,

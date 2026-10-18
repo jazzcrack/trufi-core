@@ -344,16 +344,20 @@ class ItineraryDetailContent extends StatelessWidget {
       );
     }
 
+    // fahrplaner.de fork patch 65 (18.10.2026, Nutzer-Fund): die festen
+    // Abschnitte kommen aus der ANGEZEIGTEN Verbindung, nicht aus der ersten
+    // Option - unterschieden sich mehrere Abschnitte (z. B. spaeterer Bus und
+    // dadurch eine andere Bahn), zeigte die Leiste sonst weiter die Bahn der
+    // ersten Option. Rueckfall auf die erste Option nur bei abweichender
+    // Abschnittszahl.
+    final shownLegs = transitLegs(itinerary);
     for (var i = 0; i < slotCount; i++) {
       if (i > 0) addSeparator();
       if (i == variantSlot) {
         addPills();
       } else {
-        // Stable across switches: the chip comes from the first option,
-        // not the displayed itinerary, so its color never flickers.
-        children.add(
-          _commonChip(referenceLegs[i], withIcon: i == 0, colorScheme),
-        );
+        final leg = shownLegs.length == slotCount ? shownLegs[i] : referenceLegs[i];
+        children.add(_commonChip(leg, withIcon: i == 0, colorScheme));
       }
     }
     if (variantSlot == null) {
@@ -400,7 +404,8 @@ class ItineraryDetailContent extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           if (withIcon) ...[
-            Icon(Icons.directions_bus_rounded, size: 16, color: textColor),
+            // Patch 65: Symbol nach Verkehrsmittel statt immer Bus.
+            Icon(_modeIcon(leg.transportMode), size: 16, color: textColor),
             if (name.isNotEmpty) const SizedBox(width: 4),
           ],
           if (name.isNotEmpty)

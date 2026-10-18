@@ -1402,6 +1402,23 @@ Nutzer-Fund (16.10.2026): "Schleusenstraße 22, Bremerhaven" wurde als nicht ver
 
 Tests: Dialog-Test mit genau diesem Fall (erste beiden Varianten leer, dritte findet das Büro); 180 Tests grün.
 
+### 65. Gruppierung nur bei gleicher Abfahrt; Optionen-Leiste folgt der gewählten Verbindung (Nutzer-Fund 18.10.2026)
+
+`trufi_core_routing/lib/src/services/itinerary_grouper.dart`: `groupItineraries`
+bekommt `sameDepartureWindow` (Standard 2 Minuten). Die Hauptfahrt muss
+innerhalb dieses Fensters abfahren (Spiegelregel: letzte Fahrt innerhalb des
+Fensters ankommen) - praktisch dasselbe Fahrzeug. Vorher landeten alle
+„Bus 508 + RS2“ eines Tages in einer Karte (Upstream-Regel für Taktverkehr ohne
+Fahrplan): „Spätere Verbindungen“ schienen nichts zu laden, neue Karten
+erschienen erst viel später, und der Optionen-Umschalter mischte Fahrten
+verschiedener Stunden. `sameDepartureWindow: null` = Upstream-Verhalten.
+Test `test/unit/itinerary_grouper_time_window_test.dart`.
+
+`trufi_core_home_screen/.../itinerary_detail_screen.dart`, Optionen-Leiste:
+feste Abschnitte kommen aus der angezeigten Verbindung statt aus der ersten
+Option (vorher blieb nach Wahl eines späteren Busses die Bahn der ersten
+Option stehen), Symbol nach Verkehrsmittel statt immer Bus.
+
 ## Sync-Strategie: wie künftige Upstream-Änderungen reinkommen
 
 Ziel: Trufi-Core-Updates (neue Features, Bugfixes) weiter bekommen,
