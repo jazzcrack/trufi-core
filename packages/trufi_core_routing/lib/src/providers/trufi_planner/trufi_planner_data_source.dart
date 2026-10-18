@@ -143,8 +143,16 @@ class _GtfsLoadResult {
 /// Manages a [PlannerRoutingClient] that can be either local or remote,
 /// and provides convenience methods for accessing data.
 class TrufiPlannerDataSource implements ServiceHoursLookup {
-  final TrufiPlannerConfig config;
+  TrufiPlannerConfig _config;
+
+  /// Current configuration (fahrplaner.de fork patch 69: replaceable via
+  /// [switchTo]).
+  TrufiPlannerConfig get config => _config;
   late final PlannerRoutingClient _client;
+
+  /// fahrplaner.de fork patch 69: bumped after every successful [switchTo],
+  /// so screens holding this shared data source can reload their views.
+  final ValueNotifier<int> generation = ValueNotifier(0);
 
   // Local-only state (for schedule index, shapes, etc.)
   GtfsData? _localData;
@@ -156,7 +164,8 @@ class TrufiPlannerDataSource implements ServiceHoursLookup {
   PlannerIndexLoadInfo? _lastIndexLoad;
   Future<void>? _pendingSnapshotWrite;
 
-  TrufiPlannerDataSource({required this.config}) {
+  TrufiPlannerDataSource({required TrufiPlannerConfig config})
+    : _config = config {
     if (config.isRemote) {
       _client = RemotePlannerClient(serverUrl: config.serverUrl!);
     } else {
@@ -554,6 +563,58 @@ class TrufiPlannerDataSource implements ServiceHoursLookup {
 
   RouteFrequencyInfo? getRouteFrequency(String routeId) {
     return _scheduleIndex?.getRouteFrequency(routeId);
+  }
+
+  /// fahrplaner.de fork patch 69: load a different local dataset (e.g. a
+  /// freshly downloaded regional snapshot) into this SAME object - every
+  /// screen keeps its reference and listens to [generation]. Local configs
+  /// only. On failure the previous data stays active and the error is
+  /// rethrown.
+  Future<void> switchTo(TrufiPlannerConfig next) async {
+    if (!next.isLocal || !_config.isLocal) {
+      throw ArgumentError('switchTo supports local configurations only');
+    }
+    if (_preloadCompleter != null && !_preloadCompleter!.isCompleted) {
+      await _preloadCompleter!.future.catchError((_) {});
+    }
+    final previous = _config;
+    final previousData = _localData;
+    final previousSchedule = _scheduleIndex;
+    final previousInfo = _lastIndexLoad;
+    final client = _client as LocalPlannerClient;
+    final previousSpatial = client.spatialIndex;
+    final previousRoutes = client.routeIndex;
+    _config = next;
+    _status = TrufiPlannerDataStatus.unloaded;
+    _preloadCompleter = null;
+    try {
+      final loading = preload();
+      // switchTo meldet Fehler selbst (rethrow) - der interne Completer soll
+      // nicht zusätzlich als unbehandelter Fehler auftauchen.
+      _preloadCompleter?.future.ignore();
+      await loading;
+      if (_status != TrufiPlannerDataStatus.loaded) {
+        throw StateError(_errorMessage ?? 'switchTo failed');
+      }
+    } catch (e) {
+      // Zurück auf den alten Stand - die Screens zeigen weiter Daten.
+      _config = previous;
+      _localData = previousData;
+      _scheduleIndex = previousSchedule;
+      _lastIndexLoad = previousInfo;
+      if (previousData != null &&
+          previousSpatial != null &&
+          previousRoutes != null) {
+        client.loadFromParsed(
+          data: previousData,
+          spatialIndex: previousSpatial,
+          routeIndex: previousRoutes,
+        );
+        _status = TrufiPlannerDataStatus.loaded;
+      }
+      rethrow;
+    }
+    generation.value++;
   }
 
   /// Clear all loaded data.

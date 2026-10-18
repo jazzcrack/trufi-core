@@ -1454,6 +1454,16 @@ Standort-Update) - nicht, wenn eine Route angezeigt wird, der Nutzer die
 Karte bewegt hat (Mittelpunkt > 100 m von Start-/letzter Automatik-Position)
 oder der Standort < 300 m vom Mittelpunkt liegt.
 
+### 69. Datenquelle im laufenden Betrieb wechseln (T104, 18.10.2026)
+
+`trufi_core_routing/.../trufi_planner_data_source.dart`: `config` ist jetzt
+austauschbar über `switchTo(TrufiPlannerConfig)` - lädt einen anderen lokalen
+Datenstand (z. B. eine frisch heruntergeladene Region) in DASSELBE Objekt,
+erhöht danach `generation` (ValueNotifier), damit Screens, die die geteilte
+Datenquelle halten, neu laden. Schlägt das Laden fehl, bleibt der alte Stand
+aktiv und der Fehler wird weitergegeben. Nur lokale Konfigurationen. Die App
+braucht damit keinen Neustart nach dem ersten Regions-Download.
+
 ## Sync-Strategie: wie künftige Upstream-Änderungen reinkommen
 
 Ziel: Trufi-Core-Updates (neue Features, Bugfixes) weiter bekommen,

@@ -30,7 +30,11 @@ void main() {
 
   tearDown(() => tempDir.delete(recursive: true));
 
-  Future<TrufiPlannerDataSource> load(String name, String fp, {bool gz = false}) async {
+  Future<TrufiPlannerDataSource> load(
+    String name,
+    String fp, {
+    bool gz = false,
+  }) async {
     final blob = PlannerIndexCodec.encode(built, fingerprint: fingerprint);
     final file = File('${tempDir.path}/$name')
       ..writeAsBytesSync(gz ? gzip.encode(blob) : blob);
@@ -57,20 +61,64 @@ void main() {
     expect(ds.status, TrufiPlannerDataStatus.loaded);
   });
 
-  test('wrong fingerprint or missing file ends in error, never a build', () async {
-    final wrong = await load('region.idx.gz', 'nicht-passend', gz: true);
-    expect(wrong.status, TrufiPlannerDataStatus.error);
-    expect(wrong.errorMessage, contains('rejected'));
+  test(
+    'wrong fingerprint or missing file ends in error, never a build',
+    () async {
+      final wrong = await load('region.idx.gz', 'nicht-passend', gz: true);
+      expect(wrong.status, TrufiPlannerDataStatus.error);
+      expect(wrong.errorMessage, contains('rejected'));
 
-    final missing = TrufiPlannerDataSource(
-      config: TrufiPlannerConfig.localSnapshot(
-        snapshotFile: '${tempDir.path}/fehlt.idx.gz',
-        snapshotFingerprint: fingerprint,
-      ),
-    );
-    await _preloadQuietly(missing);
-    expect(missing.status, TrufiPlannerDataStatus.error);
-  });
+      final missing = TrufiPlannerDataSource(
+        config: TrufiPlannerConfig.localSnapshot(
+          snapshotFile: '${tempDir.path}/fehlt.idx.gz',
+          snapshotFingerprint: fingerprint,
+        ),
+      );
+      await _preloadQuietly(missing);
+      expect(missing.status, TrufiPlannerDataStatus.error);
+    },
+  );
+
+  test(
+    'switchTo: neue Region im selben Objekt, Fehler -> alter Stand bleibt',
+    () async {
+      final first = await load('a.idx.gz', fingerprint, gz: true);
+      expect(first.generation.value, 0);
+      final blob = PlannerIndexCodec.encode(built, fingerprint: fingerprint);
+      final second = File('${tempDir.path}/b.idx')..writeAsBytesSync(blob);
+      await first.switchTo(
+        TrufiPlannerConfig.localSnapshot(
+          snapshotFile: second.path,
+          snapshotFingerprint: fingerprint,
+        ),
+      );
+      expect(first.generation.value, 1);
+      expect(first.config.snapshotFile, second.path);
+      expect(first.status, TrufiPlannerDataStatus.loaded);
+
+      final stops = first.data!.stops.length;
+      await expectLater(
+        first.switchTo(
+          TrufiPlannerConfig.localSnapshot(
+            snapshotFile: '${tempDir.path}/fehlt.idx.gz',
+            snapshotFingerprint: fingerprint,
+          ),
+        ),
+        throwsA(anything),
+      );
+      expect(first.generation.value, 1);
+      expect(first.config.snapshotFile, second.path);
+      expect(first.status, TrufiPlannerDataStatus.loaded);
+      expect(first.data!.stops.length, stops);
+      expect(
+        first.findNearestStops(
+          first.data!.stops.values.first.position,
+          maxDistance: 50,
+        ),
+        isNotEmpty,
+      );
+    },
+  );
 
   test('config: snapshot mode is local, not remote', () {
     const config = TrufiPlannerConfig.localSnapshot(
@@ -88,11 +136,14 @@ void main() {
 /// test zone that surfaces as an unhandled error (same as for a broken asset).
 Future<void> _preloadQuietly(TrufiPlannerDataSource ds) {
   final done = Completer<void>();
-  runZonedGuarded(() async {
-    await ds.preload();
-    if (!done.isCompleted) done.complete();
-  }, (_, _) {
-    if (!done.isCompleted) done.complete();
-  });
+  runZonedGuarded(
+    () async {
+      await ds.preload();
+      if (!done.isCompleted) done.complete();
+    },
+    (_, _) {
+      if (!done.isCompleted) done.complete();
+    },
+  );
   return done.future;
 }
