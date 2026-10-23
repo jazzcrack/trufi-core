@@ -1499,6 +1499,19 @@ verdeckte Höhe (aktuelle Sheet-Größe × Kartenhöhe, Web-Mercator mit
 512-px-Kacheln) nach Süden - gilt für den Standort-Knopf und den
 automatischen Sprung aus Patch 68. Vorher lag der Standort unter dem Sheet.
 
+### 74. Tab-Hülle selbst zeichnen (Redesign 2026-10, 23.10.2026)
+
+**Pakete:** `trufi_core_interfaces`, `trufi_core_ui`.
+**Was:** Neues optionales `AppConfiguration.bottomNavShellBuilder`
+(`BottomNavShellData`: Inhalt, aktiver Tab, `onSelect`, Tabs, Beschriftungen).
+Ist es gesetzt, zeichnet `AppShellWithBottomNav` weder `NavigationBar` noch
+`NavigationRail`, sondern ruft den Builder auf (hat Vorrang vor Patch 43).
+**Warum:** Das Redesign verlangt eine Aktiv-Fläche um Symbol UND Text, im
+Querformat eine 92-px-Leiste mit unten ausgerichteten Tabs und eine
+Mini-Leiste fest über den Tabs – mit Material-Theme nicht erreichbar.
+**Abwärtskompatibel:** ohne Builder unverändert. Test:
+`trufi_core_ui/test/app_router_shell_builder_test.dart`.
+
 ## Sync-Strategie: wie künftige Upstream-Änderungen reinkommen
 
 Ziel: Trufi-Core-Updates (neue Features, Bugfixes) weiter bekommen,

@@ -26,6 +26,9 @@ class AppRouter {
   /// See [AppConfiguration.useNavigationRail] for the full contract.
   final bool Function(BuildContext context)? useNavigationRail;
 
+  /// See [AppConfiguration.bottomNavShellBuilder] (Patch 74).
+  final BottomNavShellBuilder? bottomNavShellBuilder;
+
   /// Initial route to navigate to (for web deep linking)
   final String? initialRoute;
 
@@ -41,6 +44,7 @@ class AppRouter {
     this.logo,
     this.bottomNavTabs,
     this.useNavigationRail,
+    this.bottomNavShellBuilder,
     GlobalKey<NavigatorState>? rootNavigatorKey,
     GlobalKey<NavigatorState>? shellNavigatorKey,
   }) : rootNavigatorKey = rootNavigatorKey ?? GlobalKey<NavigatorState>(),
@@ -177,6 +181,7 @@ class AppRouter {
             tabs: tabs,
             screens: screens,
             useNavigationRail: useNavigationRail,
+            shellBuilder: bottomNavShellBuilder,
           );
         },
         branches: branches,
@@ -294,12 +299,16 @@ class AppShellWithBottomNav extends StatelessWidget {
   /// See [AppConfiguration.useNavigationRail] for the full contract.
   final bool Function(BuildContext context)? useNavigationRail;
 
+  /// See [AppConfiguration.bottomNavShellBuilder] (Patch 74).
+  final BottomNavShellBuilder? shellBuilder;
+
   const AppShellWithBottomNav({
     super.key,
     required this.navigationShell,
     required this.tabs,
     required this.screens,
     this.useNavigationRail,
+    this.shellBuilder,
   });
 
   TrufiScreen _rootScreen(BottomNavTab tab) =>
@@ -316,6 +325,20 @@ class AppShellWithBottomNav extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // fahrplaner.de fork patch (Patch 74): host draws the shell itself.
+    final builder = shellBuilder;
+    if (builder != null) {
+      return builder(
+        context,
+        BottomNavShellData(
+          body: navigationShell,
+          currentIndex: navigationShell.currentIndex,
+          onSelect: _onDestinationSelected,
+          tabs: tabs,
+          labels: [for (final tab in tabs) _label(context, tab)],
+        ),
+      );
+    }
     // fahrplaner.de fork patch (Patch 43, see FAHRPLANER_PATCHES.md).
     if (useNavigationRail?.call(context) ?? false) {
       return Scaffold(

@@ -38,3 +38,36 @@ class BottomNavTab {
     this.labelBuilder,
   });
 }
+
+/// fahrplaner.de fork patch (Patch 74, see FAHRPLANER_PATCHES.md): what
+/// [AppConfiguration.bottomNavShellBuilder] receives to draw the tab shell
+/// itself (bottom bar, side rail, anything above the bar) instead of the
+/// default Material `NavigationBar`/`NavigationRail`.
+class BottomNavShellData {
+  /// The active branch's content (go_router's navigation shell).
+  final Widget body;
+
+  /// Index of the active tab in [tabs].
+  final int currentIndex;
+
+  /// Switches to tab [index]; selecting the active tab again pops it back
+  /// to its root (same behaviour as the default shell).
+  final void Function(int index) onSelect;
+
+  final List<BottomNavTab> tabs;
+
+  /// Resolved label per tab (same order as [tabs]).
+  final List<String> labels;
+
+  const BottomNavShellData({
+    required this.body,
+    required this.currentIndex,
+    required this.onSelect,
+    required this.tabs,
+    required this.labels,
+  });
+}
+
+typedef BottomNavShellBuilder =
+    Widget Function(BuildContext context, BottomNavShellData data);
+

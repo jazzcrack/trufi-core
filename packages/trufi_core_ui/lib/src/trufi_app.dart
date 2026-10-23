@@ -94,6 +94,7 @@ class _TrufiAppState extends State<TrufiApp> {
       logo: widget.config.logo,
       bottomNavTabs: widget.config.bottomNavTabs,
       useNavigationRail: widget.config.useNavigationRail,
+      bottomNavShellBuilder: widget.config.bottomNavShellBuilder,
     );
     _sharedRouteNotifier = SharedRouteNotifier();
 

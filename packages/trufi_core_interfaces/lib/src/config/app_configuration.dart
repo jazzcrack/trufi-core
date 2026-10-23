@@ -180,6 +180,12 @@ class AppConfiguration {
   /// `NavigationBar` (unchanged, fully backward compatible).
   final bool Function(BuildContext context)? useNavigationRail;
 
+  /// fahrplaner.de fork patch (Patch 74): when [bottomNavTabs] is set, lets
+  /// the host draw the whole tab shell itself (see [BottomNavShellData]).
+  /// Takes precedence over [useNavigationRail]. Default: null → the
+  /// built-in `NavigationBar`/`NavigationRail` (unchanged).
+  final BottomNavShellBuilder? bottomNavShellBuilder;
+
   const AppConfiguration({
     required this.appName,
     this.appTagline,
@@ -199,5 +205,6 @@ class AppConfiguration {
     this.routingTimeOverride,
     this.bottomNavTabs,
     this.useNavigationRail,
+    this.bottomNavShellBuilder,
   });
 }
