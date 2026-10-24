@@ -88,6 +88,7 @@ class _FakeEngine extends ITrufiMapEngine {
     List<WidgetMarker> widgetMarkers = const [],
     Offset? attributionButtonMargin,
     AttributionButtonPosition? attributionButtonPosition,
+    bool attributionButtonEnabled = true,
   }) {
     calls.camera = camera;
     return _FakeMap(controller: controller, initialCamera: initialCamera);

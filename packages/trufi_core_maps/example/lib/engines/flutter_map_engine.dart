@@ -68,6 +68,7 @@ class FlutterMapEngine implements ITrufiMapEngine {
     List<WidgetMarker> widgetMarkers = const [],
     Offset? attributionButtonMargin,
     AttributionButtonPosition? attributionButtonPosition,
+    bool attributionButtonEnabled = true,
   }) {
     return _FlutterMapWidget(
       key: ValueKey(id),

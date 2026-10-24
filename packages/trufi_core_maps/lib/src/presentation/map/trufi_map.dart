@@ -78,6 +78,7 @@ class TrufiMap extends StatefulWidget {
     this.widgetMarkers = const [],
     this.attributionButtonMargin,
     this.attributionButtonPosition,
+    this.attributionButtonEnabled = true,
   });
 
   /// MapLibre style URL or local path.
@@ -126,6 +127,9 @@ class TrufiMap extends StatefulWidget {
   /// noetigen Margin ist zu fragil). Null keeps MapLibre's own default
   /// corner.
   final AttributionButtonPosition? attributionButtonPosition;
+
+  /// fahrplaner.de fork patch 75: native Attribution ausblenden.
+  final bool attributionButtonEnabled;
 
   @override
   State<TrufiMap> createState() => _TrufiMapState();
@@ -719,6 +723,7 @@ class _TrufiMapState extends State<TrufiMap> implements TrufiMapDelegate {
               widget.attributionButtonMargin!.dy,
             ),
       attributionButtonPosition: widget.attributionButtonPosition,
+      attributionButtonEnabled: widget.attributionButtonEnabled,
       onMapCreated: (ctl) async {
         _mapCtl = ctl;
       },

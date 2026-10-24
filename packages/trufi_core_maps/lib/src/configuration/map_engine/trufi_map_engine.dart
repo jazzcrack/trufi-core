@@ -64,6 +64,11 @@ abstract class ITrufiMapEngine {
     // [attributionButtonMargin] ausgewertet (die Margin bleibt dann relativ
     // zur NEUEN Ecke).
     AttributionButtonPosition? attributionButtonPosition,
+    // fahrplaner.de fork patch 75 (24.10.2026): native Attribution ganz
+    // ausblenden, wenn die Host-App eine eigene zeigt (gleiche Angaben).
+    // Braucht maplibre_gl mit `attributionButtonEnabled` (Fork
+    // jazzcrack/flutter-maplibre-gl). Default `true` = unveraendert.
+    bool attributionButtonEnabled = true,
   });
 }
 

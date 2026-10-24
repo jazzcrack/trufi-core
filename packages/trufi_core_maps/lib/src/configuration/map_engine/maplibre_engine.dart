@@ -89,6 +89,7 @@ class MapLibreEngine implements ITrufiMapEngine {
     List<WidgetMarker> widgetMarkers = const [],
     Offset? attributionButtonMargin,
     AttributionButtonPosition? attributionButtonPosition,
+    bool attributionButtonEnabled = true,
   }) {
     return TrufiMap(
       key: ValueKey(id),
@@ -103,6 +104,7 @@ class MapLibreEngine implements ITrufiMapEngine {
       widgetMarkers: widgetMarkers,
       attributionButtonMargin: attributionButtonMargin,
       attributionButtonPosition: attributionButtonPosition,
+      attributionButtonEnabled: attributionButtonEnabled,
     );
   }
 }

@@ -55,6 +55,7 @@ class _FakeEngine extends ITrufiMapEngine {
     // nachgezogen.
     Offset? attributionButtonMargin,
     AttributionButtonPosition? attributionButtonPosition,
+    bool attributionButtonEnabled = true,
   }) => const SizedBox.expand();
 }
 

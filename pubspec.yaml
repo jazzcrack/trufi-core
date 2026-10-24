@@ -84,3 +84,12 @@ melos:
         concurrency: 1
       packageFilters:
         dependsOn: flutter_localizations
+
+# fahrplaner.de fork patch 75 (24.10.2026): maplibre_gl mit
+# `attributionButtonEnabled` (eigener Fork, siehe FAHRPLANER_PATCHES.md).
+dependency_overrides:
+  maplibre_gl:
+    git:
+      url: https://github.com/jazzcrack/flutter-maplibre-gl.git
+      path: maplibre_gl
+      ref: fahrplaner-patches

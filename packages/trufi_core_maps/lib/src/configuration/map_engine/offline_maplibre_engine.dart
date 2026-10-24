@@ -432,6 +432,7 @@ class OfflineMapLibreEngine implements ITrufiMapEngine {
     List<WidgetMarker> widgetMarkers = const [],
     Offset? attributionButtonMargin,
     AttributionButtonPosition? attributionButtonPosition,
+    bool attributionButtonEnabled = true,
   }) {
     return _OfflineMapWrapper(
       key: ValueKey(id),
@@ -446,6 +447,7 @@ class OfflineMapLibreEngine implements ITrufiMapEngine {
       widgetMarkers: widgetMarkers,
       attributionButtonMargin: attributionButtonMargin,
       attributionButtonPosition: attributionButtonPosition,
+      attributionButtonEnabled: attributionButtonEnabled,
     );
   }
 }
@@ -462,6 +464,7 @@ class _OfflineMapWrapper extends StatefulWidget {
   final List<WidgetMarker> widgetMarkers;
   final Offset? attributionButtonMargin;
   final AttributionButtonPosition? attributionButtonPosition;
+  final bool attributionButtonEnabled;
 
   const _OfflineMapWrapper({
     super.key,
@@ -476,6 +479,7 @@ class _OfflineMapWrapper extends StatefulWidget {
     this.widgetMarkers = const [],
     this.attributionButtonMargin,
     this.attributionButtonPosition,
+    this.attributionButtonEnabled = true,
   });
 
   @override
@@ -574,6 +578,7 @@ class _OfflineMapWrapperState extends State<_OfflineMapWrapper> {
       widgetMarkers: widget.widgetMarkers,
       attributionButtonMargin: widget.attributionButtonMargin,
       attributionButtonPosition: widget.attributionButtonPosition,
+      attributionButtonEnabled: widget.attributionButtonEnabled,
     );
   }
 }

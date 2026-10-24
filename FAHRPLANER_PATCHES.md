@@ -1512,6 +1512,21 @@ Mini-Leiste fest über den Tabs – mit Material-Theme nicht erreichbar.
 **Abwärtskompatibel:** ohne Builder unverändert. Test:
 `trufi_core_ui/test/app_router_shell_builder_test.dart`.
 
+### 75. Native Kartenattribution ausblendbar (24.10.2026)
+
+**Warum:** Die App zeigt auf ihren Karten eine eigene Attribution
+("© OpenStreetMap", oeffnet ein Sheet mit Quelle, Lizenz und Kartenstil,
+DESIGN.md "Karten-Attribution"). Der native (i)-Knopf von MapLibre war
+damit doppelt (Nutzer-Fund in der laufenden Fahrt). Verschieben oder
+Verdecken des Knopfs wurde bewusst verworfen.
+
+**Was:** `ITrufiMapEngine.buildMap(attributionButtonEnabled:)` (Default
+`true`, unveraendert) bis `TrufiMap` -> `MapLibreMap.attributionButtonEnabled`.
+Dafuer braucht es maplibre_gl mit dieser Option: eigener Fork
+`jazzcrack/flutter-maplibre-gl`, Branch `fahrplaner-patches` (Patch 1),
+als `dependency_overrides` im Workspace-Root eingebunden. Alle Fakes in
+Tests und die Beispiel-Engine haben den neuen Parameter bekommen.
+
 ## Sync-Strategie: wie künftige Upstream-Änderungen reinkommen
 
 Ziel: Trufi-Core-Updates (neue Features, Bugfixes) weiter bekommen,
