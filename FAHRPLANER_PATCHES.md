@@ -1527,6 +1527,21 @@ Dafuer braucht es maplibre_gl mit dieser Option: eigener Fork
 als `dependency_overrides` im Workspace-Root eingebunden. Alle Fakes in
 Tests und die Beispiel-Engine haben den neuen Parameter bekommen.
 
+### 76. Android: Standort-Tracking als Vordergrunddienst (24.10.2026)
+
+**Warum:** Erkennung unterwegs (Redesign Prompt 5b: Bus verpasst, frueheren
+Bus erwischt, anderer Weg) und Fahrtfortschritt brauchen auch im
+Hintergrund regelmaessige Positionen. Android liefert ohne "Immer" im
+Hintergrund nur wenige Updates pro Stunde.
+
+**Was:** `LocationService.androidForegroundNotification` (statisch,
+`ForegroundNotificationConfig?`, Default `null` = unveraendert). Gesetzt
+-> `_buildTrackingSettings()` liefert auf Android `AndroidSettings` mit
+`foregroundNotificationConfig`; geolocator startet dann seinen
+Vordergrunddienst mit Benachrichtigung, solange `startTracking()` laeuft
+(nur waehrend einer Fahrt). Die App braucht dafuer
+`FOREGROUND_SERVICE` und `FOREGROUND_SERVICE_LOCATION` im Manifest.
+
 ## Sync-Strategie: wie künftige Upstream-Änderungen reinkommen
 
 Ziel: Trufi-Core-Updates (neue Features, Bugfixes) weiter bekommen,

@@ -312,10 +312,26 @@ class LocationService extends ChangeNotifier {
   /// dieses plattformuebergreifende Paket auch auf Web kompilierbar
   /// bleibt (dieselbe Wahl wie Geolocators eigene Facade,
   /// `Geolocator.getCurrentPosition()`).
+  /// fahrplaner.de fork patch 76 (24.10.2026, siehe FAHRPLANER_PATCHES.md):
+  /// Android drosselt Standort-Updates im Hintergrund ohne "Immer"-
+  /// Berechtigung auf wenige pro Stunde. Ist diese Konfiguration gesetzt,
+  /// laeuft das Tracking ([startTracking], nur waehrend einer Fahrt genutzt)
+  /// als Vordergrunddienst mit sichtbarer Benachrichtigung - zuverlaessige
+  /// Updates im Hintergrund, ohne "Immer". `null` (Default) = unveraendert.
+  static ForegroundNotificationConfig? androidForegroundNotification;
+
   LocationSettings _buildTrackingSettings({
     required LocationAccuracy accuracy,
     required int distanceFilter,
   }) {
+    final foreground = androidForegroundNotification;
+    if (defaultTargetPlatform == TargetPlatform.android && foreground != null) {
+      return AndroidSettings(
+        accuracy: accuracy,
+        distanceFilter: distanceFilter,
+        foregroundNotificationConfig: foreground,
+      );
+    }
     if (defaultTargetPlatform == TargetPlatform.iOS) {
       return AppleSettings(
         accuracy: accuracy,
